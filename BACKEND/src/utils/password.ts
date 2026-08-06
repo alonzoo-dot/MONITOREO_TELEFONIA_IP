@@ -14,3 +14,17 @@ export async function verificarPassword(
 ): Promise<boolean> {
   return bcrypt.compare(passwordPlano, passwordHash);
 }
+
+/** Genera una contraseña temporal aleatoria y legible (letras y números). */
+export function generarPasswordTemporal(longitud = 10): string {
+  // Sin caracteres confusos (0, O, l, I) para que sea fácil de leer y dictar
+  const caracteres = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+  let resultado = '';
+
+  for (let i = 0; i < longitud; i++) {
+    const indice = Math.floor(Math.random() * caracteres.length);
+    resultado += caracteres[indice];
+  }
+
+  return resultado;
+}

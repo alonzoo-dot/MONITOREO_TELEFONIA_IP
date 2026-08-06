@@ -1,5 +1,6 @@
 import express, { type Application, type Request, type Response } from 'express';
 import rutasAuth from './routes/auth.routes';
+import rutasUsuarios from './routes/usuarios.routes';
 
 export function crearAplicacion(): Application {
   const aplicacion = express();
@@ -10,8 +11,11 @@ export function crearAplicacion(): Application {
     respuesta.json({ estado: 'ok', servicio: 'hotelwatch-backend' });
   });
 
-  // Rutas de autenticación, todas bajo el prefijo /api/auth
+  // Rutas de autenticación
   aplicacion.use('/api/auth', rutasAuth);
+
+  // Rutas de gestión de usuarios
+  aplicacion.use('/api/usuarios', rutasUsuarios);
 
   return aplicacion;
 }

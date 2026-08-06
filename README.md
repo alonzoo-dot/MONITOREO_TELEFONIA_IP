@@ -38,6 +38,7 @@ Estos pasos se siguen al clonar el repositorio en una máquina nueva.
 Un solo comando instala todo lo que el proyecto necesita (lo lee del package.json):
 
     npm install
+    -npm run migrate up
 
 Esto descarga las siguientes librerías:
 
