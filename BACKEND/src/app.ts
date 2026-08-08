@@ -1,9 +1,14 @@
 import express, { type Application, type Request, type Response } from 'express';
+import cors from 'cors';
 import rutasAuth from './routes/auth.routes';
 import rutasUsuarios from './routes/usuarios.routes';
 
 export function crearAplicacion(): Application {
   const aplicacion = express();
+
+
+  // Permitir peticiones desde el frontend 
+  aplicacion.use(cors({ origin: 'http://localhost:5173' }));
 
   aplicacion.use(express.json());
 
