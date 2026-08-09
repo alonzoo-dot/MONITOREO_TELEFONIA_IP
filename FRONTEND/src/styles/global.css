@@ -1,0 +1,57 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* ===== Variables de color y diseño */
+:root {
+  --bg: #F6F7F9;
+  --card: #FFFFFF;
+  --card-2: #FAFBFC;
+  --ink: #1A1D21;
+  --ink-soft: #5B6470;
+  --ink-faint: #98A0AA;
+  --line: #E8EAEE;
+  --line-soft: #F0F1F4;
+  --accent: #2563EB;
+  --accent-soft: #EAF1FE;
+  --accent-dk: #1D4FD0;
+  --online: #15803D;
+  --online-bg: #E9F6EF;
+  --offline: #D0331F;
+  --offline-bg: #FCEBE8;
+  --attn: #A9640A;
+  --attn-bg: #FBF1DC;
+  --attn-line: #EBD9AE;
+  --radius: 9px;
+  --card-radius: 14px;
+  --shadow: 0 1px 2px rgba(16,24,40,.05), 0 1px 3px rgba(16,24,40,.04);
+  --shadow-card: 0 10px 40px rgba(16,24,40,.10), 0 2px 8px rgba(16,24,40,.05);
+  --sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* ===== Reseteo base ===== */
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+}
+
+body {
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.mono {
+  font-family: var(--mono);
+}
