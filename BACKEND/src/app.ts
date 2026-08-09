@@ -13,7 +13,7 @@ export function crearAplicacion(): Application {
   aplicacion.use(express.json());
 
   aplicacion.get('/health', (_peticion: Request, respuesta: Response) => {
-    respuesta.json({ estado: 'ok', servicio: 'hotelwatch-backend' });
+    respuesta.json({ estado: 'ok', servicio: 'monitoreo-backend' });
   });
 
   // Rutas de autenticación

@@ -8,7 +8,7 @@ async function iniciarServidor(): Promise<void> {
   const aplicacion = crearAplicacion();
   aplicacion.listen(configuracion.puerto, () => {
     console.log(
-      `HotelWatch backend en http://localhost:${configuracion.puerto} (${configuracion.entorno})`,
+      `Monitoreo backend en http://localhost:${configuracion.puerto} (${configuracion.entorno})`,
     );
   });
 }

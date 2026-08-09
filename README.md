@@ -1,4 +1,4 @@
-# HotelWatch — Sistema de Monitoreo de Telefonía IP
+#Sistema de Monitoreo de Telefonía IP
 
 Sistema web para monitorear la conectividad de los teléfonos IP del Hotel Dreams
 Aventuras Riviera Maya mediante ping ICMP.
@@ -59,14 +59,14 @@ Esto descarga las siguientes librerías:
 
 Cada máquina tiene su propia base de datos local. Crearla una sola vez:
 
-    psql -U postgres -c "CREATE DATABASE hotelwatch;"
+    psql -U postgres -c "CREATE DATABASE Nombre_BD;"
 
 ### 4. Configurar las variables de entorno
 
 Crear un archivo `.env` dentro de `backend/` (copiando el ejemplo) y ajustar los
 datos reales de PostgreSQL:
 
-    DATABASE_URL=postgres://postgres:TU_CONTRASEÑA@localhost:5432/hotelwatch
+    DATABASE_URL=postgres://postgres:TU_CONTRASEÑA@localhost:5432/***
     PORT=4000
     NODE_ENV=development
 
@@ -79,7 +79,7 @@ datos reales de PostgreSQL:
 
 Si todo está bien, se verá:
 
-    HotelWatch backend en http://localhost:4000 (development)
+     backend en http://localhost:4000 (development)
 
 Verificar en el navegador: http://localhost:4000/health → { "estado": "ok" }
 
