@@ -15,15 +15,22 @@
   --accent-dk: #1D4FD0;
   --online: #15803D;
   --online-bg: #E9F6EF;
+  --online-dot: #1AA351;
   --offline: #D0331F;
   --offline-bg: #FCEBE8;
+  --offline-dot: #E5493A;
+  --desc: #6B7480;
+  --desc-bg: #EEF0F3;
+  --desc-dot: #9AA2AC;
   --attn: #A9640A;
   --attn-bg: #FBF1DC;
   --attn-line: #EBD9AE;
   --radius: 9px;
   --card-radius: 14px;
+  --rail: 56px;
   --shadow: 0 1px 2px rgba(16,24,40,.05), 0 1px 3px rgba(16,24,40,.04);
   --shadow-card: 0 10px 40px rgba(16,24,40,.10), 0 2px 8px rgba(16,24,40,.05);
+  --shadow-pop: 0 12px 32px rgba(16,24,40,.14);
   --sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 }
@@ -54,4 +61,6 @@ button {
 
 .mono {
   font-family: var(--mono);
+  font-variant-ligatures: none;
+  letter-spacing: -.02em;
 }

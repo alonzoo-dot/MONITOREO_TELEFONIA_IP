@@ -1,0 +1,372 @@
+.head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.head h1 {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+/* ===== Barra de acciones ===== */
+.actionbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.btnSec {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--ink-soft);
+  height: 40px;
+  padding: 0 15px;
+  border-radius: var(--radius);
+  font-size: 13.5px;
+  font-weight: 500;
+}
+
+.btnSec:hover:not(:disabled) {
+  border-color: var(--ink-faint);
+  color: var(--ink);
+}
+
+.btnPri {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #fff;
+  height: 40px;
+  padding: 0 16px;
+  border-radius: var(--radius);
+  font-size: 13.5px;
+  font-weight: 500;
+}
+
+.btnPri:hover:not(:disabled) {
+  background: var(--accent-dk);
+}
+
+.btnSec:disabled,
+.btnPri:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btnSec svg,
+.btnPri svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* ===== Controles / filtros ===== */
+.controls {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.search {
+  flex: 1;
+  min-width: 220px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0 12px;
+  height: 40px;
+}
+
+.search svg {
+  width: 16px;
+  height: 16px;
+  color: var(--ink-faint);
+  flex: none;
+}
+
+.search input {
+  border: none;
+  outline: none;
+  background: none;
+  font-family: inherit;
+  font-size: 14px;
+  width: 100%;
+  color: var(--ink);
+}
+
+.search input::placeholder {
+  color: var(--ink-faint);
+}
+
+.controls select {
+  font-family: inherit;
+  font-size: 13.5px;
+  color: var(--ink);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0 34px 0 13px;
+  height: 40px;
+  appearance: none;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%235B6470' stroke-width='2.2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+}
+
+.controls select:focus,
+.search:focus-within {
+  border-color: var(--accent);
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.rc {
+  margin-left: auto;
+  font-size: 12.5px;
+  color: var(--ink-faint);
+}
+
+/* ===== Tabla ===== */
+.tcard {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--card-radius);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+.tcard table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.tcard thead th {
+  text-align: left;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-faint);
+  font-weight: 600;
+  padding: 13px 16px;
+  background: var(--card-2);
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.tcard tbody td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line-soft);
+  font-size: 13.5px;
+  vertical-align: middle;
+}
+
+.tcard tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.tcard tbody tr:hover {
+  background: var(--card-2);
+}
+
+.inactive {
+  opacity: 0.6;
+}
+
+.hab {
+  font-weight: 600;
+}
+
+.ttag {
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.ttagIp {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.ttagAn {
+  background: var(--desc-bg);
+  color: var(--desc);
+}
+
+.modeltag {
+  font-size: 12px;
+  color: var(--ink-soft);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  padding: 2px 9px;
+  border-radius: 6px;
+}
+
+.stpill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.stAct {
+  background: var(--online-bg);
+  color: var(--online);
+}
+
+.stInact {
+  background: var(--desc-bg);
+  color: var(--desc);
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.dotG {
+  background: var(--online-dot);
+}
+
+.dotN {
+  background: var(--desc-dot);
+}
+
+.pend {
+  font-style: italic;
+  color: var(--ink-faint);
+  font-size: 12.5px;
+}
+
+.muted {
+  color: var(--ink-faint);
+}
+
+.acts {
+  display: flex;
+  gap: 5px;
+}
+
+.ib {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  border-radius: 7px;
+  display: grid;
+  place-items: center;
+  color: var(--ink-soft);
+}
+
+.ib svg {
+  width: 15px;
+  height: 15px;
+}
+
+.ib:hover:not(:disabled) {
+  background: var(--bg);
+  color: var(--ink);
+  border-color: var(--ink-faint);
+}
+
+.ib:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ibDanger:hover {
+  color: var(--offline);
+  border-color: var(--offline);
+  background: var(--offline-bg);
+}
+
+.ibOk:hover {
+  color: var(--online);
+  border-color: var(--online);
+  background: var(--online-bg);
+}
+
+.empty {
+  padding: 52px 16px;
+  text-align: center;
+  color: var(--ink-faint);
+}
+
+.empty b {
+  display: block;
+  color: var(--ink-soft);
+  margin-bottom: 4px;
+}
+
+.error {
+  background: var(--offline-bg);
+  border: 1px solid #f3c9c2;
+  color: var(--offline);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  font-size: 13px;
+  margin-bottom: 14px;
+}
+
+.cardLabel {
+  display: none;
+}
+
+/* ===== Responsive: tabla como tarjetas ===== */
+@media (max-width: 760px) {
+  .tcard thead {
+    display: none;
+  }
+  .tcard table,
+  .tcard tbody,
+  .tcard tr,
+  .tcard td {
+    display: block;
+    width: 100%;
+  }
+  .tcard tbody tr {
+    padding: 12px 14px;
+    border-bottom: 8px solid var(--bg);
+  }
+  .tcard tbody td {
+    border: none;
+    padding: 5px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 14px;
+  }
+  .cardLabel {
+    display: inline;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--ink-faint);
+    font-weight: 600;
+  }
+  .acts {
+    justify-content: flex-end;
+  }
+}
