@@ -94,3 +94,77 @@ export function listarDepartamentos(): Promise<Departamento[]> {
     token: obtenerToken() ?? undefined,
   });
 }
+
+/* ===================== Escritura de catálogos ===================== */
+
+/** Crea un modelo de teléfono. */
+export function crearModeloTelefono(datos: {
+  modelo: string;
+  marca: string;
+}): Promise<{ id_modelo_telefono: number }> {
+  return peticionApi('/catalogos/modelos-telefono', {
+    metodo: 'POST',
+    token: obtenerToken() ?? undefined,
+    cuerpo: datos,
+  });
+}
+
+/** Edita un modelo de teléfono. */
+export function editarModeloTelefono(
+  id: number,
+  datos: { modelo: string; marca: string },
+): Promise<{ mensaje: string }> {
+  return peticionApi(`/catalogos/modelos-telefono/${id}`, {
+    metodo: 'PUT',
+    token: obtenerToken() ?? undefined,
+    cuerpo: datos,
+  });
+}
+
+/** Crea un modelo de ATA. */
+export function crearModeloAta(datos: {
+  modelo: string;
+  marca: string;
+  cantidad_puertos: number;
+}): Promise<{ id_modelo_ata: number }> {
+  return peticionApi('/catalogos/modelos-ata', {
+    metodo: 'POST',
+    token: obtenerToken() ?? undefined,
+    cuerpo: datos,
+  });
+}
+
+/** Edita un modelo de ATA. */
+export function editarModeloAta(
+  id: number,
+  datos: { modelo: string; marca: string; cantidad_puertos: number },
+): Promise<{ mensaje: string }> {
+  return peticionApi(`/catalogos/modelos-ata/${id}`, {
+    metodo: 'PUT',
+    token: obtenerToken() ?? undefined,
+    cuerpo: datos,
+  });
+}
+
+/** Crea un departamento. */
+export function crearDepartamento(datos: {
+  nombre: string;
+}): Promise<{ id_departamento: number }> {
+  return peticionApi('/catalogos/departamentos', {
+    metodo: 'POST',
+    token: obtenerToken() ?? undefined,
+    cuerpo: datos,
+  });
+}
+
+/** Edita un departamento. */
+export function editarDepartamento(
+  id: number,
+  datos: { nombre: string },
+): Promise<{ mensaje: string }> {
+  return peticionApi(`/catalogos/departamentos/${id}`, {
+    metodo: 'PUT',
+    token: obtenerToken() ?? undefined,
+    cuerpo: datos,
+  });
+}

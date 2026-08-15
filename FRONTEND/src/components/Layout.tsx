@@ -38,6 +38,17 @@ const SECCIONES = [
     ),
   },
   {
+    texto: 'Catálogos',
+    ruta: '/catalogos',
+    activa: true,
+    icono: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 7V5a1 1 0 0 1 1-1h4l2 2h8a1 1 0 0 1 1 1v3" />
+        <path d="M2 10h20l-1.5 9a1 1 0 0 1-1 .84H4.5a1 1 0 0 1-1-.84z" />
+      </svg>
+    ),
+  },
+  {
     texto: 'Monitoreo',
     ruta: '/monitoreo',
     activa: false,

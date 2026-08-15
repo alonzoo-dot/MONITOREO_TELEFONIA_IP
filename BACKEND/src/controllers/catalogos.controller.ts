@@ -18,11 +18,11 @@ function manejarErrorCatalogos(error: unknown, respuesta: Response): boolean {
 }
 
 /** Valida que el :id de la ruta sea un entero. Devuelve el número o null. */
-function idValido(valor: string): number | null {
+function idValido(valor: string | string[] | undefined): number | null {
+  if (typeof valor !== 'string') return null;
   const id = Number(valor);
   return Number.isInteger(id) ? id : null;
 }
-
 /* ===================== Modelos de ATA ===================== */
 
 /** GET /api/catalogos/modelos-ata */

@@ -3,6 +3,7 @@ import Login from './pages/Login';
 import CambiarPassword from './pages/CambiarPassword';
 import Dashboard from './pages/Dashboard';
 import Inventario from './pages/Inventario';
+import Catalogos from './pages/Catalogos';
 import RutaProtegida from './components/RutaProtegida';
 
 function App() {
@@ -32,6 +33,14 @@ function App() {
           element={
             <RutaProtegida rol="ADMINISTRADOR">
               <Inventario />
+            </RutaProtegida>
+          }
+        />
+        <Route
+          path="/catalogos"
+          element={
+            <RutaProtegida rol="ADMINISTRADOR">
+              <Catalogos />
             </RutaProtegida>
           }
         />
