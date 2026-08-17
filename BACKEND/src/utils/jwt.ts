@@ -10,9 +10,10 @@ export interface DatosToken {
 
 /** Genera un token firmado con los datos del usuario que inició sesión. */
 export function generarToken(datos: DatosToken): string {
-  return jwt.sign(datos, configuracion.jwtSecret, {
-    expiresIn: configuracion.jwtExpiracion,
-  });
+  const opciones: jwt.SignOptions = {
+    expiresIn: configuracion.jwtExpiracion as jwt.SignOptions['expiresIn'],
+  };
+  return jwt.sign(datos, configuracion.jwtSecret, opciones);
 }
 
 /** Verifica que un token sea válido y devuelve los datos que contiene. */

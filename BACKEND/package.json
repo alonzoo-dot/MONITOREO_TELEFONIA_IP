@@ -13,11 +13,14 @@
     "migrate": "node-pg-migrate --envPath .env"
   },
   "dependencies": {
+    "@types/multer": "^2.2.0",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
+    "exceljs": "^4.4.0",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
+    "multer": "^2.2.0",
     "pg": "^8.22.0",
     "zod": "^4.4.3"
   },
