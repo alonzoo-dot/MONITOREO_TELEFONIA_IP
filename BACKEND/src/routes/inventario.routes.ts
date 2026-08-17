@@ -8,7 +8,7 @@ import {
   desactivar,
   reactivar,
 } from '../controllers/inventario.controller';
-import { importar } from '../controllers/importacion.controller';
+import { importar, descargarPlantilla } from '../controllers/importacion.controller';
 import { requiereAutenticacion } from '../middlewares/auth.middleware';
 import { requiereRol } from '../middlewares/autorizacion.middleware';
 import { validar } from '../middlewares/validacion.middleware';
@@ -32,10 +32,12 @@ function manejarSubida(peticion: Request, respuesta: Response, siguiente: NextFu
   });
 }
 
+// Rutas específicas ANTES de las paramétricas (/:id) para que no las capture
 rutasInventario.get('/', listar);
+rutasInventario.get('/plantilla', descargarPlantilla);
+rutasInventario.post('/importar', manejarSubida, importar);
 rutasInventario.get('/:id', obtener);
 rutasInventario.post('/', validar(esquemaDispositivo), crear);
-rutasInventario.post('/importar', manejarSubida, importar);
 rutasInventario.put('/:id', validar(esquemaDispositivo), editar);
 rutasInventario.delete('/:id', desactivar);
 rutasInventario.post('/:id/reactivar', reactivar);
