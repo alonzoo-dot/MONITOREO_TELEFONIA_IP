@@ -1,5 +1,5 @@
 /** Dirección base del backend. */
-const URL_BASE = 'http://localhost:4000/api';
+export const URL_BASE = 'http://localhost:4000/api';
 
 /** Opciones para una petición al backend. */
 interface OpcionesPeticion {

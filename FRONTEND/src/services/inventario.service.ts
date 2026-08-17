@@ -1,4 +1,4 @@
-import { peticionApi } from './api';
+import { peticionApi, URL_BASE } from './api';
 import { obtenerToken } from './sesion';
 import type {
   Dispositivo,
@@ -167,4 +167,56 @@ export function editarDepartamento(
     token: obtenerToken() ?? undefined,
     cuerpo: datos,
   });
+}
+
+/* ===================== Importación ===================== */
+
+/** Descarga la plantilla .xlsx del backend y dispara la descarga en el navegador. */
+export async function descargarPlantilla(): Promise<void> {
+  const respuesta = await fetch(`${URL_BASE}/dispositivos/plantilla`, {
+    headers: { Authorization: `Bearer ${obtenerToken() ?? ''}` },
+  });
+  if (!respuesta.ok) {
+    throw new Error('No se pudo descargar la plantilla');
+  }
+  const blob = await respuesta.blob();
+  const url = URL.createObjectURL(blob);
+  const enlace = document.createElement('a');
+  enlace.href = url;
+  enlace.download = 'plantilla_inventario.xlsx';
+  document.body.appendChild(enlace);
+  enlace.click();
+  enlace.remove();
+  URL.revokeObjectURL(url);
+}
+
+/** Un error de importación asociado a una fila. */
+export interface ErrorFilaImportacion {
+  fila: number;
+  mensaje: string;
+}
+
+/** Reporte devuelto por el endpoint de importación. */
+export interface ReporteImportacion {
+  total: number;
+  creados: number;
+  errores: ErrorFilaImportacion[];
+}
+
+/** Sube un archivo .xlsx al endpoint de importación y devuelve el reporte. */
+export async function importarInventario(archivo: File): Promise<ReporteImportacion> {
+  const datos = new FormData();
+  datos.append('archivo', archivo);
+
+  const respuesta = await fetch(`${URL_BASE}/dispositivos/importar`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${obtenerToken() ?? ''}` },
+    body: datos,
+  });
+
+  const cuerpo = await respuesta.json();
+  if (!respuesta.ok) {
+    throw new Error(cuerpo?.mensaje ?? 'Error al importar el archivo');
+  }
+  return cuerpo as ReporteImportacion;
 }

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Layout from '../components/Layout';
 import DrawerDispositivo from '../components/DrawerDispositivo';
+import DrawerImportar from '../components/DrawerImportar';
 import {
   listarDispositivos,
   listarModelosTelefono,
@@ -19,12 +20,14 @@ const ETIQUETA_TIPO: Record<string, string> = {
 
 function Inventario() {
   const [dispositivos, setDispositivos] = useState<Dispositivo[]>([]);
+  const [todos, setTodos] = useState<Dispositivo[]>([]);
   const [modelos, setModelos] = useState<ModeloTelefono[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
 
   // Estado del drawer: undefined = cerrado, null = alta, objeto = edición
   const [drawer, setDrawer] = useState<Dispositivo | null | undefined>(undefined);
+  const [importarAbierto, setImportarAbierto] = useState(false);
 
   // Filtros
   const [busqueda, setBusqueda] = useState('');
@@ -68,11 +71,29 @@ function Inventario() {
       .catch(() => setModelos([]));
   }, []);
 
+  // Carga TODOS los dispositivos (sin filtros) solo para los conteos del resumen
+  useEffect(() => {
+    listarDispositivos({})
+      .then(setTodos)
+      .catch(() => setTodos([]));
+  }, []);
+
   // Pisos disponibles a partir de los datos cargados
   const pisos = useMemo(() => {
     const set = new Set(dispositivos.map((d) => d.piso));
     return [...set].sort((a, b) => a - b);
   }, [dispositivos]);
+
+  // Conteos para las tarjetas de resumen (sobre todos los dispositivos)
+  const resumen = useMemo(
+    () => ({
+      activos: todos.filter((d) => d.activo).length,
+      ata: todos.filter((d) => d.tipo === 'IP_ATA').length,
+      ip: todos.filter((d) => d.tipo === 'IP_NATIVO').length,
+      analogo: todos.filter((d) => d.tipo === 'ANALOGICO').length,
+    }),
+    [todos],
+  );
 
   async function alternarActivo(d: Dispositivo) {
     try {
@@ -82,25 +103,86 @@ function Inventario() {
         await reactivarDispositivo(d.id_telefono);
       }
       cargar();
+      recargarResumen();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo cambiar el estado');
     }
   }
 
-  /** Tras guardar en el drawer: cierra y recarga la lista. */
+  /** Recarga los conteos del resumen (todos los dispositivos, sin filtros). */
+  function recargarResumen() {
+    listarDispositivos({})
+      .then(setTodos)
+      .catch(() => setTodos([]));
+  }
+
+  /** Tras guardar en el drawer: cierra y recarga la lista y el resumen. */
   function alGuardar() {
     setDrawer(undefined);
     cargar();
+    recargarResumen();
   }
 
   return (
     <Layout>
+      <div className={estilos.tarjetas}>
+        <div className={estilos.tarjeta}>
+          <span className={`${estilos.tarjetaIcono} ${estilos.tiActivos}`}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+              <path d="M22 4 12 14.01l-3-3" />
+            </svg>
+          </span>
+          <div>
+            <div className={estilos.tarjetaNum}>{resumen.activos}</div>
+            <div className={estilos.tarjetaLbl}>activos</div>
+          </div>
+        </div>
+
+        <div className={estilos.tarjeta}>
+          <span className={`${estilos.tarjetaIcono} ${estilos.tiAta}`}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="4" y="4" width="16" height="16" rx="2" />
+              <path d="M9 9h6v6H9zM4 12h2M18 12h2M12 4v2M12 18v2" />
+            </svg>
+          </span>
+          <div>
+            <div className={estilos.tarjetaNum}>{resumen.ata}</div>
+            <div className={estilos.tarjetaLbl}>tipo Ata</div>
+          </div>
+        </div>
+
+        <div className={estilos.tarjeta}>
+          <span className={`${estilos.tarjetaIcono} ${estilos.tiIp}`}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 12.55a11 11 0 0 1 14.08 0M1.42 9a16 16 0 0 1 21.16 0M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01" />
+            </svg>
+          </span>
+          <div>
+            <div className={estilos.tarjetaNum}>{resumen.ip}</div>
+            <div className={estilos.tarjetaLbl}>tipo Ip</div>
+          </div>
+        </div>
+
+        <div className={estilos.tarjeta}>
+          <span className={`${estilos.tarjetaIcono} ${estilos.tiAnalogo}`}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z" />
+            </svg>
+          </span>
+          <div>
+            <div className={estilos.tarjetaNum}>{resumen.analogo}</div>
+            <div className={estilos.tarjetaLbl}>análogos</div>
+          </div>
+        </div>
+      </div>
+
       <div className={estilos.head}>
         <h1>Inventario</h1>
       </div>
 
       <div className={estilos.actionbar}>
-        <button className={estilos.btnSec} disabled title="Disponible próximamente">
+        <button className={estilos.btnSec} onClick={() => setImportarAbierto(true)}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
           </svg>
@@ -199,7 +281,24 @@ function Inventario() {
                 <tr key={d.id_telefono} className={d.activo ? '' : estilos.inactive}>
                   <td>
                     <span className={estilos.cardLabel}>Ubicación</span>
-                    <span className={estilos.hab}>{d.ubicacion_nombre}</span>
+                    <div className={estilos.ubic}>
+                      <span
+                        className={`${estilos.ubicIcono} ${
+                          d.tipo_ubicacion === 'DEPARTAMENTO' ? estilos.ubicDepto : estilos.ubicHab
+                        }`}
+                      >
+                        {d.tipo_ubicacion === 'DEPARTAMENTO' ? (
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4" />
+                          </svg>
+                        ) : (
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M13 4v16M3 21h18M6 4h9M8 12h.01" />
+                          </svg>
+                        )}
+                      </span>
+                      <span className={estilos.hab}>{d.ubicacion_nombre}</span>
+                    </div>
                   </td>
                   <td>
                     <span className={estilos.cardLabel}>Piso</span>
@@ -291,6 +390,15 @@ function Inventario() {
         dispositivo={drawer}
         onCerrar={() => setDrawer(undefined)}
         onGuardado={alGuardar}
+      />
+
+      <DrawerImportar
+        abierto={importarAbierto}
+        onCerrar={() => setImportarAbierto(false)}
+        onImportado={() => {
+          cargar();
+          recargarResumen();
+        }}
       />
     </Layout>
   );

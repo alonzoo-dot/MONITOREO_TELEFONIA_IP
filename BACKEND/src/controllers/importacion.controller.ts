@@ -1,5 +1,25 @@
 import type { Request, Response } from 'express';
 import * as importacionService from '../services/importacion.service';
+import * as plantillaService from '../services/plantilla.service';
+
+/** GET /api/dispositivos/plantilla — descarga la plantilla .xlsx de importación. */
+export async function descargarPlantilla(_peticion: Request, respuesta: Response): Promise<void> {
+  try {
+    const buffer = await plantillaService.generarPlantilla();
+    respuesta.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    respuesta.setHeader(
+      'Content-Disposition',
+      'attachment; filename="plantilla_inventario.xlsx"',
+    );
+    respuesta.status(200).send(buffer);
+  } catch (error: unknown) {
+    console.error('Error inesperado al generar la plantilla:', error);
+    respuesta.status(500).json({ mensaje: 'Error interno al generar la plantilla' });
+  }
+}
 
 /** POST /api/dispositivos/importar — importa dispositivos desde un archivo .xlsx. */
 export async function importar(peticion: Request, respuesta: Response): Promise<void> {
