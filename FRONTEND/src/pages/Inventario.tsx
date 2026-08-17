@@ -281,24 +281,7 @@ function Inventario() {
                 <tr key={d.id_telefono} className={d.activo ? '' : estilos.inactive}>
                   <td>
                     <span className={estilos.cardLabel}>Ubicación</span>
-                    <div className={estilos.ubic}>
-                      <span
-                        className={`${estilos.ubicIcono} ${
-                          d.tipo_ubicacion === 'DEPARTAMENTO' ? estilos.ubicDepto : estilos.ubicHab
-                        }`}
-                      >
-                        {d.tipo_ubicacion === 'DEPARTAMENTO' ? (
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4" />
-                          </svg>
-                        ) : (
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M13 4v16M3 21h18M6 4h9M8 12h.01" />
-                          </svg>
-                        )}
-                      </span>
-                      <span className={estilos.hab}>{d.ubicacion_nombre}</span>
-                    </div>
+                    <span className={estilos.hab}>{d.ubicacion_nombre}</span>
                   </td>
                   <td>
                     <span className={estilos.cardLabel}>Piso</span>

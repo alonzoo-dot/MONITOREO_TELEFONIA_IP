@@ -370,37 +370,6 @@
   }
 }
 
-/* ===== Ícono de ubicación en la tabla ===== */
-.ubic {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-}
-
-.ubicIcono {
-  width: 28px;
-  height: 28px;
-  border-radius: 7px;
-  display: grid;
-  place-items: center;
-  flex: none;
-}
-
-.ubicHab {
-  background: var(--accent-soft);
-  color: var(--accent);
-}
-
-.ubicDepto {
-  background: var(--desc-bg);
-  color: var(--desc);
-}
-
-.ubicIcono svg {
-  width: 15px;
-  height: 15px;
-}
-
 /* ===== Filas alternadas (zebra) ===== */
 .tcard tbody tr:nth-child(even):not(:hover) {
   background: var(--card-2);
