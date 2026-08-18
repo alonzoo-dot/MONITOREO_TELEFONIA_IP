@@ -12,7 +12,7 @@ export interface DispositivoDetalle {
   tipo: string;
   numero_serie: string | null;
   mac: string | null; // MAC propia del teléfono (solo IP_NATIVO)
-  ip: string | null; // la escribe el monitoreo; null en este módulo
+  ip: string | null; // IP propia del teléfono (solo IP_NATIVO)
   activo: boolean;
   id_ubicacion: number;
   ubicacion_nombre: string;
@@ -26,10 +26,11 @@ export interface DispositivoDetalle {
   modelo_ata: string | null;
   marca_ata: string | null;
   ata_mac: string | null;
-  ata_ip: string | null;
+  ata_ip: string | null; // IP propia del ATA (solo IP_ATA)
   ata_numero_serie: string | null;
   ata_activo: boolean | null;
   mac_efectiva: string | null; // COALESCE(atas.mac, telefonos.mac)
+  ip_efectiva: string | null; // COALESCE(atas.ip, telefonos.ip)
 }
 
 /** Filtros opcionales para el listado de dispositivos. */
@@ -49,6 +50,7 @@ export interface DatosTelefono {
   tipo: string;
   numero_serie: string | null;
   mac: string | null;
+  ip: string | null;
 }
 
 /** SELECT base del dispositivo enriquecido, reutilizado por listado y detalle. */
@@ -75,7 +77,8 @@ const SELECT_DISPOSITIVO = `
          a.ip            AS ata_ip,
          a.numero_serie  AS ata_numero_serie,
          a.activo        AS ata_activo,
-         COALESCE(a.mac, t.mac) AS mac_efectiva
+         COALESCE(a.mac, t.mac) AS mac_efectiva,
+         COALESCE(a.ip, t.ip) AS ip_efectiva
     FROM telefonos t
     JOIN ubicaciones u        ON u.id_ubicacion = t.id_ubicacion
     JOIN modelos_telefono mt  ON mt.id_modelo_telefono = t.id_modelo_telefono
@@ -172,8 +175,8 @@ export async function crearTelefono(
   const resultado = await consultarCon<{ id_telefono: number }>(
     cliente,
     `INSERT INTO telefonos
-       (id_ubicacion, id_modelo_telefono, extension, tipo, numero_serie, mac)
-     VALUES ($1, $2, $3, $4, $5, $6)
+       (id_ubicacion, id_modelo_telefono, extension, tipo, numero_serie, mac, ip)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
      RETURNING id_telefono`,
     [
       datos.id_ubicacion,
@@ -182,6 +185,7 @@ export async function crearTelefono(
       datos.tipo,
       datos.numero_serie,
       datos.mac,
+      datos.ip,
     ],
   );
   return resultado.rows[0]!.id_telefono;
@@ -201,8 +205,9 @@ export async function actualizarTelefono(
             extension = $3,
             tipo = $4,
             numero_serie = $5,
-            mac = $6
-      WHERE id_telefono = $7`,
+            mac = $6,
+            ip = $7
+      WHERE id_telefono = $8`,
     [
       datos.id_ubicacion,
       datos.id_modelo_telefono,
@@ -210,6 +215,7 @@ export async function actualizarTelefono(
       datos.tipo,
       datos.numero_serie,
       datos.mac,
+      datos.ip,
       idTelefono,
     ],
   );

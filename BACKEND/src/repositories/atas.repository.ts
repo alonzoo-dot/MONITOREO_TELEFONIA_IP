@@ -7,7 +7,7 @@ export interface Ata {
   id_telefono: number;
   id_modelo_ata: number;
   mac: string;
-  ip: string | null; // la escribe el monitoreo; null en este módulo
+  ip: string | null;
   numero_serie: string | null;
   activo: boolean;
 }
@@ -17,6 +17,7 @@ export interface DatosAta {
   id_telefono: number;
   id_modelo_ata: number;
   mac: string;
+  ip: string;
   numero_serie: string | null;
 }
 
@@ -56,10 +57,10 @@ export async function crearAta(
 ): Promise<number> {
   const resultado = await consultarCon<{ id_ata: number }>(
     cliente,
-    `INSERT INTO atas (id_telefono, id_modelo_ata, mac, numero_serie)
-     VALUES ($1, $2, $3, $4)
+    `INSERT INTO atas (id_telefono, id_modelo_ata, mac, ip, numero_serie)
+     VALUES ($1, $2, $3, $4, $5)
      RETURNING id_ata`,
-    [datos.id_telefono, datos.id_modelo_ata, datos.mac, datos.numero_serie],
+    [datos.id_telefono, datos.id_modelo_ata, datos.mac, datos.ip, datos.numero_serie],
   );
   return resultado.rows[0]!.id_ata;
 }
@@ -75,9 +76,10 @@ export async function actualizarAta(
     `UPDATE atas
         SET id_modelo_ata = $1,
             mac = $2,
-            numero_serie = $3
-      WHERE id_telefono = $4`,
-    [datos.id_modelo_ata, datos.mac, datos.numero_serie, idTelefono],
+            ip = $3,
+            numero_serie = $4
+      WHERE id_telefono = $5`,
+    [datos.id_modelo_ata, datos.mac, datos.ip, datos.numero_serie, idTelefono],
   );
 }
 

@@ -3,6 +3,9 @@ import { z } from 'zod';
 /** Formato de dirección MAC: seis pares hex separados por ':' o '-'. */
 const REGEX_MAC = /^([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}$/;
 
+/** IPv4 dentro de los rangos del hotel: 10.81.20.x o 10.81.21.x (último octeto 0–255). */
+export const REGEX_IP_HOTEL = /^10\.81\.(20|21)\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$/;
+
 /**
  * Esquema de forma para crear o editar un dispositivo. Valida tipos, enums y
  * formato (no reglas de negocio: la coherencia por tipo vive en el servicio).
@@ -35,6 +38,12 @@ export const esquemaDispositivo = z.object({
     .string()
     .trim()
     .regex(REGEX_MAC, 'El formato de la MAC no es válido')
+    .nullable()
+    .default(null),
+  ip: z
+    .string()
+    .trim()
+    .regex(REGEX_IP_HOTEL, 'La IP debe pertenecer a los rangos del hotel (10.81.20.x o 10.81.21.x)')
     .nullable()
     .default(null),
   id_modelo_ata: z

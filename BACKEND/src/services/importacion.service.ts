@@ -3,6 +3,7 @@ import * as inventarioService from './inventario.service';
 import { ErrorInventario } from './inventario.service';
 import type { DatosDispositivo, TipoDispositivo } from './inventario.service';
 import * as catalogosRepo from '../repositories/catalogos.repository';
+import { REGEX_IP_HOTEL } from '../schemas/dispositivo.schema';
 
 /** Un error de importación asociado a una fila del archivo. */
 export interface ErrorFila {
@@ -27,6 +28,7 @@ const COLUMNAS = [
   'modelo_telefono',
   'serie_telefono',
   'mac',
+  'ip',
   'modelo_ata',
   'serie_ata',
 ] as const;
@@ -115,6 +117,7 @@ function construirDatos(
     modeloTelefono,
     serieTelefono,
     mac,
+    ip,
     modeloAta,
     serieAta,
   ] = valores;
@@ -171,6 +174,15 @@ function construirDatos(
     idModeloAta = id;
   }
 
+  // IP (solo IP_ATA/IP_NATIVO; validación de forma igual que el alta manual)
+  const ipFinal = tipo === 'ANALOGICO' ? null : ip || null;
+  if (ipFinal && !REGEX_IP_HOTEL.test(ipFinal)) {
+    throw new ErrorInventario(
+      'IP_INVALIDA',
+      `La IP "${ipFinal}" debe pertenecer a los rangos del hotel (10.81.20.x o 10.81.21.x).`,
+    );
+  }
+
   return {
     ubicacion_nombre: ubicacion,
     piso,
@@ -180,7 +192,8 @@ function construirDatos(
     tipo,
     numero_serie: serieTelefono || null,
     mac: tipo === 'ANALOGICO' ? null : mac || null,
+    ip: ipFinal,
     id_modelo_ata: idModeloAta,
     ata_numero_serie: tipo === 'IP_ATA' ? serieAta || null : null,
   };
-}   
+}

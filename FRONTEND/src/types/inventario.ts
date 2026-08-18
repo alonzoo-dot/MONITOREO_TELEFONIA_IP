@@ -23,6 +23,7 @@ export interface Dispositivo {
   ata_numero_serie: string | null;
   ata_activo: boolean | null;
   mac_efectiva: string | null;
+  ip_efectiva: string | null;
 }
 
 /** Filtros para el listado de dispositivos. */
@@ -44,6 +45,7 @@ export interface DatosDispositivo {
   tipo: string;
   numero_serie: string | null;
   mac: string | null;
+  ip: string | null;
   id_modelo_ata: number | null;
   ata_numero_serie: string | null;
 }

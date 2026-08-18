@@ -11,6 +11,7 @@ const COLUMNAS = [
   'modelo_telefono',
   'serie_telefono',
   'mac',
+  'ip',
   'modelo_ata',
   'serie_ata',
 ];
@@ -49,12 +50,13 @@ export async function generarPlantilla(): Promise<Buffer> {
     'GRP2601',
     'SN-EJEMPLO-TEL',
     '00:0B:82:00:00:00',
+    '10.81.20.11',
     'HT802',
     'SN-EJEMPLO-ATA',
   ]);
 
   // Anchos de columna
-  const anchos = [14, 6, 16, 10, 11, 18, 16, 20, 14, 16];
+  const anchos = [14, 6, 16, 10, 11, 18, 16, 20, 14, 14, 16];
   anchos.forEach((ancho, i) => {
     hoja.getColumn(i + 1).width = ancho;
   });
@@ -70,9 +72,14 @@ export async function generarPlantilla(): Promise<Buffer> {
   }
 
   titulo('Tipos de dispositivo válidos');
-  ref.addRow(['ATA', 'Teléfono con adaptador ATA (requiere mac y modelo_ata)']);
-  ref.addRow(['IP', 'Teléfono IP nativo (requiere mac, sin modelo_ata)']);
-  ref.addRow(['ANALOGO', 'Teléfono analógico (sin mac ni modelo_ata)']);
+  ref.addRow(['ATA', 'Teléfono con adaptador ATA (requiere mac, ip y modelo_ata)']);
+  ref.addRow(['IP', 'Teléfono IP nativo (requiere mac e ip, sin modelo_ata)']);
+  ref.addRow(['ANALOGO', 'Teléfono analógico (sin mac, ip ni modelo_ata)']);
+  ref.addRow([]);
+
+  titulo('Rangos de IP válidos (columna ip)');
+  ref.addRow(['10.81.20.0/24']);
+  ref.addRow(['10.81.21.0/24']);
   ref.addRow([]);
 
   titulo('Tipos de ubicación válidos');

@@ -30,6 +30,7 @@ const FORM_VACIO = {
   tipo: 'IP_ATA',
   numero_serie: '',
   mac: '',
+  ip: '',
   id_modelo_ata: '',
   ata_numero_serie: '',
 };
@@ -63,6 +64,7 @@ function DrawerDispositivo({ dispositivo, onCerrar, onGuardado }: Props) {
         tipo: dispositivo.tipo,
         numero_serie: dispositivo.numero_serie ?? '',
         mac: dispositivo.mac_efectiva ?? '',
+        ip: dispositivo.ip_efectiva ?? '',
         id_modelo_ata: dispositivo.id_modelo_ata != null ? String(dispositivo.id_modelo_ata) : '',
         ata_numero_serie: dispositivo.ata_numero_serie ?? '',
       });
@@ -87,12 +89,12 @@ function DrawerDispositivo({ dispositivo, onCerrar, onGuardado }: Props) {
       setError('Selecciona un modelo de teléfono.');
       return;
     }
-    if (form.tipo === 'IP_ATA' && (!form.mac.trim() || !form.id_modelo_ata)) {
-      setError('Un dispositivo Ata requiere MAC y modelo de ATA.');
+    if (form.tipo === 'IP_ATA' && (!form.mac.trim() || !form.ip.trim() || !form.id_modelo_ata)) {
+      setError('Un dispositivo Ata requiere MAC, IP y modelo de ATA.');
       return;
     }
-    if (form.tipo === 'IP_NATIVO' && !form.mac.trim()) {
-      setError('Un dispositivo Ip requiere MAC.');
+    if (form.tipo === 'IP_NATIVO' && (!form.mac.trim() || !form.ip.trim())) {
+      setError('Un dispositivo Ip requiere MAC e IP.');
       return;
     }
 
@@ -105,6 +107,7 @@ function DrawerDispositivo({ dispositivo, onCerrar, onGuardado }: Props) {
       tipo: form.tipo,
       numero_serie: form.numero_serie.trim() || null,
       mac: form.tipo === 'ANALOGICO' ? null : form.mac.trim() || null,
+      ip: form.tipo === 'ANALOGICO' ? null : form.ip.trim() || null,
       id_modelo_ata: form.tipo === 'IP_ATA' ? Number(form.id_modelo_ata) : null,
       ata_numero_serie: form.tipo === 'IP_ATA' ? form.ata_numero_serie.trim() || null : null,
     };
@@ -266,15 +269,16 @@ function DrawerDispositivo({ dispositivo, onCerrar, onGuardado }: Props) {
               </div>
 
               <div className={estilos.field}>
-                <label>Dirección IP</label>
-                <div className={estilos.ro}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="11" width="18" height="11" rx="2" />
-                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                  </svg>
-                  Se detecta automáticamente
-                </div>
-                <div className={estilos.hint}>El sistema la descubre y la mantiene por monitoreo. No se escribe a mano.</div>
+                <label>
+                  IP <span className={estilos.req}>*</span>
+                </label>
+                <input
+                  className="mono"
+                  placeholder="10.81.20.11"
+                  value={form.ip}
+                  onChange={(e) => actualizar('ip', e.target.value)}
+                />
+                <div className={estilos.hint}>Debe pertenecer a los rangos del hotel (10.81.20.x o 10.81.21.x). Es el objetivo del ping de monitoreo.</div>
               </div>
 
               {form.tipo === 'IP_ATA' && (
