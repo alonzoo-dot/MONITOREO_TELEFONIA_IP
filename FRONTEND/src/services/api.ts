@@ -1,9 +1,20 @@
 /** Dirección base del backend. */
 export const URL_BASE = 'http://localhost:4000/api';
 
+/** Error de una petición al backend. Conserva el `codigo` de negocio, si vino en la respuesta. */
+export class ErrorApi extends Error {
+  constructor(
+    mensaje: string,
+    public readonly codigo?: string,
+  ) {
+    super(mensaje);
+    this.name = 'ErrorApi';
+  }
+}
+
 /** Opciones para una petición al backend. */
 interface OpcionesPeticion {
-  metodo?: 'GET' | 'POST' | 'PUT' | 'DELETE';
+  metodo?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   cuerpo?: unknown;
   token?: string;
 }
@@ -30,10 +41,11 @@ export async function peticionApi<T>(
     body: cuerpo ? JSON.stringify(cuerpo) : undefined,
   });
 
-  const datos = await respuesta.json();
+  const tieneCuerpo = respuesta.status !== 204 && respuesta.headers.get('content-length') !== '0';
+  const datos = tieneCuerpo ? await respuesta.json() : null;
 
   if (!respuesta.ok) {
-    throw new Error(datos.mensaje ?? 'Error en la petición');
+    throw new ErrorApi(datos?.mensaje ?? 'Error en la petición', datos?.codigo);
   }
 
   return datos as T;

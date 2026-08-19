@@ -106,3 +106,8 @@ export async function reactivarAta(
     [idTelefono],
   );
 }
+
+/** Borrado físico del ATA de un teléfono. */
+export async function eliminarAta(idTelefono: number, cliente?: PoolClient): Promise<void> {
+  await consultarCon(cliente, `DELETE FROM atas WHERE id_telefono = $1`, [idTelefono]);
+}

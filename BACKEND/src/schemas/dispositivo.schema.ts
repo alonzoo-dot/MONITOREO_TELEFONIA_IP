@@ -15,7 +15,8 @@ export const esquemaDispositivo = z.object({
     .string()
     .trim()
     .min(1, 'El nombre de la ubicación es obligatorio')
-    .max(40, 'El nombre de la ubicación no puede superar 40 caracteres'),
+    .max(40, 'El nombre de la ubicación no puede superar 40 caracteres')
+    .transform((v) => v.toUpperCase()),
   piso: z
     .number()
     .int('El piso debe ser un número entero')
@@ -41,6 +42,7 @@ export const esquemaDispositivo = z.object({
     .string()
     .trim()
     .regex(REGEX_MAC, 'El formato de la MAC no es válido')
+    .transform((v) => v.toUpperCase())
     .nullable()
     .default(null),
   ip: z

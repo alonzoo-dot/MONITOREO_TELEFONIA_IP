@@ -18,6 +18,7 @@ function construirQuery(filtros: FiltrosDispositivo): string {
     parametros.set('id_modelo_telefono', String(filtros.id_modelo_telefono));
   }
   if (filtros.activo !== undefined) parametros.set('activo', String(filtros.activo));
+  if (filtros.incluir_inactivos) parametros.set('incluir_inactivos', 'true');
   if (filtros.busqueda) parametros.set('busqueda', filtros.busqueda);
   const texto = parametros.toString();
   return texto ? `?${texto}` : '';
@@ -59,17 +60,25 @@ export function editarDispositivo(
 }
 
 /** Da de baja (lógica) un dispositivo. */
-export function desactivarDispositivo(idTelefono: number): Promise<{ mensaje: string }> {
-  return peticionApi<{ mensaje: string }>(`/dispositivos/${idTelefono}`, {
-    metodo: 'DELETE',
+export function desactivarDispositivo(idTelefono: number): Promise<void> {
+  return peticionApi<void>(`/dispositivos/${idTelefono}/desactivar`, {
+    metodo: 'PATCH',
     token: obtenerToken() ?? undefined,
   });
 }
 
 /** Reactiva un dispositivo dado de baja. */
-export function reactivarDispositivo(idTelefono: number): Promise<{ mensaje: string }> {
-  return peticionApi<{ mensaje: string }>(`/dispositivos/${idTelefono}/reactivar`, {
-    metodo: 'POST',
+export function reactivarDispositivo(idTelefono: number): Promise<void> {
+  return peticionApi<void>(`/dispositivos/${idTelefono}/reactivar`, {
+    metodo: 'PATCH',
+    token: obtenerToken() ?? undefined,
+  });
+}
+
+/** Elimina permanentemente un dispositivo. Falla si tiene incidencias registradas. */
+export function eliminarDispositivo(idTelefono: number): Promise<void> {
+  return peticionApi<void>(`/dispositivos/${idTelefono}`, {
+    metodo: 'DELETE',
     token: obtenerToken() ?? undefined,
   });
 }

@@ -4,6 +4,7 @@ import rutasAuth from './routes/auth.routes';
 import rutasUsuarios from './routes/usuarios.routes';
 import rutasInventario from './routes/inventario.routes';
 import rutasCatalogos from './routes/catalogos.routes';
+import rutasMonitoreo from './routes/monitoreo.routes';
 
 export function crearAplicacion(): Application {
   const aplicacion = express();
@@ -28,6 +29,9 @@ export function crearAplicacion(): Application {
 
   // Rutas de catálogos (modelos y departamentos)
   aplicacion.use('/api/catalogos', rutasCatalogos);
+
+  // Rutas de monitoreo (estado en vivo, stream SSE, incidencias pendientes)
+  aplicacion.use('/api/monitoreo', rutasMonitoreo);
 
   return aplicacion;
 }

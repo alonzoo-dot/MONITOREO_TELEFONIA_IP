@@ -7,7 +7,9 @@ import {
   listarModelosTelefono,
   desactivarDispositivo,
   reactivarDispositivo,
+  eliminarDispositivo,
 } from '../services/inventario.service';
+import { ErrorApi } from '../services/api';
 import type { Dispositivo, FiltrosDispositivo, ModeloTelefono } from '../types/inventario';
 import estilos from './Inventario.module.css';
 
@@ -46,6 +48,7 @@ function Inventario() {
     if (fModelo) filtros.id_modelo_telefono = Number(fModelo);
     if (fEstado === 'activos') filtros.activo = true;
     if (fEstado === 'inactivos') filtros.activo = false;
+    if (fEstado === 'todos') filtros.incluir_inactivos = true;
     if (busqueda.trim()) filtros.busqueda = busqueda.trim();
 
     try {
@@ -71,9 +74,9 @@ function Inventario() {
       .catch(() => setModelos([]));
   }, []);
 
-  // Carga TODOS los dispositivos (sin filtros) solo para los conteos del resumen
+  // Carga TODOS los dispositivos (activos e inactivos) solo para los conteos del resumen
   useEffect(() => {
-    listarDispositivos({})
+    listarDispositivos({ incluir_inactivos: true })
       .then(setTodos)
       .catch(() => setTodos([]));
   }, []);
@@ -96,6 +99,13 @@ function Inventario() {
   );
 
   async function alternarActivo(d: Dispositivo) {
+    const confirmado = d.activo
+      ? window.confirm(
+          '¿Desactivar este dispositivo? Dejará de monitorearse y desaparecerá del inventario activo. Podrás reactivarlo después.',
+        )
+      : window.confirm('¿Reactivar este dispositivo? Volverá a aparecer en el inventario activo.');
+    if (!confirmado) return;
+
     try {
       if (d.activo) {
         await desactivarDispositivo(d.id_telefono);
@@ -109,9 +119,30 @@ function Inventario() {
     }
   }
 
-  /** Recarga los conteos del resumen (todos los dispositivos, sin filtros). */
+  async function eliminar(d: Dispositivo) {
+    const confirmado = window.confirm(
+      '¿Eliminar este dispositivo permanentemente? Esta acción NO se puede deshacer. Solo úsala para registros capturados por error.',
+    );
+    if (!confirmado) return;
+
+    try {
+      await eliminarDispositivo(d.id_telefono);
+      cargar();
+      recargarResumen();
+    } catch (err) {
+      if (err instanceof ErrorApi && err.codigo === 'TIENE_INCIDENCIAS') {
+        setError(
+          'Este dispositivo tiene historial de incidencias y no puede eliminarse. Usa Desactivar en su lugar.',
+        );
+      } else {
+        setError(err instanceof Error ? err.message : 'No se pudo eliminar el dispositivo');
+      }
+    }
+  }
+
+  /** Recarga los conteos del resumen (todos los dispositivos, activos e inactivos). */
   function recargarResumen() {
-    listarDispositivos({})
+    listarDispositivos({ incluir_inactivos: true })
       .then(setTodos)
       .catch(() => setTodos([]));
   }
@@ -359,6 +390,15 @@ function Inventario() {
                             <path d="M20 6 9 17l-5-5" />
                           </svg>
                         )}
+                      </button>
+                      <button
+                        className={`${estilos.ib} ${estilos.ibDanger}`}
+                        title="Eliminar"
+                        onClick={() => eliminar(d)}
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6h16zM10 11v6M14 11v6" />
+                        </svg>
                       </button>
                     </div>
                   </td>

@@ -3,6 +3,7 @@ import { ejecutarEnTransaccion } from '../config/database';
 import * as telefonosRepo from '../repositories/telefonos.repository';
 import * as atasRepo from '../repositories/atas.repository';
 import * as ubicacionesRepo from '../repositories/ubicaciones.repository';
+import * as incidenciasRepo from '../repositories/incidencias.repository';
 import type {
   DispositivoDetalle,
   FiltrosDispositivo,
@@ -290,5 +291,31 @@ export async function reactivarDispositivo(idTelefono: number): Promise<void> {
     if (actual.tipo === 'IP_ATA') {
       await atasRepo.reactivarAta(idTelefono, cliente);
     }
+  });
+}
+
+/**
+ * Borrado físico de un dispositivo. Rechaza el borrado si tiene incidencias
+ * registradas (en ese caso debe darse de baja en su lugar).
+ */
+export async function eliminarDispositivo(idTelefono: number): Promise<void> {
+  const actual = await telefonosRepo.buscarDetallePorId(idTelefono);
+  if (!actual) {
+    throw new ErrorInventario('NO_ENCONTRADO', 'El dispositivo no existe.');
+  }
+
+  await ejecutarEnTransaccion(async (cliente) => {
+    const totalIncidencias = await incidenciasRepo.contarPorTelefono(idTelefono, cliente);
+    if (totalIncidencias > 0) {
+      throw new ErrorInventario(
+        'TIENE_INCIDENCIAS',
+        'El dispositivo tiene historial de incidencias. Desactívalo en su lugar.',
+      );
+    }
+
+    if (actual.tipo === 'IP_ATA') {
+      await atasRepo.eliminarAta(idTelefono, cliente);
+    }
+    await telefonosRepo.eliminarTelefono(idTelefono, cliente);
   });
 }

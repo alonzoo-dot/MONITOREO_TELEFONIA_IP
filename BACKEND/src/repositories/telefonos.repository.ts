@@ -40,6 +40,8 @@ export interface FiltrosDispositivo {
   id_modelo_telefono?: number;
   activo?: boolean;
   busqueda?: string; // coincide contra nombre de ubicación o MAC efectiva
+  /** Si es true, incluye también los dispositivos inactivos. Ignorado si `activo` viene definido. */
+  incluir_inactivos?: boolean;
 }
 
 /** Campos escribibles de un teléfono, compartidos por el alta y la edición. */
@@ -107,6 +109,8 @@ export async function listarDispositivos(
   if (filtros.activo !== undefined) {
     parametros.push(filtros.activo);
     condiciones.push(`t.activo = $${parametros.length}`);
+  } else if (!filtros.incluir_inactivos) {
+    condiciones.push(`t.activo = true`);
   }
   if (filtros.busqueda !== undefined && filtros.busqueda.trim() !== '') {
     parametros.push(`%${filtros.busqueda.trim()}%`);
@@ -243,4 +247,12 @@ export async function reactivarTelefono(
     `UPDATE telefonos SET activo = true WHERE id_telefono = $1`,
     [idTelefono],
   );
+}
+
+/** Borrado físico de un teléfono. */
+export async function eliminarTelefono(
+  idTelefono: number,
+  cliente?: PoolClient,
+): Promise<void> {
+  await consultarCon(cliente, `DELETE FROM telefonos WHERE id_telefono = $1`, [idTelefono]);
 }

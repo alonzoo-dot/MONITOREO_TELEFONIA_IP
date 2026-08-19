@@ -17,5 +17,7 @@ export const configuracion = {
   entorno: process.env.NODE_ENV ?? 'development',
   jwtSecret: variableObligatoria('JWT_SECRET'),
   jwtExpiracion: process.env.JWT_EXPIRES_IN ?? '12h',
+  /** Si es true, el motor de monitoreo ICMP arranca al levantar el backend. */
+  motorActivo: process.env.MOTOR_ACTIVO === 'true',
 } as const;
 

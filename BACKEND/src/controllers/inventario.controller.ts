@@ -24,6 +24,7 @@ function manejarErrorInventario(error: unknown, respuesta: Response): boolean {
     SERIE_ATA_REQUERIDA: 400,
     MODELO_ATA_REQUERIDO: 400,
     TIPO_NO_EDITABLE: 400,
+    TIENE_INCIDENCIAS: 409,
   };
   const estado = estados[error.codigo] ?? 400;
   respuesta.status(estado).json({ mensaje: error.message, codigo: error.codigo });
@@ -33,7 +34,7 @@ function manejarErrorInventario(error: unknown, respuesta: Response): boolean {
 /** GET /api/dispositivos — lista los dispositivos con filtros opcionales. */
 export async function listar(peticion: Request, respuesta: Response): Promise<void> {
   const filtros: FiltrosDispositivo = {};
-  const { tipo, piso, id_modelo_telefono, activo, busqueda } = peticion.query;
+  const { tipo, piso, id_modelo_telefono, activo, busqueda, incluir_inactivos } = peticion.query;
 
   if (typeof tipo === 'string') filtros.tipo = tipo;
   if (typeof piso === 'string' && piso !== '') filtros.piso = Number(piso);
@@ -43,6 +44,7 @@ export async function listar(peticion: Request, respuesta: Response): Promise<vo
   if (activo === 'true') filtros.activo = true;
   if (activo === 'false') filtros.activo = false;
   if (typeof busqueda === 'string' && busqueda !== '') filtros.busqueda = busqueda;
+  if (incluir_inactivos === 'true') filtros.incluir_inactivos = true;
 
   try {
     const dispositivos = await inventarioService.listarDispositivos(filtros);
@@ -103,7 +105,7 @@ export async function editar(peticion: Request, respuesta: Response): Promise<vo
   }
 }
 
-/** DELETE /api/dispositivos/:id — baja lógica de un dispositivo. */
+/** PATCH /api/dispositivos/:id/desactivar — baja lógica de un dispositivo. */
 export async function desactivar(peticion: Request, respuesta: Response): Promise<void> {
   const idTelefono = Number(peticion.params.id);
   if (!Number.isInteger(idTelefono)) {
@@ -113,7 +115,7 @@ export async function desactivar(peticion: Request, respuesta: Response): Promis
 
   try {
     await inventarioService.desactivarDispositivo(idTelefono);
-    respuesta.status(200).json({ mensaje: 'Dispositivo dado de baja correctamente' });
+    respuesta.status(204).send();
   } catch (error: unknown) {
     if (manejarErrorInventario(error, respuesta)) return;
     console.error('Error inesperado al dar de baja el dispositivo:', error);
@@ -121,7 +123,7 @@ export async function desactivar(peticion: Request, respuesta: Response): Promis
   }
 }
 
-/** POST /api/dispositivos/:id/reactivar — reactiva un dispositivo dado de baja. */
+/** PATCH /api/dispositivos/:id/reactivar — reactiva un dispositivo dado de baja. */
 export async function reactivar(peticion: Request, respuesta: Response): Promise<void> {
   const idTelefono = Number(peticion.params.id);
   if (!Number.isInteger(idTelefono)) {
@@ -131,10 +133,28 @@ export async function reactivar(peticion: Request, respuesta: Response): Promise
 
   try {
     await inventarioService.reactivarDispositivo(idTelefono);
-    respuesta.status(200).json({ mensaje: 'Dispositivo reactivado correctamente' });
+    respuesta.status(204).send();
   } catch (error: unknown) {
     if (manejarErrorInventario(error, respuesta)) return;
     console.error('Error inesperado al reactivar el dispositivo:', error);
+    respuesta.status(500).json({ mensaje: 'Error interno del servidor' });
+  }
+}
+
+/** DELETE /api/dispositivos/:id — borrado físico de un dispositivo. */
+export async function eliminar(peticion: Request, respuesta: Response): Promise<void> {
+  const idTelefono = Number(peticion.params.id);
+  if (!Number.isInteger(idTelefono)) {
+    respuesta.status(400).json({ mensaje: 'Id de dispositivo inválido' });
+    return;
+  }
+
+  try {
+    await inventarioService.eliminarDispositivo(idTelefono);
+    respuesta.status(204).send();
+  } catch (error: unknown) {
+    if (manejarErrorInventario(error, respuesta)) return;
+    console.error('Error inesperado al eliminar el dispositivo:', error);
     respuesta.status(500).json({ mensaje: 'Error interno del servidor' });
   }
 }

@@ -7,6 +7,7 @@ import {
   editar,
   desactivar,
   reactivar,
+  eliminar,
 } from '../controllers/inventario.controller';
 import { importar, descargarPlantilla } from '../controllers/importacion.controller';
 import { requiereAutenticacion } from '../middlewares/auth.middleware';
@@ -39,7 +40,8 @@ rutasInventario.post('/importar', manejarSubida, importar);
 rutasInventario.get('/:id', obtener);
 rutasInventario.post('/', validar(esquemaDispositivo), crear);
 rutasInventario.put('/:id', validar(esquemaDispositivo), editar);
-rutasInventario.delete('/:id', desactivar);
-rutasInventario.post('/:id/reactivar', reactivar);
+rutasInventario.patch('/:id/desactivar', desactivar);
+rutasInventario.patch('/:id/reactivar', reactivar);
+rutasInventario.delete('/:id', eliminar);
 
 export default rutasInventario;

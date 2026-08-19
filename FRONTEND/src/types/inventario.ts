@@ -33,6 +33,8 @@ export interface FiltrosDispositivo {
   id_modelo_telefono?: number;
   activo?: boolean;
   busqueda?: string;
+  /** Si es true, incluye también los dispositivos inactivos. Ignorado si `activo` viene definido. */
+  incluir_inactivos?: boolean;
 }
 
 /** Datos que se envían al crear o editar un dispositivo. */

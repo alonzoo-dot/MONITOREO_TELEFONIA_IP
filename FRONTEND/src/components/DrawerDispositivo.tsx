@@ -85,6 +85,19 @@ function DrawerDispositivo({ dispositivo, onCerrar, onGuardado }: Props) {
       setError('Ubicación, piso y extensión son obligatorios.');
       return;
     }
+    const piso = Number(form.piso);
+    if (!Number.isInteger(piso)) {
+      setError('El piso debe ser un número entero');
+      return;
+    }
+    if (piso < 1) {
+      setError('El piso debe ser mayor o igual a 1');
+      return;
+    }
+    if (piso > 50) {
+      setError('El piso no puede superar 50');
+      return;
+    }
     if (!form.id_modelo_telefono) {
       setError('Selecciona un modelo de teléfono.');
       return;
@@ -107,7 +120,7 @@ function DrawerDispositivo({ dispositivo, onCerrar, onGuardado }: Props) {
 
     const datos: DatosDispositivo = {
       ubicacion_nombre: form.ubicacion_nombre.trim(),
-      piso: Number(form.piso),
+      piso,
       tipo_ubicacion: form.tipo_ubicacion,
       id_modelo_telefono: Number(form.id_modelo_telefono),
       extension: form.extension.trim(),
@@ -160,7 +173,7 @@ function DrawerDispositivo({ dispositivo, onCerrar, onGuardado }: Props) {
               Ubicación <span className={estilos.req}>*</span>
             </label>
             <input
-              placeholder="Ej. 305 o RECEPCION"
+              style={{ textTransform: 'uppercase' }}
               value={form.ubicacion_nombre}
               onChange={(e) => actualizar('ubicacion_nombre', e.target.value)}
             />
@@ -173,7 +186,9 @@ function DrawerDispositivo({ dispositivo, onCerrar, onGuardado }: Props) {
               </label>
               <input
                 type="number"
-                placeholder="Ej. 3"
+                min={1}
+                max={50}
+                step={1}
                 value={form.piso}
                 onChange={(e) => actualizar('piso', e.target.value)}
               />
@@ -197,7 +212,6 @@ function DrawerDispositivo({ dispositivo, onCerrar, onGuardado }: Props) {
               Extensión <span className={estilos.req}>*</span>
             </label>
             <input
-              placeholder="Ej. 3356"
               value={form.extension}
               onChange={(e) => actualizar('extension', e.target.value)}
             />
@@ -268,7 +282,7 @@ function DrawerDispositivo({ dispositivo, onCerrar, onGuardado }: Props) {
                 </label>
                 <input
                   className="mono"
-                  placeholder="C0:74:AD:__:__:__"
+                  style={{ textTransform: 'uppercase' }}
                   value={form.mac}
                   onChange={(e) => actualizar('mac', e.target.value)}
                 />
@@ -281,7 +295,6 @@ function DrawerDispositivo({ dispositivo, onCerrar, onGuardado }: Props) {
                 </label>
                 <input
                   className="mono"
-                  placeholder="10.81.20.11"
                   value={form.ip}
                   onChange={(e) => actualizar('ip', e.target.value)}
                 />
@@ -294,7 +307,6 @@ function DrawerDispositivo({ dispositivo, onCerrar, onGuardado }: Props) {
                     Número de serie del ATA <span className={estilos.req}>*</span>
                   </label>
                   <input
-                    placeholder="Ej. SN-EJEMPLO-ATA"
                     value={form.ata_numero_serie}
                     onChange={(e) => actualizar('ata_numero_serie', e.target.value)}
                   />
@@ -308,7 +320,6 @@ function DrawerDispositivo({ dispositivo, onCerrar, onGuardado }: Props) {
               Número de serie del teléfono <span className={estilos.req}>*</span>
             </label>
             <input
-              placeholder="Ej. SN-EJEMPLO-TEL"
               value={form.numero_serie}
               onChange={(e) => actualizar('numero_serie', e.target.value)}
             />
