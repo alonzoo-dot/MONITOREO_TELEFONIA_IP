@@ -89,8 +89,15 @@ function DrawerDispositivo({ dispositivo, onCerrar, onGuardado }: Props) {
       setError('Selecciona un modelo de teléfono.');
       return;
     }
-    if (form.tipo === 'IP_ATA' && (!form.mac.trim() || !form.ip.trim() || !form.id_modelo_ata)) {
-      setError('Un dispositivo Ata requiere MAC, IP y modelo de ATA.');
+    if (!form.numero_serie.trim()) {
+      setError('El número de serie del teléfono es obligatorio.');
+      return;
+    }
+    if (
+      form.tipo === 'IP_ATA' &&
+      (!form.mac.trim() || !form.ip.trim() || !form.id_modelo_ata || !form.ata_numero_serie.trim())
+    ) {
+      setError('Un dispositivo Ata requiere MAC, IP, modelo de ATA y número de serie de ATA.');
       return;
     }
     if (form.tipo === 'IP_NATIVO' && (!form.mac.trim() || !form.ip.trim())) {
@@ -105,7 +112,7 @@ function DrawerDispositivo({ dispositivo, onCerrar, onGuardado }: Props) {
       id_modelo_telefono: Number(form.id_modelo_telefono),
       extension: form.extension.trim(),
       tipo: form.tipo,
-      numero_serie: form.numero_serie.trim() || null,
+      numero_serie: form.numero_serie.trim(),
       mac: form.tipo === 'ANALOGICO' ? null : form.mac.trim() || null,
       ip: form.tipo === 'ANALOGICO' ? null : form.ip.trim() || null,
       id_modelo_ata: form.tipo === 'IP_ATA' ? Number(form.id_modelo_ata) : null,
@@ -283,9 +290,11 @@ function DrawerDispositivo({ dispositivo, onCerrar, onGuardado }: Props) {
 
               {form.tipo === 'IP_ATA' && (
                 <div className={estilos.field}>
-                  <label>Número de serie del ATA</label>
+                  <label>
+                    Número de serie del ATA <span className={estilos.req}>*</span>
+                  </label>
                   <input
-                    placeholder="Opcional"
+                    placeholder="Ej. SN-EJEMPLO-ATA"
                     value={form.ata_numero_serie}
                     onChange={(e) => actualizar('ata_numero_serie', e.target.value)}
                   />
@@ -295,9 +304,11 @@ function DrawerDispositivo({ dispositivo, onCerrar, onGuardado }: Props) {
           )}
 
           <div className={estilos.field}>
-            <label>Número de serie del teléfono</label>
+            <label>
+              Número de serie del teléfono <span className={estilos.req}>*</span>
+            </label>
             <input
-              placeholder="Opcional"
+              placeholder="Ej. SN-EJEMPLO-TEL"
               value={form.numero_serie}
               onChange={(e) => actualizar('numero_serie', e.target.value)}
             />

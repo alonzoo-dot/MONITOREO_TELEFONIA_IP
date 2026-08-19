@@ -16,7 +16,11 @@ export const esquemaDispositivo = z.object({
     .trim()
     .min(1, 'El nombre de la ubicación es obligatorio')
     .max(40, 'El nombre de la ubicación no puede superar 40 caracteres'),
-  piso: z.number().int('El piso debe ser un número entero'),
+  piso: z
+    .number()
+    .int('El piso debe ser un número entero')
+    .min(1, 'El piso debe ser mayor o igual a 1')
+    .max(50, 'El piso no puede superar 50'),
   tipo_ubicacion: z.enum(['HABITACION', 'DEPARTAMENTO']),
   id_modelo_telefono: z
     .number()
@@ -31,9 +35,8 @@ export const esquemaDispositivo = z.object({
   numero_serie: z
     .string()
     .trim()
-    .max(30, 'El número de serie no puede superar 30 caracteres')
-    .nullable()
-    .default(null),
+    .min(1, 'El número de serie del teléfono es obligatorio')
+    .max(30, 'El número de serie no puede superar 30 caracteres'),
   mac: z
     .string()
     .trim()

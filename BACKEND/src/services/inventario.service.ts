@@ -56,6 +56,12 @@ function validarCoherenciaPorTipo(datos: DatosDispositivo): void {
     if (!datos.ip) {
       throw new ErrorInventario('IP_REQUERIDA', 'Un dispositivo IP_ATA requiere IP.');
     }
+    if (!datos.ata_numero_serie) {
+      throw new ErrorInventario(
+        'SERIE_ATA_REQUERIDA',
+        'Un dispositivo IP_ATA requiere el número de serie del ATA.',
+      );
+    }
   }
 
   if (datos.tipo === 'IP_NATIVO') {

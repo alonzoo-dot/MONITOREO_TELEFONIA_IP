@@ -21,6 +21,7 @@ function manejarErrorInventario(error: unknown, respuesta: Response): boolean {
     MAC_NO_PERMITIDA: 400,
     IP_REQUERIDA: 400,
     IP_NO_PERMITIDA: 400,
+    SERIE_ATA_REQUERIDA: 400,
     MODELO_ATA_REQUERIDO: 400,
     TIPO_NO_EDITABLE: 400,
   };
