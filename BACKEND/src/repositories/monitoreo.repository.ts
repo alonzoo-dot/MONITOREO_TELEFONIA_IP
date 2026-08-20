@@ -22,7 +22,7 @@ export async function listarDispositivosMonitoreables(): Promise<DispositivoMoni
     `SELECT
        t.id_telefono,
        t.tipo,
-       COALESCE(a.ip, t.ip)::text AS ip,
+       host(COALESCE(a.ip, t.ip)) AS ip,
        COALESCE(a.mac, t.mac)::text AS mac,
        COALESCE(m.estado, 'DESCONOCIDO') AS estado
      FROM telefonos t
