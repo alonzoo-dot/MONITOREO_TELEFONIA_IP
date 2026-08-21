@@ -1,6 +1,7 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import type { ResolvedorIp } from './resolvedorIp';
+import { normalizarMac } from './utilidadesMac';
 
 const ejecutarExec = promisify(exec);
 
@@ -11,9 +12,9 @@ const TTL_CACHE_MS = 30_000;
 const PATRON_FILA_ARP =
   /^\s*(\d{1,3}(?:\.\d{1,3}){3})\s+([0-9a-fA-F]{2}(?:-[0-9a-fA-F]{2}){5})\s+(\w+)/;
 
-/** Normaliza una MAC a mayúsculas sin separadores, para comparar formatos distintos (':' vs '-'). */
-function normalizarMac(mac: string): string {
-  return mac.replace(/[:-]/g, '').toUpperCase();
+interface CacheArp {
+  macAIp: Map<string, string>; // MAC normalizada -> IP
+  ipAMac: Map<string, string>; // IP -> MAC (formato original, con guiones)
 }
 
 /**
@@ -21,12 +22,17 @@ function normalizarMac(mac: string): string {
  * Cachea la salida por `TTL_CACHE_MS` para no invocar el comando en cada resolución.
  */
 export class ResolvedorIpArp implements ResolvedorIp {
-  private cache = new Map<string, string>(); // MAC normalizada -> IP
+  private cache: CacheArp = { macAIp: new Map(), ipAMac: new Map() };
   private cacheExpiraEn = 0;
 
   async resolverIp(mac: string): Promise<string | null> {
     await this.asegurarCache();
-    return this.cache.get(normalizarMac(mac)) ?? null;
+    return this.cache.macAIp.get(normalizarMac(mac)) ?? null;
+  }
+
+  async resolverMacDeIp(ip: string): Promise<string | null> {
+    await this.asegurarCache();
+    return this.cache.ipAMac.get(ip) ?? null;
   }
 
   private async asegurarCache(): Promise<void> {
@@ -39,15 +45,16 @@ export class ResolvedorIpArp implements ResolvedorIp {
       this.cache = this.parsearArp(stdout);
     } catch (error) {
       console.error('[MOTOR] No se pudo ejecutar "arp -a":', error);
-      this.cache = new Map();
+      this.cache = { macAIp: new Map(), ipAMac: new Map() };
     } finally {
       this.cacheExpiraEn = Date.now() + TTL_CACHE_MS;
     }
   }
 
   /** Parsea la salida de `arp -a`, ignorando encabezados y bloques `Interface:`. */
-  private parsearArp(salida: string): Map<string, string> {
-    const cache = new Map<string, string>();
+  private parsearArp(salida: string): CacheArp {
+    const macAIp = new Map<string, string>();
+    const ipAMac = new Map<string, string>();
 
     for (const linea of salida.split('\n')) {
       const coincidencia = PATRON_FILA_ARP.exec(linea);
@@ -63,9 +70,10 @@ export class ResolvedorIpArp implements ResolvedorIp {
         continue;
       }
 
-      cache.set(macNormalizada, ip);
+      macAIp.set(macNormalizada, ip);
+      ipAMac.set(ip, mac);
     }
 
-    return cache;
+    return { macAIp, ipAMac };
   }
 }

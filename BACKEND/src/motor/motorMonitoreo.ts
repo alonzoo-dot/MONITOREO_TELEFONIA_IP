@@ -7,6 +7,7 @@ import type {
 import { RegistroEstadoMonitoreo, type EstadoDispositivo } from './estadoMonitoreo';
 import { PlanificadorRondas } from './planificadorRondas';
 import { ejecutarPing } from './ejecutorPing';
+import { normalizarMac } from './utilidadesMac';
 
 /** Lo que el motor necesita del repositorio de monitoreo (Paso 3). */
 export interface RepositorioMonitoreo {
@@ -130,6 +131,44 @@ export class MotorMonitoreo {
   /** Decide la transición de estado (o corrección de drift) para un dispositivo. */
   private async procesarResultadoPing(dispositivo: EstadoDispositivo, ok: boolean): Promise<void> {
     if (ok) {
+      if (dispositivo.mac !== null) {
+        const macRealEnIp = await this.resolvedor.resolverMacDeIp(dispositivo.ip);
+
+        if (macRealEnIp === null) {
+          console.warn(
+            `[MOTOR] ARP sin datos para validar identidad del teléfono ${dispositivo.id_telefono} ` +
+              `(IP ${dispositivo.ip}). Se mantiene el comportamiento basado en ping.`,
+          );
+        } else if (normalizarMac(macRealEnIp) !== normalizarMac(dispositivo.mac)) {
+          console.warn(
+            `[MOTOR] IP ${dispositivo.ip} responde con MAC ${macRealEnIp}, esperada ${dispositivo.mac}. ` +
+              `Intentando drift para teléfono ${dispositivo.id_telefono}.`,
+          );
+
+          const driftAplicado = await this.intentarDrift(dispositivo);
+          if (driftAplicado) {
+            return;
+          }
+
+          dispositivo.fallos_consecutivos += 1;
+          if (
+            dispositivo.fallos_consecutivos >= this.config.umbralFallos &&
+            dispositivo.estado !== 'OFFLINE'
+          ) {
+            const estadoAnterior = dispositivo.estado;
+            dispositivo.estado = 'OFFLINE';
+            this.emisor.emit('cambio-estado', {
+              id_telefono: dispositivo.id_telefono,
+              estado_anterior: estadoAnterior,
+              estado_nuevo: 'OFFLINE',
+              ip_registrada: dispositivo.ip,
+              fecha_ultima_conexion: dispositivo.fecha_ultima_conexion,
+            } satisfies PayloadCambioEstado);
+          }
+          return;
+        }
+      }
+
       const fecha = new Date();
       const estadoAnterior = dispositivo.estado;
 
@@ -165,7 +204,7 @@ export class MotorMonitoreo {
       return;
     }
 
-    const huboDrift = await this.intentarCorregirDrift(dispositivo);
+    const huboDrift = await this.intentarDrift(dispositivo);
     if (huboDrift) {
       return;
     }
@@ -182,10 +221,10 @@ export class MotorMonitoreo {
   }
 
   /**
-   * Intenta corregir drift de IP vía ARP antes de declarar la caída.
+   * Intenta corregir drift de IP vía ARP (el dispositivo esperado se movió a otra IP).
    * Devuelve true si corrigió (y por lo tanto no hay que pasar a OFFLINE todavía).
    */
-  private async intentarCorregirDrift(dispositivo: EstadoDispositivo): Promise<boolean> {
+  private async intentarDrift(dispositivo: EstadoDispositivo): Promise<boolean> {
     if (!dispositivo.mac) {
       return false;
     }

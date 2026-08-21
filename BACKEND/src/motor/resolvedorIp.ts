@@ -5,4 +5,10 @@ export interface ResolvedorIp {
    * La implementación decide el mecanismo (ARP local, SNMP, DHCP, etc.).
    */
   resolverIp(mac: string): Promise<string | null>;
+
+  /**
+   * Devuelve la MAC asociada a una IP dada, o null si no se encuentra.
+   * Es la consulta inversa a resolverIp.
+   */
+  resolverMacDeIp(ip: string): Promise<string | null>;
 }
