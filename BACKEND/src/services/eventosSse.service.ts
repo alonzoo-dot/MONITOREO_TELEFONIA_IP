@@ -24,7 +24,7 @@ export function registrarCliente(respuesta: Response): void {
   keepAlives.set(
     respuesta,
     setInterval(() => {
-      respuesta.write(': keep-alive\n\n');
+      respuesta.write(': heartbeat\n\n');
     }, INTERVALO_KEEP_ALIVE_MS),
   );
 }
