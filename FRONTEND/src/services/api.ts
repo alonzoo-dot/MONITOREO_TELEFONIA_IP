@@ -3,12 +3,12 @@ export const URL_BASE = 'http://localhost:4000/api';
 
 /** Error de una petición al backend. Conserva el `codigo` de negocio, si vino en la respuesta. */
 export class ErrorApi extends Error {
-  constructor(
-    mensaje: string,
-    public readonly codigo?: string,
-  ) {
+  readonly codigo?: string;
+
+  constructor(mensaje: string, codigo?: string) {
     super(mensaje);
     this.name = 'ErrorApi';
+    this.codigo = codigo;
   }
 }
 

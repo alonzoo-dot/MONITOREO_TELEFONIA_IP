@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { obtenerUsuario, cerrarSesion } from '../services/sesion';
+import { usePendientes } from '../hooks/usePendientes';
+import { cargarPendientesInicial } from '../store/pendientes';
 import estilos from './Layout.module.css';
 
 /** Iniciales para el avatar a partir del nombre completo. */
@@ -45,16 +47,6 @@ const SECCIONES = [
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M4 7V5a1 1 0 0 1 1-1h4l2 2h8a1 1 0 0 1 1 1v3" />
         <path d="M2 10h20l-1.5 9a1 1 0 0 1-1 .84H4.5a1 1 0 0 1-1-.84z" />
-      </svg>
-    ),
-  },
-  {
-    texto: 'Monitoreo',
-    ruta: '/monitoreo',
-    activa: false,
-    icono: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
       </svg>
     ),
   },
@@ -103,6 +95,11 @@ function Layout({ children }: Props) {
   const navegar = useNavigate();
   const usuario = obtenerUsuario();
   const [menuAbierto, setMenuAbierto] = useState(false);
+  const pendientes = usePendientes();
+
+  useEffect(() => {
+    cargarPendientesInicial();
+  }, []);
 
   function manejarCerrarSesion() {
     cerrarSesion();
@@ -136,7 +133,12 @@ function Layout({ children }: Props) {
                 }
                 onClick={() => setMenuAbierto(false)}
               >
-                <span className={estilos.ic}>{seccion.icono}</span>
+                <span className={estilos.icWrap}>
+                  <span className={estilos.ic}>{seccion.icono}</span>
+                  {seccion.ruta === '/dashboard' && pendientes > 0 && (
+                    <span className={estilos.badgeNum}>{pendientes > 9 ? '9+' : pendientes}</span>
+                  )}
+                </span>
                 <span className={estilos.lbl}>{seccion.texto}</span>
               </NavLink>
             ) : (

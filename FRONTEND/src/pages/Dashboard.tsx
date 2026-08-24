@@ -1,32 +1,119 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Layout from '../components/Layout';
-import { obtenerUsuario } from '../services/sesion';
+import KpiCards from '../components/dashboard/KpiCards';
+import FiltrosMonitoreo from '../components/dashboard/FiltrosMonitoreo';
+import type { FiltroEstado } from '../components/dashboard/FiltrosMonitoreo';
+import IndicadorSSE from '../components/dashboard/IndicadorSSE';
+import TablaMonitoreo from '../components/dashboard/TablaMonitoreo';
+import { obtenerDashboard } from '../services/monitoreo.service';
+import { useMonitoreoSSE } from '../hooks/useMonitoreoSSE';
+import { mostrarToast } from '../store/toasts';
+import { cargarPendientesInicial, incrementarPendientes } from '../store/pendientes';
+import type { DispositivoConEstado, EventoMonitoreo } from '../types/monitoreo';
 import estilos from './Dashboard.module.css';
 
-/** Pantalla de inicio (placeholder). Su contenido real llegará con el módulo de monitoreo. */
+const INTERVALO_REFRESCO_MS = 2 * 60 * 1000;
+
 function Dashboard() {
-  const usuario = obtenerUsuario();
+  const [dispositivos, setDispositivos] = useState<DispositivoConEstado[]>([]);
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState('');
+  const [busqueda, setBusqueda] = useState('');
+  const [filtroEstado, setFiltroEstado] = useState<FiltroEstado>('TODOS');
+
+  // Espejo del estado actual para consultarlo desde el manejador de eventos SSE sin generar renders extra.
+  const dispositivosRef = useRef<DispositivoConEstado[]>([]);
+  useEffect(() => {
+    dispositivosRef.current = dispositivos;
+  }, [dispositivos]);
+
+  const cargar = useCallback(async () => {
+    try {
+      const datos = await obtenerDashboard();
+      setDispositivos(datos);
+      setError('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al cargar el dashboard');
+    } finally {
+      setCargando(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    cargar();
+    cargarPendientesInicial();
+
+    const intervalo = setInterval(cargar, INTERVALO_REFRESCO_MS);
+    return () => clearInterval(intervalo);
+  }, [cargar]);
+
+  const manejarEvento = useCallback((evento: EventoMonitoreo) => {
+    if (evento.tipo === 'cambio-estado') {
+      const { id_telefono, estado_anterior, estado_nuevo, fecha_ultima_conexion } = evento.payload;
+      const dispositivo = dispositivosRef.current.find((d) => d.id_telefono === id_telefono);
+
+      if (dispositivo) {
+        if (estado_nuevo === 'OFFLINE') {
+          mostrarToast({
+            tipo: 'error',
+            titulo: 'Teléfono fuera de línea',
+            mensaje: `Extensión ${dispositivo.extension} — ${dispositivo.ubicacion_nombre}`,
+          });
+          incrementarPendientes();
+        } else if (estado_nuevo === 'ONLINE' && estado_anterior === 'OFFLINE') {
+          mostrarToast({
+            tipo: 'exito',
+            titulo: 'Teléfono recuperado',
+            mensaje: `Extensión ${dispositivo.extension} — ${dispositivo.ubicacion_nombre}`,
+          });
+        }
+      }
+
+      setDispositivos((actuales) =>
+        actuales.map((d) =>
+          d.id_telefono === id_telefono ? { ...d, estado: estado_nuevo, fecha_ultima_conexion } : d,
+        ),
+      );
+    } else {
+      const { id_telefono, ip_nueva } = evento.payload;
+      setDispositivos((actuales) =>
+        actuales.map((d) => (d.id_telefono === id_telefono ? { ...d, ip: ip_nueva } : d)),
+      );
+    }
+  }, []);
+
+  const { estadoConexion } = useMonitoreoSSE(manejarEvento);
+
+  const filtrados = useMemo(() => {
+    const texto = busqueda.trim().toLowerCase();
+    return dispositivos.filter((d) => {
+      if (filtroEstado !== 'TODOS' && d.estado !== filtroEstado) return false;
+      if (!texto) return true;
+      return (
+        d.extension.toLowerCase().includes(texto) || d.ubicacion_nombre.toLowerCase().includes(texto)
+      );
+    });
+  }, [dispositivos, busqueda, filtroEstado]);
 
   return (
     <Layout>
-      <h1 className={estilos.titulo}>Hola, {usuario?.nombre_completo ?? 'bienvenido'}</h1>
-      <p className={estilos.lead}>
-        Panel del sistema de monitoreo de telefonía IP. Selecciona una sección en el menú.
-      </p>
-
-      <div className={estilos.tarjetas}>
-        <div className={estilos.tarjeta}>
-          <div className={estilos.tarjetaTitulo}>Inventario</div>
-          <div className={estilos.tarjetaTexto}>Gestión de dispositivos, ubicaciones y catálogos.</div>
-        </div>
-        <div className={`${estilos.tarjeta} ${estilos.tarjetaInactiva}`}>
-          <div className={estilos.tarjetaTitulo}>Monitoreo</div>
-          <div className={estilos.tarjetaTexto}>Próximamente.</div>
-        </div>
-        <div className={`${estilos.tarjeta} ${estilos.tarjetaInactiva}`}>
-          <div className={estilos.tarjetaTitulo}>Incidencias</div>
-          <div className={estilos.tarjetaTexto}>Próximamente.</div>
-        </div>
+      <div className={estilos.head}>
+        <h1 className={estilos.titulo}>Dashboard de monitoreo</h1>
+        <IndicadorSSE estado={estadoConexion} />
       </div>
+
+      <KpiCards dispositivos={dispositivos} />
+
+      <FiltrosMonitoreo
+        busqueda={busqueda}
+        onBusquedaChange={setBusqueda}
+        filtroEstado={filtroEstado}
+        onFiltroEstadoChange={setFiltroEstado}
+      />
+
+      {error && <div className={estilos.error}>{error}</div>}
+
+      <TablaMonitoreo dispositivos={filtrados} cargando={cargando} />
     </Layout>
   );
 }

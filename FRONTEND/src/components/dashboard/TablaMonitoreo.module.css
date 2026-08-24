@@ -1,0 +1,155 @@
+.tcard {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--card-radius);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+.tcard table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.tcard thead th {
+  text-align: left;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-faint);
+  font-weight: 600;
+  padding: 13px 16px;
+  background: var(--card-2);
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.tcard tbody td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line-soft);
+  font-size: 13.5px;
+  vertical-align: middle;
+}
+
+.tcard tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.tcard tbody tr:hover {
+  background: var(--card-2);
+}
+
+.tcard tbody tr:nth-child(even):not(:hover) {
+  background: var(--card-2);
+}
+
+.stpill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.stOnline {
+  background: var(--online-bg);
+  color: var(--online);
+}
+
+.stOnline .dot {
+  background: var(--online-dot);
+}
+
+.stOffline {
+  background: var(--offline-bg);
+  color: var(--offline);
+}
+
+.stOffline .dot {
+  background: var(--offline-dot);
+}
+
+.stDesc {
+  background: var(--desc-bg);
+  color: var(--desc);
+}
+
+.stDesc .dot {
+  background: var(--desc-dot);
+}
+
+.stAttn {
+  background: var(--attn-bg);
+  color: var(--attn);
+}
+
+.stAttn .dot {
+  background: var(--attn);
+}
+
+.muted {
+  color: var(--ink-faint);
+}
+
+.empty {
+  padding: 52px 16px;
+  text-align: center;
+  color: var(--ink-faint);
+}
+
+.empty b {
+  display: block;
+  color: var(--ink-soft);
+  margin-bottom: 4px;
+}
+
+.cardLabel {
+  display: none;
+}
+
+/* ===== Responsive: tabla como tarjetas, columnas secundarias ocultas ===== */
+@media (max-width: 760px) {
+  .colSec {
+    display: none;
+  }
+  .tcard thead {
+    display: none;
+  }
+  .tcard table,
+  .tcard tbody,
+  .tcard tr,
+  .tcard td {
+    display: block;
+    width: 100%;
+  }
+  .tcard tbody tr {
+    padding: 12px 14px;
+    border-bottom: 8px solid var(--bg);
+  }
+  .tcard tbody td {
+    border: none;
+    padding: 5px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 14px;
+  }
+  .cardLabel {
+    display: inline;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--ink-faint);
+    font-weight: 600;
+  }
+}
