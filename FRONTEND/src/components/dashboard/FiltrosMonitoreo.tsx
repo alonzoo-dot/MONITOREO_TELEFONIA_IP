@@ -1,6 +1,6 @@
 import estilos from './FiltrosMonitoreo.module.css';
 
-export type FiltroEstado = 'TODOS' | 'ONLINE' | 'OFFLINE' | 'DESCONOCIDO';
+export type FiltroEstado = 'TODOS' | 'ONLINE' | 'OFFLINE' | 'DESCONOCIDO' | 'EN_MANTENIMIENTO';
 
 interface Props {
   busqueda: string;
@@ -33,6 +33,7 @@ function FiltrosMonitoreo({ busqueda, onBusquedaChange, filtroEstado, onFiltroEs
         <option value="ONLINE">Online</option>
         <option value="OFFLINE">Offline</option>
         <option value="DESCONOCIDO">Desconocido</option>
+        <option value="EN_MANTENIMIENTO">Mantenimiento</option>
       </select>
     </div>
   );

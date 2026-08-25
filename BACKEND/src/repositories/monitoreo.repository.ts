@@ -35,6 +35,34 @@ export async function listarDispositivosMonitoreables(): Promise<DispositivoMoni
   return resultado.rows;
 }
 
+/**
+ * Busca un dispositivo monitoreable (activo, IP_ATA/IP_NATIVO, con IP conocida) por su id,
+ * junto con su estado actual de monitoreo. Devuelve null si no califica como monitoreable.
+ */
+export async function buscarMonitoreablePorId(
+  idTelefono: number,
+  cliente?: PoolClient,
+): Promise<DispositivoMonitoreable | null> {
+  const resultado = await consultarCon<DispositivoMonitoreable>(
+    cliente,
+    `SELECT
+       t.id_telefono,
+       t.tipo,
+       host(COALESCE(a.ip, t.ip)) AS ip,
+       COALESCE(a.mac, t.mac)::text AS mac,
+       COALESCE(m.estado, 'DESCONOCIDO') AS estado
+     FROM telefonos t
+     LEFT JOIN atas a       ON a.id_telefono = t.id_telefono
+     LEFT JOIN monitoreo m  ON m.id_telefono = t.id_telefono
+     WHERE t.id_telefono = $1
+       AND t.activo = true
+       AND t.tipo IN ('IP_ATA', 'IP_NATIVO')
+       AND COALESCE(a.ip, t.ip) IS NOT NULL`,
+    [idTelefono],
+  );
+  return resultado.rows[0] ?? null;
+}
+
 /** Crea la fila de monitoreo de un teléfono, en estado DESCONOCIDO. Idempotente. */
 export async function crearFilaMonitoreo(
   idTelefono: number,
@@ -64,6 +92,36 @@ export async function actualizarEstado(
             fecha_ultima_conexion = $2
       WHERE id_telefono = $3`,
     [estado, fechaUltimaConexion, idTelefono],
+  );
+}
+
+/** Pone un dispositivo en mantenimiento: el motor lo saltará en las siguientes rondas. */
+export async function ponerEnMantenimiento(
+  idTelefono: number,
+  cliente?: PoolClient,
+): Promise<void> {
+  await consultarCon(
+    cliente,
+    `UPDATE monitoreo
+        SET estado = 'EN_MANTENIMIENTO',
+            fecha_ultimo_cambio = now()
+      WHERE id_telefono = $1`,
+    [idTelefono],
+  );
+}
+
+/** Saca un dispositivo de mantenimiento, dejándolo en DESCONOCIDO para que el motor lo reevalúe. */
+export async function quitarDeMantenimiento(
+  idTelefono: number,
+  cliente?: PoolClient,
+): Promise<void> {
+  await consultarCon(
+    cliente,
+    `UPDATE monitoreo
+        SET estado = 'DESCONOCIDO',
+            fecha_ultimo_cambio = now()
+      WHERE id_telefono = $1`,
+    [idTelefono],
   );
 }
 

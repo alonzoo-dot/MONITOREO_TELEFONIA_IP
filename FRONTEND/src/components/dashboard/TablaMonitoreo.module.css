@@ -101,6 +101,38 @@
   color: var(--ink-faint);
 }
 
+.actionBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--ink-soft);
+  height: 30px;
+  padding: 0 11px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.actionBtn svg {
+  width: 13px;
+  height: 13px;
+}
+
+.actionBtn:hover:not(:disabled) {
+  background: var(--attn-bg);
+  color: var(--attn);
+  border-color: var(--attn-line);
+}
+
+.actionBtnOk:hover:not(:disabled) {
+  background: var(--online-bg);
+  color: var(--online);
+  border-color: var(--online);
+}
+
 .empty {
   padding: 52px 16px;
   text-align: center;

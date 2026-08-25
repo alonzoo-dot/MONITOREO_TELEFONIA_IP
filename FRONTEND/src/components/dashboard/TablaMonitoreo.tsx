@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react';
 import type { DispositivoConEstado, EstadoDispositivoMonitoreo } from '../../types/monitoreo';
 import { formatoRelativo, formatoAbsoluto } from '../../utils/fechas';
+import { activarMantenimiento, desactivarMantenimiento } from '../../services/monitoreo.service';
+import { ErrorApi } from '../../services/api';
+import { mostrarToast } from '../../store/toasts';
+import ModalConfirmacion from '../ModalConfirmacion';
 import estilos from './TablaMonitoreo.module.css';
 
 const INTERVALO_REFRESCO_MS = 60 * 1000;
@@ -44,6 +48,29 @@ function TablaMonitoreo({ dispositivos, cargando }: Props) {
     return () => clearInterval(intervalo);
   }, []);
 
+  // Dispositivo sobre el que se pidió poner/quitar mantenimiento; null = modal cerrado.
+  const [objetivo, setObjetivo] = useState<DispositivoConEstado | null>(null);
+  const [procesando, setProcesando] = useState(false);
+
+  async function confirmarMantenimiento() {
+    if (!objetivo) return;
+    setProcesando(true);
+    try {
+      if (objetivo.estado === 'EN_MANTENIMIENTO') {
+        await desactivarMantenimiento(objetivo.id_telefono);
+      } else {
+        await activarMantenimiento(objetivo.id_telefono);
+      }
+      setObjetivo(null);
+    } catch (err) {
+      const mensaje =
+        err instanceof ErrorApi ? err.message : 'No se pudo cambiar el estado de mantenimiento';
+      mostrarToast({ tipo: 'error', titulo: 'No se pudo completar la acción', mensaje });
+    } finally {
+      setProcesando(false);
+    }
+  }
+
   const ordenados = [...dispositivos].sort((a, b) => {
     const diff = PRIORIDAD_ESTADO[a.estado] - PRIORIDAD_ESTADO[b.estado];
     if (diff !== 0) return diff;
@@ -62,18 +89,19 @@ function TablaMonitoreo({ dispositivos, cargando }: Props) {
             <th className={estilos.colSec}>IP</th>
             <th>Estado</th>
             <th>Última conexión</th>
+            <th>Acciones</th>
           </tr>
         </thead>
         <tbody>
           {cargando ? (
             <tr>
-              <td colSpan={7}>
+              <td colSpan={8}>
                 <div className={estilos.empty}>Cargando…</div>
               </td>
             </tr>
           ) : ordenados.length === 0 ? (
             <tr>
-              <td colSpan={7}>
+              <td colSpan={8}>
                 <div className={estilos.empty}>
                   <b>Sin dispositivos</b>
                   Ajusta la búsqueda o los filtros.
@@ -114,11 +142,48 @@ function TablaMonitoreo({ dispositivos, cargando }: Props) {
                   <span className={estilos.cardLabel}>Última conexión</span>
                   {formatoRelativo(d.fecha_ultima_conexion)}
                 </td>
+                <td>
+                  <span className={estilos.cardLabel}>Acciones</span>
+                  {d.estado === 'EN_MANTENIMIENTO' ? (
+                    <button
+                      className={`${estilos.actionBtn} ${estilos.actionBtnOk}`}
+                      onClick={() => setObjetivo(d)}
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M18.36 6.64a9 9 0 1 1-12.73 0M12 2v10" />
+                      </svg>
+                      Reactivar
+                    </button>
+                  ) : (
+                    <button className={estilos.actionBtn} onClick={() => setObjetivo(d)}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+                      </svg>
+                      Mantenimiento
+                    </button>
+                  )}
+                </td>
               </tr>
             ))
           )}
         </tbody>
       </table>
+
+      <ModalConfirmacion
+        abierto={objetivo !== null}
+        titulo={
+          objetivo?.estado === 'EN_MANTENIMIENTO' ? '¿Reactivar dispositivo?' : '¿Poner en mantenimiento?'
+        }
+        cuerpo={
+          objetivo?.estado === 'EN_MANTENIMIENTO'
+            ? 'El dispositivo volverá a monitorearse en la siguiente ronda.'
+            : 'El dispositivo dejará de monitorearse hasta que lo reactives. Podrás revertirlo desde el mismo lugar cuando quieras.'
+        }
+        textoConfirmar={objetivo?.estado === 'EN_MANTENIMIENTO' ? 'Reactivar' : 'Poner en mantenimiento'}
+        cargando={procesando}
+        onConfirmar={confirmarMantenimiento}
+        onCancelar={() => setObjetivo(null)}
+      />
     </div>
   );
 }

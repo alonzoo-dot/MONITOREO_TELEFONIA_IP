@@ -18,6 +18,22 @@ export async function obtenerPendientes(): Promise<number> {
   return respuesta.pendientes;
 }
 
+/** Pone un dispositivo en mantenimiento: el motor dejará de pinguearlo. */
+export function activarMantenimiento(idTelefono: number): Promise<void> {
+  return peticionApi<void>(`/monitoreo/${idTelefono}/mantenimiento/activar`, {
+    metodo: 'PATCH',
+    token: obtenerToken() ?? undefined,
+  });
+}
+
+/** Saca un dispositivo de mantenimiento: el motor volverá a evaluarlo. */
+export function desactivarMantenimiento(idTelefono: number): Promise<void> {
+  return peticionApi<void>(`/monitoreo/${idTelefono}/mantenimiento/desactivar`, {
+    metodo: 'PATCH',
+    token: obtenerToken() ?? undefined,
+  });
+}
+
 /** Combina el estado del motor con el inventario (extensión, ubicación) para la tabla del dashboard.
  *  Los dispositivos que no aparecen en ambas fuentes a la vez (p.ej. analógicos, no monitoreados) se ignoran. */
 export async function obtenerDashboard(): Promise<DispositivoConEstado[]> {

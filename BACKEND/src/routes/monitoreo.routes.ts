@@ -1,5 +1,11 @@
 import { Router } from 'express';
-import { obtenerEstado, stream, obtenerPendientes } from '../controllers/monitoreo.controller';
+import {
+  obtenerEstado,
+  stream,
+  obtenerPendientes,
+  activarMantenimiento,
+  desactivarMantenimiento,
+} from '../controllers/monitoreo.controller';
 import { requiereAutenticacion, autenticarConToken } from '../middlewares/auth.middleware';
 import { requiereRol } from '../middlewares/autorizacion.middleware';
 
@@ -12,5 +18,17 @@ rutasMonitoreo.get('/estado', requiereAutenticacion, permiteMonitoreo, obtenerEs
 // SSE: el EventSource del navegador no manda headers, así que el token viaja en la query.
 rutasMonitoreo.get('/eventos', autenticarConToken, permiteMonitoreo, stream);
 rutasMonitoreo.get('/pendientes', requiereAutenticacion, permiteMonitoreo, obtenerPendientes);
+rutasMonitoreo.patch(
+  '/:id/mantenimiento/activar',
+  requiereAutenticacion,
+  permiteMonitoreo,
+  activarMantenimiento,
+);
+rutasMonitoreo.patch(
+  '/:id/mantenimiento/desactivar',
+  requiereAutenticacion,
+  permiteMonitoreo,
+  desactivarMantenimiento,
+);
 
 export default rutasMonitoreo;

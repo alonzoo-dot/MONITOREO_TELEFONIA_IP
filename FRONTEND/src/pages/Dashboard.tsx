@@ -66,6 +66,18 @@ function Dashboard() {
             titulo: 'Teléfono recuperado',
             mensaje: `Extensión ${dispositivo.extension} — ${dispositivo.ubicacion_nombre}`,
           });
+        } else if (estado_nuevo === 'EN_MANTENIMIENTO') {
+          mostrarToast({
+            tipo: 'info',
+            titulo: 'Dispositivo en mantenimiento',
+            mensaje: `Extensión ${dispositivo.extension} — ${dispositivo.ubicacion_nombre}`,
+          });
+        } else if (estado_anterior === 'EN_MANTENIMIENTO' && estado_nuevo === 'DESCONOCIDO') {
+          mostrarToast({
+            tipo: 'info',
+            titulo: 'Dispositivo reactivado',
+            mensaje: `Extensión ${dispositivo.extension} — ${dispositivo.ubicacion_nombre}. En breve volverá a monitorearse.`,
+          });
         }
       }
 
