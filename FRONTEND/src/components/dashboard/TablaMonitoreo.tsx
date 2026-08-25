@@ -7,7 +7,7 @@ import { mostrarToast } from '../../store/toasts';
 import ModalConfirmacion from '../ModalConfirmacion';
 import estilos from './TablaMonitoreo.module.css';
 
-const INTERVALO_REFRESCO_MS = 60 * 1000;
+const INTERVALO_REFRESCO_MS = 30 * 1000;
 
 const ETIQUETA_TIPO: Record<string, string> = {
   IP_ATA: 'Ata',
