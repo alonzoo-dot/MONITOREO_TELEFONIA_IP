@@ -121,6 +121,25 @@ async function validarExtensionUnica(
 }
 
 /**
+ * Verifica que la IP no esté registrada en otro dispositivo (activo o inactivo),
+ * salvo el propio que se edita (excluirId). Lanza error si está duplicada.
+ */
+async function validarIpUnica(
+  ip: string | null,
+  excluirId: number | null,
+  cliente: PoolClient,
+): Promise<void> {
+  if (!ip) return;
+  const dueno = await telefonosRepo.buscarPorIp(ip, excluirId, cliente);
+  if (dueno !== null) {
+    throw new ErrorInventario(
+      'IP_DUPLICADA',
+      `La IP ${ip} ya está registrada en el dispositivo ${dueno}.`,
+    );
+  }
+}
+
+/**
  * Resuelve la ubicación por nombre: si ya existe la reutiliza, si no la crea.
  * Devuelve el id de la ubicación. Opera dentro de la transacción recibida.
  */
@@ -153,6 +172,7 @@ export async function crearDispositivo(
     if (datos.mac) {
       await validarMacUnica(datos.mac, null, cliente);
     }
+    await validarIpUnica(datos.ip, null, cliente);
 
     const idUbicacion = await resolverUbicacion(datos, cliente);
 
@@ -211,6 +231,7 @@ export async function actualizarDispositivo(
     if (datos.mac) {
       await validarMacUnica(datos.mac, idTelefono, cliente);
     }
+    await validarIpUnica(datos.ip, idTelefono, cliente);
 
     const idUbicacion = await resolverUbicacion(datos, cliente);
 

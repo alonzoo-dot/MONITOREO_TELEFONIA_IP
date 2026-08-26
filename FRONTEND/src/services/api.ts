@@ -1,5 +1,11 @@
 /** Dirección base del backend. */
-export const URL_BASE = 'http://localhost:4000/api';
+export const URL_BASE = import.meta.env.VITE_API_URL;
+
+if (!URL_BASE) {
+  throw new Error(
+    'VITE_API_URL no está definida. Configura FRONTEND/.env con VITE_API_URL=<url>',
+  );
+}
 
 /** Error de una petición al backend. Conserva el `codigo` de negocio, si vino en la respuesta. */
 export class ErrorApi extends Error {

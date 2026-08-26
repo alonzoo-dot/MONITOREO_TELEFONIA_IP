@@ -17,6 +17,7 @@ function manejarErrorInventario(error: unknown, respuesta: Response): boolean {
     NO_ENCONTRADO: 404,
     EXTENSION_DUPLICADA: 409,
     MAC_DUPLICADA: 409,
+    IP_DUPLICADA: 409,
     MAC_REQUERIDA: 400,
     MAC_NO_PERMITIDA: 400,
     IP_REQUERIDA: 400,

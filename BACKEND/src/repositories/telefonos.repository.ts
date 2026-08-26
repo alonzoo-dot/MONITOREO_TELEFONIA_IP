@@ -171,6 +171,32 @@ export async function buscarIdPorMac(
   return fila ? fila.id_telefono : null;
 }
 
+/**
+ * Devuelve el id_telefono del dispositivo que actualmente tiene la IP dada,
+ * o null si nadie la tiene. Busca en telefonos.ip y atas.ip. Ignora el
+ * id_telefono pasado en `excluirId` (útil para actualizaciones donde el propio
+ * dispositivo mantiene su IP).
+ */
+export async function buscarPorIp(
+  ip: string,
+  excluirId: number | null,
+  cliente?: PoolClient,
+): Promise<number | null> {
+  const resultado = await consultarCon<{ id_telefono: number }>(
+    cliente,
+    `SELECT id_telefono FROM (
+       SELECT id_telefono FROM telefonos WHERE host(ip) = $1
+       UNION ALL
+       SELECT id_telefono FROM atas WHERE host(ip) = $1
+     ) sub
+     WHERE ($2::int IS NULL OR id_telefono <> $2)
+     LIMIT 1`,
+    [ip, excluirId],
+  );
+  const fila = resultado.rows[0] ?? null;
+  return fila ? fila.id_telefono : null;
+}
+
 /** Inserta un teléfono y devuelve su id generado. */
 export async function crearTelefono(
   datos: DatosTelefono,

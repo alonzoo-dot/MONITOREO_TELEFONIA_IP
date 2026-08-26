@@ -19,6 +19,11 @@ export interface RepositorioMonitoreo {
   ): Promise<void>;
 }
 
+/** Lo que el motor necesita del repositorio de teléfonos para validar unicidad de IP. */
+export interface RepositorioTelefonos {
+  buscarPorIp(ip: string, excluirId: number | null): Promise<number | null>;
+}
+
 /** Parámetros configurables del motor; todos tienen default. */
 export interface ConfigMotor {
   intervaloRondaMs?: number;
@@ -69,6 +74,7 @@ export class MotorMonitoreo {
   constructor(
     private readonly resolvedor: ResolvedorIp,
     private readonly repositorioMonitoreo: RepositorioMonitoreo,
+    private readonly repositorioTelefonos: RepositorioTelefonos,
     config: ConfigMotor = {},
   ) {
     this.config = { ...CONFIG_DEFECTO, ...config };
@@ -231,6 +237,16 @@ export class MotorMonitoreo {
 
     const ipReal = await this.resolvedor.resolverIp(dispositivo.mac);
     if (ipReal === null || ipReal === dispositivo.ip) {
+      return false;
+    }
+
+    const dueño = await this.repositorioTelefonos.buscarPorIp(ipReal, dispositivo.id_telefono);
+    if (dueño !== null) {
+      console.warn(
+        `[MOTOR] CONFLICTO: no se pudo aplicar drift para teléfono ${dispositivo.id_telefono} ` +
+          `(MAC ${dispositivo.mac}). La nueva IP ${ipReal} ya está registrada en el teléfono ${dueño}. ` +
+          `Se requiere revisión manual.`,
+      );
       return false;
     }
 
