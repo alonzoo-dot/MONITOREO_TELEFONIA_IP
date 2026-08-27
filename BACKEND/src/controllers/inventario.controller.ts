@@ -74,6 +74,24 @@ export async function obtener(peticion: Request, respuesta: Response): Promise<v
   }
 }
 
+/** GET /api/dispositivos/:id/detalle — detalle de solo lectura, con derivados de monitoreo. */
+export async function obtenerDetalle(peticion: Request, respuesta: Response): Promise<void> {
+  const idTelefono = Number(peticion.params.id);
+  if (!Number.isInteger(idTelefono)) {
+    respuesta.status(400).json({ mensaje: 'Id de dispositivo inválido' });
+    return;
+  }
+
+  try {
+    const detalle = await inventarioService.obtenerDetalle(idTelefono);
+    respuesta.status(200).json(detalle);
+  } catch (error: unknown) {
+    if (manejarErrorInventario(error, respuesta)) return;
+    console.error('Error inesperado al obtener el detalle del dispositivo:', error);
+    respuesta.status(500).json({ mensaje: 'Error interno del servidor' });
+  }
+}
+
 /** POST /api/dispositivos — crea un dispositivo nuevo. Body ya validado por Zod. */
 export async function crear(peticion: Request, respuesta: Response): Promise<void> {
   try {

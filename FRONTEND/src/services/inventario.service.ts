@@ -2,6 +2,7 @@ import { peticionApi, URL_BASE } from './api';
 import { obtenerToken } from './sesion';
 import type {
   Dispositivo,
+  DetalleDispositivo,
   FiltrosDispositivo,
   DatosDispositivo,
   ModeloAta,
@@ -34,6 +35,13 @@ export function listarDispositivos(filtros: FiltrosDispositivo = {}): Promise<Di
 /** Obtiene el detalle de un dispositivo por su id. */
 export function obtenerDispositivo(idTelefono: number): Promise<Dispositivo> {
   return peticionApi<Dispositivo>(`/dispositivos/${idTelefono}`, {
+    token: obtenerToken() ?? undefined,
+  });
+}
+
+/** Obtiene el detalle de solo lectura de un dispositivo, con los derivados de monitoreo. */
+export function obtenerDetalle(idTelefono: number): Promise<DetalleDispositivo> {
+  return peticionApi<DetalleDispositivo>(`/dispositivos/${idTelefono}/detalle`, {
     token: obtenerToken() ?? undefined,
   });
 }

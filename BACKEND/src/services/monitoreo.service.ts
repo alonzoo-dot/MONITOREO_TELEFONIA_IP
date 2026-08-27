@@ -110,6 +110,8 @@ export async function activarMantenimiento(idTelefono: number, idUsuario: number
     return dispositivo.estado;
   });
 
+  motorSuscrito?.actualizarEstadoDispositivo(idTelefono, 'EN_MANTENIMIENTO');
+
   eventosSse.difundir('cambio-estado', {
     id_telefono: idTelefono,
     estado_anterior: estadoAnterior,
@@ -139,6 +141,8 @@ export async function desactivarMantenimiento(
       cliente,
     );
   });
+
+  motorSuscrito?.actualizarEstadoDispositivo(idTelefono, 'DESCONOCIDO');
 
   eventosSse.difundir('cambio-estado', {
     id_telefono: idTelefono,

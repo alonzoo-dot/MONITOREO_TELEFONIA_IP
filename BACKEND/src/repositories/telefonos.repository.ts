@@ -143,6 +143,75 @@ export async function buscarDetallePorId(
   return resultado.rows[0] ?? null;
 }
 
+/**
+ * Un dispositivo con todos sus datos de inventario más los datos derivados de
+ * monitoreo (estado actual, última conexión, total de incidencias), para la
+ * vista de solo lectura "Ver detalle". Nombrado distinto de `DispositivoDetalle`
+ * (la vista enriquecida de listado/edición) para no chocar con ella.
+ */
+export interface DetalleDispositivo {
+  id_telefono: number;
+  ubicacion_nombre: string;
+  tipo_ubicacion: string;
+  piso: number;
+  extension: string;
+  tipo: 'IP_ATA' | 'IP_NATIVO' | 'ANALOGICO';
+  modelo_telefono: string;
+  marca_telefono: string;
+  numero_serie: string;
+  mac: string | null;
+  ip: string | null;
+  modelo_ata: string | null;
+  marca_ata: string | null;
+  cantidad_puertos: number | null;
+  ata_numero_serie: string | null;
+  activo: boolean;
+  // Derivados de monitoreo: null (o 0 para el conteo) si el dispositivo no es monitoreable
+  // o todavía no tiene fila en `monitoreo`.
+  estado_monitoreo: 'ONLINE' | 'OFFLINE' | 'DESCONOCIDO' | 'EN_MANTENIMIENTO' | null;
+  fecha_ultima_conexion: Date | null;
+  total_incidencias: number;
+}
+
+/** Obtiene el detalle completo (inventario + derivados de monitoreo) de un dispositivo. */
+export async function obtenerDetalle(idTelefono: number): Promise<DetalleDispositivo | null> {
+  const resultado = await ejecutarConsulta<DetalleDispositivo>(
+    `SELECT t.id_telefono,
+            u.nombre        AS ubicacion_nombre,
+            u.tipo_ubicacion,
+            u.piso,
+            t.extension,
+            t.tipo,
+            mt.modelo       AS modelo_telefono,
+            mt.marca        AS marca_telefono,
+            t.numero_serie,
+            COALESCE(a.mac, t.mac)::text AS mac,
+            host(COALESCE(a.ip, t.ip))   AS ip,
+            ma.modelo       AS modelo_ata,
+            ma.marca        AS marca_ata,
+            ma.cantidad_puertos,
+            a.numero_serie  AS ata_numero_serie,
+            t.activo,
+            m.estado        AS estado_monitoreo,
+            m.fecha_ultima_conexion,
+            COALESCE(inc.total, 0)::int AS total_incidencias
+       FROM telefonos t
+       JOIN ubicaciones u        ON u.id_ubicacion = t.id_ubicacion
+       JOIN modelos_telefono mt  ON mt.id_modelo_telefono = t.id_modelo_telefono
+       LEFT JOIN atas a          ON a.id_telefono = t.id_telefono
+       LEFT JOIN modelos_ata ma  ON ma.id_modelo_ata = a.id_modelo_ata
+       LEFT JOIN monitoreo m     ON m.id_telefono = t.id_telefono
+       LEFT JOIN (
+         SELECT id_telefono, COUNT(*) AS total
+           FROM incidencias
+          GROUP BY id_telefono
+       ) inc ON inc.id_telefono = t.id_telefono
+      WHERE t.id_telefono = $1`,
+    [idTelefono],
+  );
+  return resultado.rows[0] ?? null;
+}
+
 /** Devuelve el id del teléfono que usa esa extensión, o null si está libre. */
 export async function buscarIdPorExtension(
   extension: string,
@@ -171,30 +240,37 @@ export async function buscarIdPorMac(
   return fila ? fila.id_telefono : null;
 }
 
+/** Datos de contexto del dispositivo dueño de una IP, para mensajes al usuario. */
+export interface DispositivoConIp {
+  id_telefono: number;
+  extension: string;
+  ubicacion_nombre: string;
+  tipo_ubicacion: string;
+}
+
 /**
- * Devuelve el id_telefono del dispositivo que actualmente tiene la IP dada,
- * o null si nadie la tiene. Busca en telefonos.ip y atas.ip. Ignora el
- * id_telefono pasado en `excluirId` (útil para actualizaciones donde el propio
- * dispositivo mantiene su IP).
+ * Devuelve el dispositivo que actualmente tiene la IP dada (con su extensión y
+ * ubicación, para mensajes de error legibles), o null si nadie la tiene. Busca
+ * en telefonos.ip y atas.ip. Ignora el id_telefono pasado en `excluirId` (útil
+ * para actualizaciones donde el propio dispositivo mantiene su IP).
  */
 export async function buscarPorIp(
   ip: string,
   excluirId: number | null,
   cliente?: PoolClient,
-): Promise<number | null> {
-  const resultado = await consultarCon<{ id_telefono: number }>(
+): Promise<DispositivoConIp | null> {
+  const resultado = await consultarCon<DispositivoConIp>(
     cliente,
-    `SELECT id_telefono FROM (
-       SELECT id_telefono FROM telefonos WHERE host(ip) = $1
-       UNION ALL
-       SELECT id_telefono FROM atas WHERE host(ip) = $1
-     ) sub
-     WHERE ($2::int IS NULL OR id_telefono <> $2)
-     LIMIT 1`,
+    `SELECT t.id_telefono, t.extension, u.nombre AS ubicacion_nombre, u.tipo_ubicacion
+       FROM telefonos t
+       JOIN ubicaciones u ON u.id_ubicacion = t.id_ubicacion
+       LEFT JOIN atas a ON a.id_telefono = t.id_telefono
+      WHERE (host(t.ip) = $1 OR host(a.ip) = $1)
+        AND ($2::int IS NULL OR t.id_telefono <> $2)
+      LIMIT 1`,
     [ip, excluirId],
   );
-  const fila = resultado.rows[0] ?? null;
-  return fila ? fila.id_telefono : null;
+  return resultado.rows[0] ?? null;
 }
 
 /** Inserta un teléfono y devuelve su id generado. */

@@ -52,6 +52,29 @@ export interface DatosDispositivo {
   ata_numero_serie: string | null;
 }
 
+/** Detalle de solo lectura de un dispositivo, con los derivados de monitoreo. */
+export interface DetalleDispositivo {
+  id_telefono: number;
+  ubicacion_nombre: string;
+  tipo_ubicacion: string;
+  piso: number;
+  extension: string;
+  tipo: string;
+  modelo_telefono: string;
+  marca_telefono: string;
+  numero_serie: string;
+  mac: string | null;
+  ip: string | null;
+  modelo_ata: string | null;
+  marca_ata: string | null;
+  cantidad_puertos: number | null;
+  ata_numero_serie: string | null;
+  activo: boolean;
+  estado_monitoreo: 'ONLINE' | 'OFFLINE' | 'DESCONOCIDO' | 'EN_MANTENIMIENTO' | null;
+  fecha_ultima_conexion: string | null;
+  total_incidencias: number;
+}
+
 /** Un modelo de ATA del catálogo. */
 export interface ModeloAta {
   id_modelo_ata: number;

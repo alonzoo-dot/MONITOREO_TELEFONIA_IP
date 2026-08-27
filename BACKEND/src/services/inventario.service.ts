@@ -6,6 +6,7 @@ import * as ubicacionesRepo from '../repositories/ubicaciones.repository';
 import * as incidenciasRepo from '../repositories/incidencias.repository';
 import type {
   DispositivoDetalle,
+  DetalleDispositivo,
   FiltrosDispositivo,
 } from '../repositories/telefonos.repository';
 
@@ -134,7 +135,7 @@ async function validarIpUnica(
   if (dueno !== null) {
     throw new ErrorInventario(
       'IP_DUPLICADA',
-      `La IP ${ip} ya está registrada en el dispositivo ${dueno}.`,
+      `La IP ${ip} ya está registrada en el dispositivo con extensión ${dueno.extension} (${dueno.tipo_ubicacion} ${dueno.ubicacion_nombre}).`,
     );
   }
 }
@@ -276,6 +277,15 @@ export async function obtenerDispositivo(
     throw new ErrorInventario('NO_ENCONTRADO', 'El dispositivo no existe.');
   }
   return dispositivo;
+}
+
+/** Obtiene el detalle completo (inventario + derivados de monitoreo) de un dispositivo. */
+export async function obtenerDetalle(idTelefono: number): Promise<DetalleDispositivo> {
+  const detalle = await telefonosRepo.obtenerDetalle(idTelefono);
+  if (!detalle) {
+    throw new ErrorInventario('NO_ENCONTRADO', 'El dispositivo no existe.');
+  }
+  return detalle;
 }
 
 /** Lista los dispositivos que cumplan los filtros dados. */

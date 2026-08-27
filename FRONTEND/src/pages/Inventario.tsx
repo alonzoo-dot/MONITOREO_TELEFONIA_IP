@@ -29,6 +29,8 @@ function Inventario() {
 
   // Estado del drawer: undefined = cerrado, null = alta, objeto = edición
   const [drawer, setDrawer] = useState<Dispositivo | null | undefined>(undefined);
+  // Id del dispositivo cuyo detalle de solo lectura se está viendo; null = cerrado
+  const [idDetalle, setIdDetalle] = useState<number | null>(null);
   const [importarAbierto, setImportarAbierto] = useState(false);
 
   // Filtros
@@ -369,6 +371,16 @@ function Inventario() {
                     <div className={estilos.acts}>
                       <button
                         className={estilos.ib}
+                        title="Ver detalle"
+                        onClick={() => setIdDetalle(d.id_telefono)}
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                          <circle cx="12" cy="12" r="3" />
+                        </svg>
+                      </button>
+                      <button
+                        className={estilos.ib}
                         title="Editar"
                         onClick={() => setDrawer(d)}
                       >
@@ -411,7 +423,11 @@ function Inventario() {
 
       <DrawerDispositivo
         dispositivo={drawer}
-        onCerrar={() => setDrawer(undefined)}
+        idDetalle={idDetalle}
+        onCerrar={() => {
+          setDrawer(undefined);
+          setIdDetalle(null);
+        }}
         onGuardado={alGuardar}
       />
 

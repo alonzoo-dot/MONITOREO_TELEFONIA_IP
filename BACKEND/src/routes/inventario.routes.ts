@@ -3,6 +3,7 @@ import type { Request, Response, NextFunction } from 'express';
 import {
   listar,
   obtener,
+  obtenerDetalle,
   crear,
   editar,
   desactivar,
@@ -37,6 +38,7 @@ function manejarSubida(peticion: Request, respuesta: Response, siguiente: NextFu
 rutasInventario.get('/', listar);
 rutasInventario.get('/plantilla', descargarPlantilla);
 rutasInventario.post('/importar', manejarSubida, importar);
+rutasInventario.get('/:id/detalle', obtenerDetalle);
 rutasInventario.get('/:id', obtener);
 rutasInventario.post('/', validar(esquemaDispositivo), crear);
 rutasInventario.put('/:id', validar(esquemaDispositivo), editar);

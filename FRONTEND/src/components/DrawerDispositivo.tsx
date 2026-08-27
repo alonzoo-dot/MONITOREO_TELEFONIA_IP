@@ -4,21 +4,48 @@ import {
   editarDispositivo,
   listarModelosTelefono,
   listarModelosAta,
+  obtenerDetalle,
 } from '../services/inventario.service';
 import type {
   Dispositivo,
   DatosDispositivo,
   ModeloTelefono,
   ModeloAta,
+  DetalleDispositivo,
 } from '../types/inventario';
+import type { EstadoDispositivoMonitoreo } from '../types/monitoreo';
+import { formatoRelativo } from '../utils/fechas';
+import { mostrarToast } from '../store/toasts';
 import estilos from './DrawerDispositivo.module.css';
 
 interface Props {
   /** Si viene un dispositivo, el drawer edita; si es null, crea. Si es undefined, está cerrado. */
   dispositivo: Dispositivo | null | undefined;
+  /** Id del dispositivo a mostrar en modo detalle (solo lectura); null = ese modo está cerrado. */
+  idDetalle: number | null;
   onCerrar: () => void;
   onGuardado: () => void;
 }
+
+const ETIQUETA_TIPO: Record<string, string> = {
+  IP_ATA: 'Ata',
+  IP_NATIVO: 'Ip',
+  ANALOGICO: 'Análogo',
+};
+
+const ETIQUETA_ESTADO: Record<EstadoDispositivoMonitoreo, string> = {
+  ONLINE: 'Online',
+  OFFLINE: 'Offline',
+  DESCONOCIDO: 'Desconocido',
+  EN_MANTENIMIENTO: 'Mantenimiento',
+};
+
+const CLASE_ESTADO: Record<EstadoDispositivoMonitoreo, string> = {
+  ONLINE: 'stOnline',
+  OFFLINE: 'stOffline',
+  DESCONOCIDO: 'stDesc',
+  EN_MANTENIMIENTO: 'stAttn',
+};
 
 /** Estado inicial vacío del formulario (modo alta). */
 const FORM_VACIO = {
@@ -35,8 +62,9 @@ const FORM_VACIO = {
   ata_numero_serie: '',
 };
 
-function DrawerDispositivo({ dispositivo, onCerrar, onGuardado }: Props) {
-  const abierto = dispositivo !== undefined;
+function DrawerDispositivo({ dispositivo, idDetalle, onCerrar, onGuardado }: Props) {
+  const modoDetalle = idDetalle !== null;
+  const abierto = modoDetalle || dispositivo !== undefined;
   const editando = dispositivo != null;
 
   const [form, setForm] = useState({ ...FORM_VACIO });
@@ -44,6 +72,40 @@ function DrawerDispositivo({ dispositivo, onCerrar, onGuardado }: Props) {
   const [modelosAta, setModelosAta] = useState<ModeloAta[]>([]);
   const [error, setError] = useState('');
   const [guardando, setGuardando] = useState(false);
+
+  const [detalle, setDetalle] = useState<DetalleDispositivo | null>(null);
+  const [cargandoDetalle, setCargandoDetalle] = useState(false);
+
+  // Carga el detalle de solo lectura cuando se abre en ese modo
+  useEffect(() => {
+    if (idDetalle === null) {
+      setDetalle(null);
+      return;
+    }
+    let cancelado = false;
+    setDetalle(null);
+    setCargandoDetalle(true);
+    obtenerDetalle(idDetalle)
+      .then((datos) => {
+        if (!cancelado) setDetalle(datos);
+      })
+      .catch((err) => {
+        if (cancelado) return;
+        mostrarToast({
+          tipo: 'error',
+          titulo: 'No se pudo cargar el detalle',
+          mensaje: err instanceof Error ? err.message : 'Error al cargar el detalle del dispositivo',
+        });
+        onCerrar();
+      })
+      .finally(() => {
+        if (!cancelado) setCargandoDetalle(false);
+      });
+    return () => {
+      cancelado = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idDetalle]);
 
   // Carga los catálogos una vez
   useEffect(() => {
@@ -159,13 +221,136 @@ function DrawerDispositivo({ dispositivo, onCerrar, onGuardado }: Props) {
         aria-modal="true"
       >
         <div className={estilos.dhead}>
-          <h2>{editando ? 'Editar dispositivo' : 'Nuevo dispositivo'}</h2>
+          <h2>
+            {modoDetalle
+              ? 'Detalle del dispositivo'
+              : editando
+                ? 'Editar dispositivo'
+                : 'Nuevo dispositivo'}
+          </h2>
           <button className={estilos.dx} onClick={onCerrar} aria-label="Cerrar">
             &times;
           </button>
         </div>
 
         <div className={estilos.dbody}>
+          {modoDetalle ? (
+            cargandoDetalle || !detalle ? (
+              <div className={estilos.cargando}>Cargando…</div>
+            ) : (
+              <>
+                <div className={estilos.field}>
+                  <label>Ubicación</label>
+                  <input value={detalle.ubicacion_nombre} disabled />
+                </div>
+
+                <div className={estilos.fila}>
+                  <div className={estilos.field}>
+                    <label>Piso</label>
+                    <input value={String(detalle.piso)} disabled />
+                  </div>
+                  <div className={estilos.field}>
+                    <label>Tipo de ubicación</label>
+                    <input
+                      value={detalle.tipo_ubicacion === 'HABITACION' ? 'Habitación' : 'Departamento'}
+                      disabled
+                    />
+                  </div>
+                </div>
+
+                <div className={estilos.field}>
+                  <label>Extensión</label>
+                  <input className="mono" value={detalle.extension} disabled />
+                </div>
+
+                <div className={estilos.field}>
+                  <label>Tipo</label>
+                  <input value={ETIQUETA_TIPO[detalle.tipo] ?? detalle.tipo} disabled />
+                </div>
+
+                <div className={estilos.field}>
+                  <label>Modelo de teléfono</label>
+                  <input value={`${detalle.modelo_telefono} (${detalle.marca_telefono})`} disabled />
+                </div>
+
+                {detalle.tipo !== 'ANALOGICO' && (
+                  <div className={estilos.cond}>
+                    <div className={estilos.clabel}>Datos de red</div>
+
+                    {detalle.tipo === 'IP_ATA' && (
+                      <div className={estilos.field}>
+                        <label>Modelo de ATA</label>
+                        <input
+                          value={detalle.modelo_ata ? `${detalle.modelo_ata} (${detalle.marca_ata})` : '—'}
+                          disabled
+                        />
+                      </div>
+                    )}
+
+                    <div className={estilos.field}>
+                      <label>MAC</label>
+                      <input className="mono" value={detalle.mac ?? '—'} disabled />
+                    </div>
+
+                    <div className={estilos.field}>
+                      <label>IP</label>
+                      <input className="mono" value={detalle.ip ?? '—'} disabled />
+                    </div>
+
+                    {detalle.tipo === 'IP_ATA' && (
+                      <div className={estilos.field}>
+                        <label>Número de serie del ATA</label>
+                        <input value={detalle.ata_numero_serie ?? '—'} disabled />
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className={estilos.field}>
+                  <label>Número de serie del teléfono</label>
+                  <input value={detalle.numero_serie} disabled />
+                </div>
+
+                <div className={estilos.field}>
+                  <label>Estado del registro</label>
+                  <input value={detalle.activo ? 'Activo' : 'Inactivo'} disabled />
+                </div>
+
+                {detalle.tipo !== 'ANALOGICO' && (
+                  <div className={estilos.cond}>
+                    <div className={estilos.clabel}>Estado de monitoreo</div>
+
+                    <div className={estilos.field}>
+                      <label>Estado actual</label>
+                      {detalle.estado_monitoreo ? (
+                        <span
+                          className={`${estilos.stpill} ${estilos[CLASE_ESTADO[detalle.estado_monitoreo]]}`}
+                        >
+                          <span className={estilos.dot} />
+                          {ETIQUETA_ESTADO[detalle.estado_monitoreo]}
+                        </span>
+                      ) : (
+                        <span className={estilos.muted}>Sin datos aún</span>
+                      )}
+                    </div>
+
+                    <div className={estilos.field}>
+                      <label>Última conexión</label>
+                      <div title={detalle.fecha_ultima_conexion ?? undefined}>
+                        {formatoRelativo(detalle.fecha_ultima_conexion)}
+                      </div>
+                    </div>
+
+                    <div className={estilos.field}>
+                      <label>Total de incidencias</label>
+                      <div>{detalle.total_incidencias} incidencias registradas</div>
+                    </div>
+                  </div>
+                )}
+              </>
+            )
+          ) : (
+            <>
           {error && <div className={estilos.error}>{error}</div>}
 
           <div className={estilos.field}>
@@ -324,15 +509,25 @@ function DrawerDispositivo({ dispositivo, onCerrar, onGuardado }: Props) {
               onChange={(e) => actualizar('numero_serie', e.target.value)}
             />
           </div>
+            </>
+          )}
         </div>
 
         <div className={estilos.dfoot}>
-          <button className={estilos.btn} onClick={onCerrar}>
-            Cancelar
-          </button>
-          <button className={`${estilos.btn} ${estilos.btnPri}`} onClick={guardar} disabled={guardando}>
-            {guardando ? 'Guardando…' : 'Guardar'}
-          </button>
+          {modoDetalle ? (
+            <button className={estilos.btn} onClick={onCerrar}>
+              Cerrar
+            </button>
+          ) : (
+            <>
+              <button className={estilos.btn} onClick={onCerrar}>
+                Cancelar
+              </button>
+              <button className={`${estilos.btn} ${estilos.btnPri}`} onClick={guardar} disabled={guardando}>
+                {guardando ? 'Guardando…' : 'Guardar'}
+              </button>
+            </>
+          )}
         </div>
       </aside>
     </>

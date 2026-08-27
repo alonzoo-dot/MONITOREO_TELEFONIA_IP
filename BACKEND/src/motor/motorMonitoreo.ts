@@ -1,9 +1,11 @@
 import { EventEmitter } from 'events';
+import type { PoolClient } from 'pg';
 import type { ResolvedorIp } from './resolvedorIp';
 import type {
   DispositivoMonitoreable,
   EstadoMonitoreo as TipoEstadoMonitoreo,
 } from '../repositories/monitoreo.repository';
+import type { DispositivoConIp } from '../repositories/telefonos.repository';
 import { RegistroEstadoMonitoreo, type EstadoDispositivo } from './estadoMonitoreo';
 import { PlanificadorRondas } from './planificadorRondas';
 import { ejecutarPing } from './ejecutorPing';
@@ -21,7 +23,11 @@ export interface RepositorioMonitoreo {
 
 /** Lo que el motor necesita del repositorio de teléfonos para validar unicidad de IP. */
 export interface RepositorioTelefonos {
-  buscarPorIp(ip: string, excluirId: number | null): Promise<number | null>;
+  buscarPorIp(
+    ip: string,
+    excluirId: number | null,
+    cliente?: PoolClient | null,
+  ): Promise<DispositivoConIp | null>;
 }
 
 /** Parámetros configurables del motor; todos tienen default. */
@@ -97,6 +103,21 @@ export class MotorMonitoreo {
   /** Lectura del estado actual, para el endpoint que expondrá el Paso 5. */
   obtenerEstado(): EstadoDispositivo[] {
     return this.estado.obtenerTodos();
+  }
+
+  /**
+   * Actualiza el estado de un dispositivo en el Map interno del motor.
+   * Usado para reflejar cambios de estado que ocurrieron por vías externas
+   * (por ejemplo, cuando un admin pone un dispositivo en mantenimiento).
+   * Si el dispositivo no existe en el Map, no hace nada (no crea filas nuevas).
+   * Además resetea fallos_consecutivos a 0 y no emite eventos (el emisor
+   * es el que provocó el cambio externo).
+   */
+  actualizarEstadoDispositivo(idTelefono: number, nuevoEstado: TipoEstadoMonitoreo): void {
+    const dispositivo = this.estado.obtener(idTelefono);
+    if (!dispositivo) return;
+    dispositivo.estado = nuevoEstado;
+    dispositivo.fallos_consecutivos = 0;
   }
 
   on(evento: 'cambio-estado', callback: (payload: PayloadCambioEstado) => void): void;
@@ -240,12 +261,12 @@ export class MotorMonitoreo {
       return false;
     }
 
-    const dueño = await this.repositorioTelefonos.buscarPorIp(ipReal, dispositivo.id_telefono);
+    const dueño = await this.repositorioTelefonos.buscarPorIp(ipReal, dispositivo.id_telefono, null);
     if (dueño !== null) {
       console.warn(
         `[MOTOR] CONFLICTO: no se pudo aplicar drift para teléfono ${dispositivo.id_telefono} ` +
-          `(MAC ${dispositivo.mac}). La nueva IP ${ipReal} ya está registrada en el teléfono ${dueño}. ` +
-          `Se requiere revisión manual.`,
+          `(MAC ${dispositivo.mac}). La nueva IP ${ipReal} ya está registrada en el dispositivo ` +
+          `con extensión ${dueño.extension} (${dueño.tipo_ubicacion} ${dueño.ubicacion_nombre}). Se requiere revisión manual.`,
       );
       return false;
     }
