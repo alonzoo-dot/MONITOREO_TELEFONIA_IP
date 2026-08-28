@@ -1,7 +1,7 @@
 import type { MotorMonitoreo } from './motorMonitoreo';
 
 /**
- * Instancia global del motor de monitoreo, para que otros módulos (Paso 5) se
+ * Instancia global del motor de monitoreo, para que otros módulos se
  * suscriban a sus eventos. Null mientras MOTOR_ACTIVO=false o antes del arranque.
  */
 export let instanciaMotor: MotorMonitoreo | null = null;

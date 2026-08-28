@@ -14,6 +14,7 @@ export interface EstadoDispositivo {
   estado: EstadoMonitoreo; // estado vigente
   fallos_consecutivos: number;
   fecha_ultima_conexion: Date | null;
+  drift_intentado_en_este_ciclo: boolean;
 }
 
 /**
@@ -48,6 +49,7 @@ export class RegistroEstadoMonitoreo {
           estado: 'DESCONOCIDO',
           fallos_consecutivos: 0,
           fecha_ultima_conexion: null,
+          drift_intentado_en_este_ciclo: false,
         });
       }
     }
