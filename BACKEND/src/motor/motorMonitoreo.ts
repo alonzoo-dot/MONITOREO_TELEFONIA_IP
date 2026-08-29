@@ -75,6 +75,8 @@ export class MotorMonitoreo {
   private readonly planificador: PlanificadorRondas;
   private readonly emisor = new EventEmitter();
   private rondasDesdeUltimoRefresco = 0;
+  private readonly ultimoBarridoPorDispositivo = new Map<number, number>();
+  private readonly COOLDOWN_BARRIDO_MS = 30 * 60 * 1000; // 30 min
 
   constructor(
     private readonly resolvedor: ResolvedorIp,
@@ -284,11 +286,56 @@ export class MotorMonitoreo {
     }
 
     if (ipReal === null) {
-      console.warn(
-        `[MOTOR] Drift: MAC ${dispositivo.mac} no encontrada en ARP ` +
-          `(teléfono ${dispositivo.id_telefono}). Sin acción posible.`,
+      // Verifica cooldown antes de barrer.
+      const ahora = Date.now();
+      const ultimoBarrido = this.ultimoBarridoPorDispositivo.get(dispositivo.id_telefono) ?? 0;
+      const tiempoDesdeUltimo = ahora - ultimoBarrido;
+
+      if (tiempoDesdeUltimo < this.COOLDOWN_BARRIDO_MS) {
+        const minutosRestantes = Math.ceil(
+          (this.COOLDOWN_BARRIDO_MS - tiempoDesdeUltimo) / 60000,
+        );
+        console.warn(
+          `[MOTOR] Drift: MAC ${dispositivo.mac} no encontrada en ARP ` +
+            `(teléfono ${dispositivo.id_telefono}). Barrido en cooldown, ` +
+            `${minutosRestantes} min hasta el próximo intento.`,
+        );
+        return false;
+      }
+
+      // Dispara barrido reactivo de la VLAN del dispositivo.
+      console.log(
+        `[MOTOR] Drift: MAC ${dispositivo.mac} no encontrada. ` +
+          `Disparando barrido reactivo para teléfono ${dispositivo.id_telefono}.`,
       );
-      return false;
+      this.ultimoBarridoPorDispositivo.set(dispositivo.id_telefono, ahora);
+
+      try {
+        await this.resolvedor.barrerVlan(dispositivo.ip);
+      } catch (error) {
+        console.error(
+          `[MOTOR] Error durante el barrido reactivo para teléfono ${dispositivo.id_telefono}:`,
+          error,
+        );
+        return false;
+      }
+
+      // Reintenta la resolución con el ARP actualizado.
+      ipReal = await this.resolvedor.resolverIp(dispositivo.mac);
+
+      if (ipReal === null) {
+        console.warn(
+          `[MOTOR] Drift: MAC ${dispositivo.mac} sigue sin aparecer en ARP ` +
+            `tras el barrido (teléfono ${dispositivo.id_telefono}). ` +
+            `El dispositivo probablemente está apagado o desconectado.`,
+        );
+        return false;
+      }
+
+      // Si al reintentar sí la encontró, sigue con el flujo normal de drift más abajo.
+      console.log(
+        `[MOTOR] Drift: MAC ${dispositivo.mac} encontrada tras barrido, IP real ${ipReal}.`,
+      );
     }
 
     if (ipReal === dispositivo.ip) {

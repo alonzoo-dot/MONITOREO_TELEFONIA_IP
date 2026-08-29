@@ -35,6 +35,35 @@ export class ResolvedorIpArp implements ResolvedorIp {
     return this.cache.ipAMac.get(ip) ?? null;
   }
 
+  async barrerVlan(ipDeRango: string): Promise<void> {
+    const octetos = ipDeRango.split('.');
+    if (octetos.length !== 4) {
+      console.warn(`[MOTOR] barrerVlan: IP inválida ${ipDeRango}, se omite.`);
+      return;
+    }
+
+    const prefijo = `${octetos[0]}.${octetos[1]}.${octetos[2]}`;
+    console.log(`[MOTOR] Barrido reactivo iniciado en ${prefijo}.0/24...`);
+
+    // Lanza los 254 pings en paralelo, timeout corto por ping (200 ms).
+    // Windows: -n 1 (un paquete), -w 200 (200 ms). Redirigir stdout a nul.
+    const promesas: Promise<unknown>[] = [];
+    for (let i = 1; i <= 254; i++) {
+      const ip = `${prefijo}.${i}`;
+      promesas.push(
+        ejecutarExec(`ping -n 1 -w 200 ${ip}`).catch(() => {
+          // Ignora errores: los pings que fallan son esperados.
+        }),
+      );
+    }
+    await Promise.all(promesas);
+
+    // Invalida el cache para que la próxima consulta lea la tabla ARP fresca.
+    this.cacheExpiraEn = 0;
+
+    console.log(`[MOTOR] Barrido reactivo completado en ${prefijo}.0/24.`);
+  }
+
   private async asegurarCache(): Promise<void> {
     if (Date.now() < this.cacheExpiraEn) {
       return;
