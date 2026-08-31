@@ -7,7 +7,9 @@ import {
   listarModelosTelefono,
   desactivarDispositivo,
   reactivarDispositivo,
+  eliminarDispositivo,
 } from '../services/inventario.service';
+import { ErrorApi } from '../services/api';
 import type { Dispositivo, FiltrosDispositivo, ModeloTelefono } from '../types/inventario';
 import estilos from './Inventario.module.css';
 
@@ -27,6 +29,8 @@ function Inventario() {
 
   // Estado del drawer: undefined = cerrado, null = alta, objeto = edición
   const [drawer, setDrawer] = useState<Dispositivo | null | undefined>(undefined);
+  // Id del dispositivo cuyo detalle de solo lectura se está viendo; null = cerrado
+  const [idDetalle, setIdDetalle] = useState<number | null>(null);
   const [importarAbierto, setImportarAbierto] = useState(false);
 
   // Filtros
@@ -46,6 +50,7 @@ function Inventario() {
     if (fModelo) filtros.id_modelo_telefono = Number(fModelo);
     if (fEstado === 'activos') filtros.activo = true;
     if (fEstado === 'inactivos') filtros.activo = false;
+    if (fEstado === 'todos') filtros.incluir_inactivos = true;
     if (busqueda.trim()) filtros.busqueda = busqueda.trim();
 
     try {
@@ -71,9 +76,9 @@ function Inventario() {
       .catch(() => setModelos([]));
   }, []);
 
-  // Carga TODOS los dispositivos (sin filtros) solo para los conteos del resumen
+  // Carga TODOS los dispositivos (activos e inactivos) solo para los conteos del resumen
   useEffect(() => {
-    listarDispositivos({})
+    listarDispositivos({ incluir_inactivos: true })
       .then(setTodos)
       .catch(() => setTodos([]));
   }, []);
@@ -96,6 +101,13 @@ function Inventario() {
   );
 
   async function alternarActivo(d: Dispositivo) {
+    const confirmado = d.activo
+      ? window.confirm(
+          '¿Desactivar este dispositivo? Dejará de monitorearse y desaparecerá del inventario activo. Podrás reactivarlo después.',
+        )
+      : window.confirm('¿Reactivar este dispositivo? Volverá a aparecer en el inventario activo.');
+    if (!confirmado) return;
+
     try {
       if (d.activo) {
         await desactivarDispositivo(d.id_telefono);
@@ -109,9 +121,30 @@ function Inventario() {
     }
   }
 
-  /** Recarga los conteos del resumen (todos los dispositivos, sin filtros). */
+  async function eliminar(d: Dispositivo) {
+    const confirmado = window.confirm(
+      '¿Eliminar este dispositivo permanentemente? Esta acción NO se puede deshacer. Solo úsala para registros capturados por error.',
+    );
+    if (!confirmado) return;
+
+    try {
+      await eliminarDispositivo(d.id_telefono);
+      cargar();
+      recargarResumen();
+    } catch (err) {
+      if (err instanceof ErrorApi && err.codigo === 'TIENE_INCIDENCIAS') {
+        setError(
+          'No se puede eliminar porque tiene historial de incidencias o mantenimiento. Puedes desactivarlo, o eliminarlo permanentemente desde el detalle del dispositivo (solo administradores).',
+        );
+      } else {
+        setError(err instanceof Error ? err.message : 'No se pudo eliminar el dispositivo');
+      }
+    }
+  }
+
+  /** Recarga los conteos del resumen (todos los dispositivos, activos e inactivos). */
   function recargarResumen() {
-    listarDispositivos({})
+    listarDispositivos({ incluir_inactivos: true })
       .then(setTodos)
       .catch(() => setTodos([]));
   }
@@ -281,24 +314,7 @@ function Inventario() {
                 <tr key={d.id_telefono} className={d.activo ? '' : estilos.inactive}>
                   <td>
                     <span className={estilos.cardLabel}>Ubicación</span>
-                    <div className={estilos.ubic}>
-                      <span
-                        className={`${estilos.ubicIcono} ${
-                          d.tipo_ubicacion === 'DEPARTAMENTO' ? estilos.ubicDepto : estilos.ubicHab
-                        }`}
-                      >
-                        {d.tipo_ubicacion === 'DEPARTAMENTO' ? (
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4" />
-                          </svg>
-                        ) : (
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M13 4v16M3 21h18M6 4h9M8 12h.01" />
-                          </svg>
-                        )}
-                      </span>
-                      <span className={estilos.hab}>{d.ubicacion_nombre}</span>
-                    </div>
+                    <span className={estilos.hab}>{d.ubicacion_nombre}</span>
                   </td>
                   <td>
                     <span className={estilos.cardLabel}>Piso</span>
@@ -355,6 +371,16 @@ function Inventario() {
                     <div className={estilos.acts}>
                       <button
                         className={estilos.ib}
+                        title="Ver detalle"
+                        onClick={() => setIdDetalle(d.id_telefono)}
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                          <circle cx="12" cy="12" r="3" />
+                        </svg>
+                      </button>
+                      <button
+                        className={estilos.ib}
                         title="Editar"
                         onClick={() => setDrawer(d)}
                       >
@@ -377,6 +403,15 @@ function Inventario() {
                           </svg>
                         )}
                       </button>
+                      <button
+                        className={`${estilos.ib} ${estilos.ibDanger}`}
+                        title="Eliminar"
+                        onClick={() => eliminar(d)}
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6h16zM10 11v6M14 11v6" />
+                        </svg>
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -388,7 +423,11 @@ function Inventario() {
 
       <DrawerDispositivo
         dispositivo={drawer}
-        onCerrar={() => setDrawer(undefined)}
+        idDetalle={idDetalle}
+        onCerrar={() => {
+          setDrawer(undefined);
+          setIdDetalle(null);
+        }}
         onGuardado={alGuardar}
       />
 

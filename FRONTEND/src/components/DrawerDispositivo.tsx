@@ -4,21 +4,50 @@ import {
   editarDispositivo,
   listarModelosTelefono,
   listarModelosAta,
+  obtenerDetalle,
 } from '../services/inventario.service';
 import type {
   Dispositivo,
   DatosDispositivo,
   ModeloTelefono,
   ModeloAta,
+  DetalleDispositivo,
 } from '../types/inventario';
+import type { EstadoDispositivoMonitoreo } from '../types/monitoreo';
+import { formatoRelativo } from '../utils/fechas';
+import { mostrarToast } from '../store/toasts';
+import { obtenerUsuario } from '../services/sesion';
+import ModalEliminacionPermanente from './ModalEliminacionPermanente';
 import estilos from './DrawerDispositivo.module.css';
 
 interface Props {
   /** Si viene un dispositivo, el drawer edita; si es null, crea. Si es undefined, está cerrado. */
   dispositivo: Dispositivo | null | undefined;
+  /** Id del dispositivo a mostrar en modo detalle (solo lectura); null = ese modo está cerrado. */
+  idDetalle: number | null;
   onCerrar: () => void;
   onGuardado: () => void;
 }
+
+const ETIQUETA_TIPO: Record<string, string> = {
+  IP_ATA: 'Ata',
+  IP_NATIVO: 'Ip',
+  ANALOGICO: 'Análogo',
+};
+
+const ETIQUETA_ESTADO: Record<EstadoDispositivoMonitoreo, string> = {
+  ONLINE: 'Online',
+  OFFLINE: 'Offline',
+  DESCONOCIDO: 'Desconocido',
+  EN_MANTENIMIENTO: 'Mantenimiento',
+};
+
+const CLASE_ESTADO: Record<EstadoDispositivoMonitoreo, string> = {
+  ONLINE: 'stOnline',
+  OFFLINE: 'stOffline',
+  DESCONOCIDO: 'stDesc',
+  EN_MANTENIMIENTO: 'stAttn',
+};
 
 /** Estado inicial vacío del formulario (modo alta). */
 const FORM_VACIO = {
@@ -30,12 +59,14 @@ const FORM_VACIO = {
   tipo: 'IP_ATA',
   numero_serie: '',
   mac: '',
+  ip: '',
   id_modelo_ata: '',
   ata_numero_serie: '',
 };
 
-function DrawerDispositivo({ dispositivo, onCerrar, onGuardado }: Props) {
-  const abierto = dispositivo !== undefined;
+function DrawerDispositivo({ dispositivo, idDetalle, onCerrar, onGuardado }: Props) {
+  const modoDetalle = idDetalle !== null;
+  const abierto = modoDetalle || dispositivo !== undefined;
   const editando = dispositivo != null;
 
   const [form, setForm] = useState({ ...FORM_VACIO });
@@ -43,6 +74,43 @@ function DrawerDispositivo({ dispositivo, onCerrar, onGuardado }: Props) {
   const [modelosAta, setModelosAta] = useState<ModeloAta[]>([]);
   const [error, setError] = useState('');
   const [guardando, setGuardando] = useState(false);
+
+  const [detalle, setDetalle] = useState<DetalleDispositivo | null>(null);
+  const [cargandoDetalle, setCargandoDetalle] = useState(false);
+  const [modalEliminarAbierto, setModalEliminarAbierto] = useState(false);
+
+  const esAdministrador = obtenerUsuario()?.tipo_rol === 'ADMINISTRADOR';
+
+  // Carga el detalle de solo lectura cuando se abre en ese modo
+  useEffect(() => {
+    if (idDetalle === null) {
+      setDetalle(null);
+      return;
+    }
+    let cancelado = false;
+    setDetalle(null);
+    setCargandoDetalle(true);
+    obtenerDetalle(idDetalle)
+      .then((datos) => {
+        if (!cancelado) setDetalle(datos);
+      })
+      .catch((err) => {
+        if (cancelado) return;
+        mostrarToast({
+          tipo: 'error',
+          titulo: 'No se pudo cargar el detalle',
+          mensaje: err instanceof Error ? err.message : 'Error al cargar el detalle del dispositivo',
+        });
+        onCerrar();
+      })
+      .finally(() => {
+        if (!cancelado) setCargandoDetalle(false);
+      });
+    return () => {
+      cancelado = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idDetalle]);
 
   // Carga los catálogos una vez
   useEffect(() => {
@@ -63,6 +131,7 @@ function DrawerDispositivo({ dispositivo, onCerrar, onGuardado }: Props) {
         tipo: dispositivo.tipo,
         numero_serie: dispositivo.numero_serie ?? '',
         mac: dispositivo.mac_efectiva ?? '',
+        ip: dispositivo.ip_efectiva ?? '',
         id_modelo_ata: dispositivo.id_modelo_ata != null ? String(dispositivo.id_modelo_ata) : '',
         ata_numero_serie: dispositivo.ata_numero_serie ?? '',
       });
@@ -83,28 +152,49 @@ function DrawerDispositivo({ dispositivo, onCerrar, onGuardado }: Props) {
       setError('Ubicación, piso y extensión son obligatorios.');
       return;
     }
+    const piso = Number(form.piso);
+    if (!Number.isInteger(piso)) {
+      setError('El piso debe ser un número entero');
+      return;
+    }
+    if (piso < 1) {
+      setError('El piso debe ser mayor o igual a 1');
+      return;
+    }
+    if (piso > 50) {
+      setError('El piso no puede superar 50');
+      return;
+    }
     if (!form.id_modelo_telefono) {
       setError('Selecciona un modelo de teléfono.');
       return;
     }
-    if (form.tipo === 'IP_ATA' && (!form.mac.trim() || !form.id_modelo_ata)) {
-      setError('Un dispositivo Ata requiere MAC y modelo de ATA.');
+    if (!form.numero_serie.trim()) {
+      setError('El número de serie del teléfono es obligatorio.');
       return;
     }
-    if (form.tipo === 'IP_NATIVO' && !form.mac.trim()) {
-      setError('Un dispositivo Ip requiere MAC.');
+    if (
+      form.tipo === 'IP_ATA' &&
+      (!form.mac.trim() || !form.ip.trim() || !form.id_modelo_ata || !form.ata_numero_serie.trim())
+    ) {
+      setError('Un dispositivo Ata requiere MAC, IP, modelo de ATA y número de serie de ATA.');
+      return;
+    }
+    if (form.tipo === 'IP_NATIVO' && (!form.mac.trim() || !form.ip.trim())) {
+      setError('Un dispositivo Ip requiere MAC e IP.');
       return;
     }
 
     const datos: DatosDispositivo = {
       ubicacion_nombre: form.ubicacion_nombre.trim(),
-      piso: Number(form.piso),
+      piso,
       tipo_ubicacion: form.tipo_ubicacion,
       id_modelo_telefono: Number(form.id_modelo_telefono),
       extension: form.extension.trim(),
       tipo: form.tipo,
-      numero_serie: form.numero_serie.trim() || null,
+      numero_serie: form.numero_serie.trim(),
       mac: form.tipo === 'ANALOGICO' ? null : form.mac.trim() || null,
+      ip: form.tipo === 'ANALOGICO' ? null : form.ip.trim() || null,
       id_modelo_ata: form.tipo === 'IP_ATA' ? Number(form.id_modelo_ata) : null,
       ata_numero_serie: form.tipo === 'IP_ATA' ? form.ata_numero_serie.trim() || null : null,
     };
@@ -136,13 +226,153 @@ function DrawerDispositivo({ dispositivo, onCerrar, onGuardado }: Props) {
         aria-modal="true"
       >
         <div className={estilos.dhead}>
-          <h2>{editando ? 'Editar dispositivo' : 'Nuevo dispositivo'}</h2>
+          <h2>
+            {modoDetalle
+              ? 'Detalle del dispositivo'
+              : editando
+                ? 'Editar dispositivo'
+                : 'Nuevo dispositivo'}
+          </h2>
           <button className={estilos.dx} onClick={onCerrar} aria-label="Cerrar">
             &times;
           </button>
         </div>
 
         <div className={estilos.dbody}>
+          {modoDetalle ? (
+            cargandoDetalle || !detalle ? (
+              <div className={estilos.cargando}>Cargando…</div>
+            ) : (
+              <>
+                <div className={estilos.field}>
+                  <label>Ubicación</label>
+                  <input value={detalle.ubicacion_nombre} disabled />
+                </div>
+
+                <div className={estilos.fila}>
+                  <div className={estilos.field}>
+                    <label>Piso</label>
+                    <input value={String(detalle.piso)} disabled />
+                  </div>
+                  <div className={estilos.field}>
+                    <label>Tipo de ubicación</label>
+                    <input
+                      value={detalle.tipo_ubicacion === 'HABITACION' ? 'Habitación' : 'Departamento'}
+                      disabled
+                    />
+                  </div>
+                </div>
+
+                <div className={estilos.field}>
+                  <label>Extensión</label>
+                  <input className="mono" value={detalle.extension} disabled />
+                </div>
+
+                <div className={estilos.field}>
+                  <label>Tipo</label>
+                  <input value={ETIQUETA_TIPO[detalle.tipo] ?? detalle.tipo} disabled />
+                </div>
+
+                <div className={estilos.field}>
+                  <label>Modelo de teléfono</label>
+                  <input value={`${detalle.modelo_telefono} (${detalle.marca_telefono})`} disabled />
+                </div>
+
+                {detalle.tipo !== 'ANALOGICO' && (
+                  <div className={estilos.cond}>
+                    <div className={estilos.clabel}>Datos de red</div>
+
+                    {detalle.tipo === 'IP_ATA' && (
+                      <div className={estilos.field}>
+                        <label>Modelo de ATA</label>
+                        <input
+                          value={detalle.modelo_ata ? `${detalle.modelo_ata} (${detalle.marca_ata})` : '—'}
+                          disabled
+                        />
+                      </div>
+                    )}
+
+                    <div className={estilos.field}>
+                      <label>MAC</label>
+                      <input className="mono" value={detalle.mac ?? '—'} disabled />
+                    </div>
+
+                    <div className={estilos.field}>
+                      <label>IP</label>
+                      <input className="mono" value={detalle.ip ?? '—'} disabled />
+                    </div>
+
+                    {detalle.tipo === 'IP_ATA' && (
+                      <div className={estilos.field}>
+                        <label>Número de serie del ATA</label>
+                        <input value={detalle.ata_numero_serie ?? '—'} disabled />
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className={estilos.field}>
+                  <label>Número de serie del teléfono</label>
+                  <input value={detalle.numero_serie} disabled />
+                </div>
+
+                <div className={estilos.field}>
+                  <label>Estado del registro</label>
+                  <input value={detalle.activo ? 'Activo' : 'Inactivo'} disabled />
+                </div>
+
+                {detalle.tipo !== 'ANALOGICO' && (
+                  <div className={estilos.cond}>
+                    <div className={estilos.clabel}>Estado de monitoreo</div>
+
+                    <div className={estilos.field}>
+                      <label>Estado actual</label>
+                      {detalle.estado_monitoreo ? (
+                        <span
+                          className={`${estilos.stpill} ${estilos[CLASE_ESTADO[detalle.estado_monitoreo]]}`}
+                        >
+                          <span className={estilos.dot} />
+                          {ETIQUETA_ESTADO[detalle.estado_monitoreo]}
+                        </span>
+                      ) : (
+                        <span className={estilos.muted}>Sin datos aún</span>
+                      )}
+                    </div>
+
+                    <div className={estilos.field}>
+                      <label>Última conexión</label>
+                      <div title={detalle.fecha_ultima_conexion ?? undefined}>
+                        {formatoRelativo(detalle.fecha_ultima_conexion)}
+                      </div>
+                    </div>
+
+                    <div className={estilos.field}>
+                      <label>Total de incidencias</label>
+                      <div>{detalle.total_incidencias} incidencias registradas</div>
+                    </div>
+                  </div>
+                )}
+
+                {esAdministrador && (
+                  <div className={estilos.zonaPeligro}>
+                    <p className={estilos.zpTexto}>
+                      Eliminar este dispositivo borrará permanentemente su registro y todo su
+                      historial: {detalle.total_incidencias} incidencias registradas y{' '}
+                      {detalle.total_mantenimiento_log} registros de mantenimiento. Esta acción no
+                      se puede deshacer.
+                    </p>
+                    <button
+                      className={estilos.btnPeligro}
+                      onClick={() => setModalEliminarAbierto(true)}
+                    >
+                      Eliminar permanentemente
+                    </button>
+                  </div>
+                )}
+              </>
+            )
+          ) : (
+            <>
           {error && <div className={estilos.error}>{error}</div>}
 
           <div className={estilos.field}>
@@ -150,7 +380,7 @@ function DrawerDispositivo({ dispositivo, onCerrar, onGuardado }: Props) {
               Ubicación <span className={estilos.req}>*</span>
             </label>
             <input
-              placeholder="Ej. 305 o RECEPCION"
+              style={{ textTransform: 'uppercase' }}
               value={form.ubicacion_nombre}
               onChange={(e) => actualizar('ubicacion_nombre', e.target.value)}
             />
@@ -163,7 +393,9 @@ function DrawerDispositivo({ dispositivo, onCerrar, onGuardado }: Props) {
               </label>
               <input
                 type="number"
-                placeholder="Ej. 3"
+                min={1}
+                max={50}
+                step={1}
                 value={form.piso}
                 onChange={(e) => actualizar('piso', e.target.value)}
               />
@@ -187,7 +419,6 @@ function DrawerDispositivo({ dispositivo, onCerrar, onGuardado }: Props) {
               Extensión <span className={estilos.req}>*</span>
             </label>
             <input
-              placeholder="Ej. 3356"
               value={form.extension}
               onChange={(e) => actualizar('extension', e.target.value)}
             />
@@ -258,7 +489,7 @@ function DrawerDispositivo({ dispositivo, onCerrar, onGuardado }: Props) {
                 </label>
                 <input
                   className="mono"
-                  placeholder="C0:74:AD:__:__:__"
+                  style={{ textTransform: 'uppercase' }}
                   value={form.mac}
                   onChange={(e) => actualizar('mac', e.target.value)}
                 />
@@ -266,22 +497,23 @@ function DrawerDispositivo({ dispositivo, onCerrar, onGuardado }: Props) {
               </div>
 
               <div className={estilos.field}>
-                <label>Dirección IP</label>
-                <div className={estilos.ro}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="11" width="18" height="11" rx="2" />
-                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                  </svg>
-                  Se detecta automáticamente
-                </div>
-                <div className={estilos.hint}>El sistema la descubre y la mantiene por monitoreo. No se escribe a mano.</div>
+                <label>
+                  IP <span className={estilos.req}>*</span>
+                </label>
+                <input
+                  className="mono"
+                  value={form.ip}
+                  onChange={(e) => actualizar('ip', e.target.value)}
+                />
+                <div className={estilos.hint}>Debe pertenecer a los rangos del hotel (10.81.20.x o 10.81.21.x). Es el objetivo del ping de monitoreo.</div>
               </div>
 
               {form.tipo === 'IP_ATA' && (
                 <div className={estilos.field}>
-                  <label>Número de serie del ATA</label>
+                  <label>
+                    Número de serie del ATA <span className={estilos.req}>*</span>
+                  </label>
                   <input
-                    placeholder="Opcional"
                     value={form.ata_numero_serie}
                     onChange={(e) => actualizar('ata_numero_serie', e.target.value)}
                   />
@@ -291,24 +523,52 @@ function DrawerDispositivo({ dispositivo, onCerrar, onGuardado }: Props) {
           )}
 
           <div className={estilos.field}>
-            <label>Número de serie del teléfono</label>
+            <label>
+              Número de serie del teléfono <span className={estilos.req}>*</span>
+            </label>
             <input
-              placeholder="Opcional"
               value={form.numero_serie}
               onChange={(e) => actualizar('numero_serie', e.target.value)}
             />
           </div>
+            </>
+          )}
         </div>
 
         <div className={estilos.dfoot}>
-          <button className={estilos.btn} onClick={onCerrar}>
-            Cancelar
-          </button>
-          <button className={`${estilos.btn} ${estilos.btnPri}`} onClick={guardar} disabled={guardando}>
-            {guardando ? 'Guardando…' : 'Guardar'}
-          </button>
+          {modoDetalle ? (
+            <button className={estilos.btn} onClick={onCerrar}>
+              Cerrar
+            </button>
+          ) : (
+            <>
+              <button className={estilos.btn} onClick={onCerrar}>
+                Cancelar
+              </button>
+              <button className={`${estilos.btn} ${estilos.btnPri}`} onClick={guardar} disabled={guardando}>
+                {guardando ? 'Guardando…' : 'Guardar'}
+              </button>
+            </>
+          )}
         </div>
       </aside>
+
+      {detalle && (
+        <ModalEliminacionPermanente
+          abierto={modalEliminarAbierto}
+          idTelefono={detalle.id_telefono}
+          extension={detalle.extension}
+          ubicacionLabel={`${detalle.tipo_ubicacion === 'HABITACION' ? 'Habitación' : 'Departamento'} ${detalle.ubicacion_nombre}`}
+          totalIncidencias={detalle.total_incidencias}
+          totalMantenimiento={detalle.total_mantenimiento_log}
+          onCancelar={() => setModalEliminarAbierto(false)}
+          onEliminado={() => {
+            setModalEliminarAbierto(false);
+            onCerrar();
+            onGuardado();
+          }}
+        />
+      )}
     </>
   );
 }

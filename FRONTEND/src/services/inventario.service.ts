@@ -2,6 +2,7 @@ import { peticionApi, URL_BASE } from './api';
 import { obtenerToken } from './sesion';
 import type {
   Dispositivo,
+  DetalleDispositivo,
   FiltrosDispositivo,
   DatosDispositivo,
   ModeloAta,
@@ -18,6 +19,7 @@ function construirQuery(filtros: FiltrosDispositivo): string {
     parametros.set('id_modelo_telefono', String(filtros.id_modelo_telefono));
   }
   if (filtros.activo !== undefined) parametros.set('activo', String(filtros.activo));
+  if (filtros.incluir_inactivos) parametros.set('incluir_inactivos', 'true');
   if (filtros.busqueda) parametros.set('busqueda', filtros.busqueda);
   const texto = parametros.toString();
   return texto ? `?${texto}` : '';
@@ -33,6 +35,13 @@ export function listarDispositivos(filtros: FiltrosDispositivo = {}): Promise<Di
 /** Obtiene el detalle de un dispositivo por su id. */
 export function obtenerDispositivo(idTelefono: number): Promise<Dispositivo> {
   return peticionApi<Dispositivo>(`/dispositivos/${idTelefono}`, {
+    token: obtenerToken() ?? undefined,
+  });
+}
+
+/** Obtiene el detalle de solo lectura de un dispositivo, con los derivados de monitoreo. */
+export function obtenerDetalle(idTelefono: number): Promise<DetalleDispositivo> {
+  return peticionApi<DetalleDispositivo>(`/dispositivos/${idTelefono}/detalle`, {
     token: obtenerToken() ?? undefined,
   });
 }
@@ -59,17 +68,33 @@ export function editarDispositivo(
 }
 
 /** Da de baja (lógica) un dispositivo. */
-export function desactivarDispositivo(idTelefono: number): Promise<{ mensaje: string }> {
-  return peticionApi<{ mensaje: string }>(`/dispositivos/${idTelefono}`, {
-    metodo: 'DELETE',
+export function desactivarDispositivo(idTelefono: number): Promise<void> {
+  return peticionApi<void>(`/dispositivos/${idTelefono}/desactivar`, {
+    metodo: 'PATCH',
     token: obtenerToken() ?? undefined,
   });
 }
 
 /** Reactiva un dispositivo dado de baja. */
-export function reactivarDispositivo(idTelefono: number): Promise<{ mensaje: string }> {
-  return peticionApi<{ mensaje: string }>(`/dispositivos/${idTelefono}/reactivar`, {
-    metodo: 'POST',
+export function reactivarDispositivo(idTelefono: number): Promise<void> {
+  return peticionApi<void>(`/dispositivos/${idTelefono}/reactivar`, {
+    metodo: 'PATCH',
+    token: obtenerToken() ?? undefined,
+  });
+}
+
+/** Elimina permanentemente un dispositivo. Falla si tiene incidencias registradas. */
+export function eliminarDispositivo(idTelefono: number): Promise<void> {
+  return peticionApi<void>(`/dispositivos/${idTelefono}`, {
+    metodo: 'DELETE',
+    token: obtenerToken() ?? undefined,
+  });
+}
+
+/** Elimina permanentemente un dispositivo junto con todo su historial. Irreversible. */
+export function eliminarPermanentemente(idTelefono: number): Promise<void> {
+  return peticionApi<void>(`/dispositivos/${idTelefono}/permanente`, {
+    metodo: 'DELETE',
     token: obtenerToken() ?? undefined,
   });
 }

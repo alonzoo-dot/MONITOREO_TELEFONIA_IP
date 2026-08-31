@@ -3,8 +3,15 @@ import { ejecutarEnTransaccion } from '../config/database';
 import * as telefonosRepo from '../repositories/telefonos.repository';
 import * as atasRepo from '../repositories/atas.repository';
 import * as ubicacionesRepo from '../repositories/ubicaciones.repository';
+import * as incidenciasRepo from '../repositories/incidencias.repository';
+import * as mantenimientoLogRepo from '../repositories/mantenimiento_log.repository';
+import * as monitoreoRepo from '../repositories/monitoreo.repository';
+import * as eliminacionesRepo from '../repositories/eliminaciones_permanentes.repository';
+import { instanciaMotor } from '../motor/instancia';
+import * as eventosSse from './eventosSse.service';
 import type {
   DispositivoDetalle,
+  DetalleDispositivo,
   FiltrosDispositivo,
 } from '../repositories/telefonos.repository';
 
@@ -32,6 +39,7 @@ export interface DatosDispositivo {
   tipo: TipoDispositivo;
   numero_serie: string | null;
   mac: string | null;
+  ip: string | null;
   // Solo para IP_ATA:
   id_modelo_ata: number | null;
   ata_numero_serie: string | null;
@@ -52,17 +60,33 @@ function validarCoherenciaPorTipo(datos: DatosDispositivo): void {
         'Un dispositivo IP_ATA requiere un modelo de ATA.',
       );
     }
+    if (!datos.ip) {
+      throw new ErrorInventario('IP_REQUERIDA', 'Un dispositivo IP_ATA requiere IP.');
+    }
+    if (!datos.ata_numero_serie) {
+      throw new ErrorInventario(
+        'SERIE_ATA_REQUERIDA',
+        'Un dispositivo IP_ATA requiere el número de serie del ATA.',
+      );
+    }
   }
 
-  if (datos.tipo === 'IP_NATIVO' && !datos.mac) {
-    throw new ErrorInventario('MAC_REQUERIDA', 'Un dispositivo IP_NATIVO requiere MAC.');
+  if (datos.tipo === 'IP_NATIVO') {
+    if (!datos.mac) {
+      throw new ErrorInventario('MAC_REQUERIDA', 'Un dispositivo IP_NATIVO requiere MAC.');
+    }
+    if (!datos.ip) {
+      throw new ErrorInventario('IP_REQUERIDA', 'Un dispositivo IP_NATIVO requiere IP.');
+    }
   }
 
-  if (datos.tipo === 'ANALOGICO' && datos.mac) {
-    throw new ErrorInventario(
-      'MAC_NO_PERMITIDA',
-      'Un dispositivo ANALOGICO no admite MAC.',
-    );
+  if (datos.tipo === 'ANALOGICO') {
+    if (datos.mac) {
+      throw new ErrorInventario('MAC_NO_PERMITIDA', 'Un dispositivo ANALOGICO no admite MAC.');
+    }
+    if (datos.ip) {
+      throw new ErrorInventario('IP_NO_PERMITIDA', 'Un dispositivo ANALOGICO no admite IP.');
+    }
   }
 }
 
@@ -103,6 +127,25 @@ async function validarExtensionUnica(
 }
 
 /**
+ * Verifica que la IP no esté registrada en otro dispositivo (activo o inactivo),
+ * salvo el propio que se edita (excluirId). Lanza error si está duplicada.
+ */
+async function validarIpUnica(
+  ip: string | null,
+  excluirId: number | null,
+  cliente: PoolClient,
+): Promise<void> {
+  if (!ip) return;
+  const dueno = await telefonosRepo.buscarPorIp(ip, excluirId, cliente);
+  if (dueno !== null) {
+    throw new ErrorInventario(
+      'IP_DUPLICADA',
+      `La IP ${ip} ya está registrada en el dispositivo con extensión ${dueno.extension} (${dueno.tipo_ubicacion} ${dueno.ubicacion_nombre}).`,
+    );
+  }
+}
+
+/**
  * Resuelve la ubicación por nombre: si ya existe la reutiliza, si no la crea.
  * Devuelve el id de la ubicación. Opera dentro de la transacción recibida.
  */
@@ -135,6 +178,7 @@ export async function crearDispositivo(
     if (datos.mac) {
       await validarMacUnica(datos.mac, null, cliente);
     }
+    await validarIpUnica(datos.ip, null, cliente);
 
     const idUbicacion = await resolverUbicacion(datos, cliente);
 
@@ -146,6 +190,7 @@ export async function crearDispositivo(
         tipo: datos.tipo,
         numero_serie: datos.numero_serie,
         mac: datos.tipo === 'IP_NATIVO' ? datos.mac : null,
+        ip: datos.tipo === 'IP_NATIVO' ? datos.ip : null,
       },
       cliente,
     );
@@ -156,6 +201,7 @@ export async function crearDispositivo(
           id_telefono: nuevoIdTelefono,
           id_modelo_ata: datos.id_modelo_ata!,
           mac: datos.mac!,
+          ip: datos.ip!,
           numero_serie: datos.ata_numero_serie,
         },
         cliente,
@@ -191,6 +237,7 @@ export async function actualizarDispositivo(
     if (datos.mac) {
       await validarMacUnica(datos.mac, idTelefono, cliente);
     }
+    await validarIpUnica(datos.ip, idTelefono, cliente);
 
     const idUbicacion = await resolverUbicacion(datos, cliente);
 
@@ -203,6 +250,7 @@ export async function actualizarDispositivo(
         tipo: datos.tipo,
         numero_serie: datos.numero_serie,
         mac: datos.tipo === 'IP_NATIVO' ? datos.mac : null,
+        ip: datos.tipo === 'IP_NATIVO' ? datos.ip : null,
       },
       cliente,
     );
@@ -214,6 +262,7 @@ export async function actualizarDispositivo(
           id_telefono: idTelefono,
           id_modelo_ata: datos.id_modelo_ata!,
           mac: datos.mac!,
+          ip: datos.ip!,
           numero_serie: datos.ata_numero_serie,
         },
         cliente,
@@ -233,6 +282,15 @@ export async function obtenerDispositivo(
     throw new ErrorInventario('NO_ENCONTRADO', 'El dispositivo no existe.');
   }
   return dispositivo;
+}
+
+/** Obtiene el detalle completo (inventario + derivados de monitoreo) de un dispositivo. */
+export async function obtenerDetalle(idTelefono: number): Promise<DetalleDispositivo> {
+  const detalle = await telefonosRepo.obtenerDetalle(idTelefono);
+  if (!detalle) {
+    throw new ErrorInventario('NO_ENCONTRADO', 'El dispositivo no existe.');
+  }
+  return detalle;
 }
 
 /** Lista los dispositivos que cumplan los filtros dados. */
@@ -270,4 +328,76 @@ export async function reactivarDispositivo(idTelefono: number): Promise<void> {
       await atasRepo.reactivarAta(idTelefono, cliente);
     }
   });
+}
+
+/**
+ * Borrado físico de un dispositivo. Rechaza el borrado si tiene incidencias
+ * registradas (en ese caso debe darse de baja en su lugar).
+ */
+export async function eliminarDispositivo(idTelefono: number): Promise<void> {
+  const actual = await telefonosRepo.buscarDetallePorId(idTelefono);
+  if (!actual) {
+    throw new ErrorInventario('NO_ENCONTRADO', 'El dispositivo no existe.');
+  }
+
+  await ejecutarEnTransaccion(async (cliente) => {
+    const totalIncidencias = await incidenciasRepo.contarPorTelefono(idTelefono, cliente);
+    if (totalIncidencias > 0) {
+      throw new ErrorInventario(
+        'TIENE_INCIDENCIAS',
+        'El dispositivo tiene historial de incidencias. Desactívalo en su lugar.',
+      );
+    }
+
+    if (actual.tipo === 'IP_ATA') {
+      await atasRepo.eliminarAta(idTelefono, cliente);
+    }
+    await telefonosRepo.eliminarTelefono(idTelefono, cliente);
+  });
+}
+
+/**
+ * Borrado físico de un dispositivo junto con todo su historial (incidencias y
+ * mantenimiento). A diferencia de `eliminarDispositivo`, nunca rechaza por tener
+ * historial: lo borra y deja un registro de auditoría en `eliminaciones_permanentes`.
+ * Irreversible por diseño.
+ */
+export async function eliminarPermanentemente(
+  idTelefono: number,
+  idUsuario: number,
+): Promise<void> {
+  const actual = await telefonosRepo.buscarDetallePorId(idTelefono);
+  if (!actual) {
+    throw new ErrorInventario('NO_ENCONTRADO', 'El dispositivo no existe.');
+  }
+
+  await ejecutarEnTransaccion(async (cliente) => {
+    const cantidadIncidencias = await incidenciasRepo.eliminarPorTelefono(idTelefono, cliente);
+    const cantidadMantenimiento = await mantenimientoLogRepo.eliminarPorTelefono(
+      idTelefono,
+      cliente,
+    );
+    await monitoreoRepo.eliminarPorTelefono(idTelefono, cliente);
+
+    if (actual.tipo === 'IP_ATA') {
+      await atasRepo.eliminarAta(idTelefono, cliente);
+    }
+    await telefonosRepo.eliminarTelefono(idTelefono, cliente);
+
+    await eliminacionesRepo.registrarEliminacion(
+      {
+        extension_original: actual.extension,
+        mac_original: actual.mac_efectiva,
+        tipo_original: actual.tipo as TipoDispositivo,
+        ubicacion_original: `${actual.tipo_ubicacion} ${actual.ubicacion_nombre}`,
+        cantidad_incidencias_borradas: cantidadIncidencias,
+        cantidad_mantenimiento_log_borradas: cantidadMantenimiento,
+        id_usuario: idUsuario,
+      },
+      cliente,
+    );
+  });
+
+  instanciaMotor?.eliminarDelMap(idTelefono);
+  eventosSse.difundir('dispositivo-eliminado', { id_telefono: idTelefono });
 }

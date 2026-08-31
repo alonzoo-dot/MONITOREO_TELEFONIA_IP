@@ -3,10 +3,13 @@ import type { Request, Response, NextFunction } from 'express';
 import {
   listar,
   obtener,
+  obtenerDetalle,
   crear,
   editar,
   desactivar,
   reactivar,
+  eliminar,
+  eliminarPermanentemente,
 } from '../controllers/inventario.controller';
 import { importar, descargarPlantilla } from '../controllers/importacion.controller';
 import { requiereAutenticacion } from '../middlewares/auth.middleware';
@@ -36,10 +39,13 @@ function manejarSubida(peticion: Request, respuesta: Response, siguiente: NextFu
 rutasInventario.get('/', listar);
 rutasInventario.get('/plantilla', descargarPlantilla);
 rutasInventario.post('/importar', manejarSubida, importar);
+rutasInventario.get('/:id/detalle', obtenerDetalle);
 rutasInventario.get('/:id', obtener);
 rutasInventario.post('/', validar(esquemaDispositivo), crear);
 rutasInventario.put('/:id', validar(esquemaDispositivo), editar);
-rutasInventario.delete('/:id', desactivar);
-rutasInventario.post('/:id/reactivar', reactivar);
+rutasInventario.patch('/:id/desactivar', desactivar);
+rutasInventario.patch('/:id/reactivar', reactivar);
+rutasInventario.delete('/:id/permanente', eliminarPermanentemente);
+rutasInventario.delete('/:id', eliminar);
 
 export default rutasInventario;

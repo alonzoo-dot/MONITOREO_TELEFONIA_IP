@@ -12,7 +12,7 @@ export interface DispositivoDetalle {
   tipo: string;
   numero_serie: string | null;
   mac: string | null; // MAC propia del teléfono (solo IP_NATIVO)
-  ip: string | null; // la escribe el monitoreo; null en este módulo
+  ip: string | null; // IP propia del teléfono (solo IP_NATIVO)
   activo: boolean;
   id_ubicacion: number;
   ubicacion_nombre: string;
@@ -26,10 +26,11 @@ export interface DispositivoDetalle {
   modelo_ata: string | null;
   marca_ata: string | null;
   ata_mac: string | null;
-  ata_ip: string | null;
+  ata_ip: string | null; // IP propia del ATA (solo IP_ATA)
   ata_numero_serie: string | null;
   ata_activo: boolean | null;
   mac_efectiva: string | null; // COALESCE(atas.mac, telefonos.mac)
+  ip_efectiva: string | null; // COALESCE(atas.ip, telefonos.ip)
 }
 
 /** Filtros opcionales para el listado de dispositivos. */
@@ -39,6 +40,8 @@ export interface FiltrosDispositivo {
   id_modelo_telefono?: number;
   activo?: boolean;
   busqueda?: string; // coincide contra nombre de ubicación o MAC efectiva
+  /** Si es true, incluye también los dispositivos inactivos. Ignorado si `activo` viene definido. */
+  incluir_inactivos?: boolean;
 }
 
 /** Campos escribibles de un teléfono, compartidos por el alta y la edición. */
@@ -49,6 +52,7 @@ export interface DatosTelefono {
   tipo: string;
   numero_serie: string | null;
   mac: string | null;
+  ip: string | null;
 }
 
 /** SELECT base del dispositivo enriquecido, reutilizado por listado y detalle. */
@@ -75,7 +79,8 @@ const SELECT_DISPOSITIVO = `
          a.ip            AS ata_ip,
          a.numero_serie  AS ata_numero_serie,
          a.activo        AS ata_activo,
-         COALESCE(a.mac, t.mac) AS mac_efectiva
+         COALESCE(a.mac, t.mac) AS mac_efectiva,
+         COALESCE(a.ip, t.ip) AS ip_efectiva
     FROM telefonos t
     JOIN ubicaciones u        ON u.id_ubicacion = t.id_ubicacion
     JOIN modelos_telefono mt  ON mt.id_modelo_telefono = t.id_modelo_telefono
@@ -104,6 +109,8 @@ export async function listarDispositivos(
   if (filtros.activo !== undefined) {
     parametros.push(filtros.activo);
     condiciones.push(`t.activo = $${parametros.length}`);
+  } else if (!filtros.incluir_inactivos) {
+    condiciones.push(`t.activo = true`);
   }
   if (filtros.busqueda !== undefined && filtros.busqueda.trim() !== '') {
     parametros.push(`%${filtros.busqueda.trim()}%`);
@@ -131,6 +138,82 @@ export async function buscarDetallePorId(
   const resultado = await ejecutarConsulta<DispositivoDetalle>(
     `${SELECT_DISPOSITIVO}
      WHERE t.id_telefono = $1`,
+    [idTelefono],
+  );
+  return resultado.rows[0] ?? null;
+}
+
+/**
+ * Un dispositivo con todos sus datos de inventario más los datos derivados de
+ * monitoreo (estado actual, última conexión, total de incidencias), para la
+ * vista de solo lectura "Ver detalle". Nombrado distinto de `DispositivoDetalle`
+ * (la vista enriquecida de listado/edición) para no chocar con ella.
+ */
+export interface DetalleDispositivo {
+  id_telefono: number;
+  ubicacion_nombre: string;
+  tipo_ubicacion: string;
+  piso: number;
+  extension: string;
+  tipo: 'IP_ATA' | 'IP_NATIVO' | 'ANALOGICO';
+  modelo_telefono: string;
+  marca_telefono: string;
+  numero_serie: string;
+  mac: string | null;
+  ip: string | null;
+  modelo_ata: string | null;
+  marca_ata: string | null;
+  cantidad_puertos: number | null;
+  ata_numero_serie: string | null;
+  activo: boolean;
+  // Derivados de monitoreo: null (o 0 para el conteo) si el dispositivo no es monitoreable
+  // o todavía no tiene fila en `monitoreo`.
+  estado_monitoreo: 'ONLINE' | 'OFFLINE' | 'DESCONOCIDO' | 'EN_MANTENIMIENTO' | null;
+  fecha_ultima_conexion: Date | null;
+  total_incidencias: number;
+  total_mantenimiento_log: number;
+}
+
+/** Obtiene el detalle completo (inventario + derivados de monitoreo) de un dispositivo. */
+export async function obtenerDetalle(idTelefono: number): Promise<DetalleDispositivo | null> {
+  const resultado = await ejecutarConsulta<DetalleDispositivo>(
+    `SELECT t.id_telefono,
+            u.nombre        AS ubicacion_nombre,
+            u.tipo_ubicacion,
+            u.piso,
+            t.extension,
+            t.tipo,
+            mt.modelo       AS modelo_telefono,
+            mt.marca        AS marca_telefono,
+            t.numero_serie,
+            COALESCE(a.mac, t.mac)::text AS mac,
+            host(COALESCE(a.ip, t.ip))   AS ip,
+            ma.modelo       AS modelo_ata,
+            ma.marca        AS marca_ata,
+            ma.cantidad_puertos,
+            a.numero_serie  AS ata_numero_serie,
+            t.activo,
+            m.estado        AS estado_monitoreo,
+            m.fecha_ultima_conexion,
+            COALESCE(inc.total, 0)::int AS total_incidencias,
+            COALESCE(mlog.total, 0)::int AS total_mantenimiento_log
+       FROM telefonos t
+       JOIN ubicaciones u        ON u.id_ubicacion = t.id_ubicacion
+       JOIN modelos_telefono mt  ON mt.id_modelo_telefono = t.id_modelo_telefono
+       LEFT JOIN atas a          ON a.id_telefono = t.id_telefono
+       LEFT JOIN modelos_ata ma  ON ma.id_modelo_ata = a.id_modelo_ata
+       LEFT JOIN monitoreo m     ON m.id_telefono = t.id_telefono
+       LEFT JOIN (
+         SELECT id_telefono, COUNT(*) AS total
+           FROM incidencias
+          GROUP BY id_telefono
+       ) inc ON inc.id_telefono = t.id_telefono
+       LEFT JOIN (
+         SELECT id_telefono, COUNT(*) AS total
+           FROM mantenimiento_log
+          GROUP BY id_telefono
+       ) mlog ON mlog.id_telefono = t.id_telefono
+      WHERE t.id_telefono = $1`,
     [idTelefono],
   );
   return resultado.rows[0] ?? null;
@@ -164,6 +247,39 @@ export async function buscarIdPorMac(
   return fila ? fila.id_telefono : null;
 }
 
+/** Datos de contexto del dispositivo dueño de una IP, para mensajes al usuario. */
+export interface DispositivoConIp {
+  id_telefono: number;
+  extension: string;
+  ubicacion_nombre: string;
+  tipo_ubicacion: string;
+}
+
+/**
+ * Devuelve el dispositivo que actualmente tiene la IP dada (con su extensión y
+ * ubicación, para mensajes de error legibles), o null si nadie la tiene. Busca
+ * en telefonos.ip y atas.ip. Ignora el id_telefono pasado en `excluirId` (útil
+ * para actualizaciones donde el propio dispositivo mantiene su IP).
+ */
+export async function buscarPorIp(
+  ip: string,
+  excluirId: number | null,
+  cliente?: PoolClient,
+): Promise<DispositivoConIp | null> {
+  const resultado = await consultarCon<DispositivoConIp>(
+    cliente,
+    `SELECT t.id_telefono, t.extension, u.nombre AS ubicacion_nombre, u.tipo_ubicacion
+       FROM telefonos t
+       JOIN ubicaciones u ON u.id_ubicacion = t.id_ubicacion
+       LEFT JOIN atas a ON a.id_telefono = t.id_telefono
+      WHERE (host(t.ip) = $1 OR host(a.ip) = $1)
+        AND ($2::int IS NULL OR t.id_telefono <> $2)
+      LIMIT 1`,
+    [ip, excluirId],
+  );
+  return resultado.rows[0] ?? null;
+}
+
 /** Inserta un teléfono y devuelve su id generado. */
 export async function crearTelefono(
   datos: DatosTelefono,
@@ -172,8 +288,8 @@ export async function crearTelefono(
   const resultado = await consultarCon<{ id_telefono: number }>(
     cliente,
     `INSERT INTO telefonos
-       (id_ubicacion, id_modelo_telefono, extension, tipo, numero_serie, mac)
-     VALUES ($1, $2, $3, $4, $5, $6)
+       (id_ubicacion, id_modelo_telefono, extension, tipo, numero_serie, mac, ip)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
      RETURNING id_telefono`,
     [
       datos.id_ubicacion,
@@ -182,6 +298,7 @@ export async function crearTelefono(
       datos.tipo,
       datos.numero_serie,
       datos.mac,
+      datos.ip,
     ],
   );
   return resultado.rows[0]!.id_telefono;
@@ -201,8 +318,9 @@ export async function actualizarTelefono(
             extension = $3,
             tipo = $4,
             numero_serie = $5,
-            mac = $6
-      WHERE id_telefono = $7`,
+            mac = $6,
+            ip = $7
+      WHERE id_telefono = $8`,
     [
       datos.id_ubicacion,
       datos.id_modelo_telefono,
@@ -210,6 +328,7 @@ export async function actualizarTelefono(
       datos.tipo,
       datos.numero_serie,
       datos.mac,
+      datos.ip,
       idTelefono,
     ],
   );
@@ -237,4 +356,12 @@ export async function reactivarTelefono(
     `UPDATE telefonos SET activo = true WHERE id_telefono = $1`,
     [idTelefono],
   );
+}
+
+/** Borrado físico de un teléfono. */
+export async function eliminarTelefono(
+  idTelefono: number,
+  cliente?: PoolClient,
+): Promise<void> {
+  await consultarCon(cliente, `DELETE FROM telefonos WHERE id_telefono = $1`, [idTelefono]);
 }

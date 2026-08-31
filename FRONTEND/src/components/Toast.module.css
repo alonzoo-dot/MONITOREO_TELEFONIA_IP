@@ -1,0 +1,75 @@
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 280px;
+  max-width: 360px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--ink-faint);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-pop);
+  padding: 12px 14px;
+  animation: entrar 0.2s ease;
+}
+
+@keyframes entrar {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.cuerpo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.cuerpo b {
+  font-size: 13.5px;
+  color: var(--ink);
+}
+
+.cuerpo span {
+  font-size: 12.5px;
+  color: var(--ink-soft);
+}
+
+.cerrar {
+  border: none;
+  background: none;
+  color: var(--ink-faint);
+  flex: none;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+}
+
+.cerrar:hover {
+  color: var(--ink);
+}
+
+.cerrar svg {
+  width: 14px;
+  height: 14px;
+}
+
+.exito {
+  border-left-color: var(--online);
+}
+
+.error {
+  border-left-color: var(--offline);
+}
+
+.info {
+  border-left-color: var(--accent);
+}
