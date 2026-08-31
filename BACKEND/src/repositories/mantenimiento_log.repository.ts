@@ -23,3 +23,16 @@ export async function insertarLog(
     [datos.id_telefono, datos.id_usuario, datos.accion],
   );
 }
+
+/** Elimina todas las entradas del log de mantenimiento de un teléfono. Devuelve la cantidad borrada. */
+export async function eliminarPorTelefono(
+  idTelefono: number,
+  cliente?: PoolClient,
+): Promise<number> {
+  const resultado = await consultarCon(
+    cliente,
+    `DELETE FROM mantenimiento_log WHERE id_telefono = $1 RETURNING id_log`,
+    [idTelefono],
+  );
+  return resultado.rowCount ?? 0;
+}

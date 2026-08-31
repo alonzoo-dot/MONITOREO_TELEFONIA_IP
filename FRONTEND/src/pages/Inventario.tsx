@@ -134,7 +134,7 @@ function Inventario() {
     } catch (err) {
       if (err instanceof ErrorApi && err.codigo === 'TIENE_INCIDENCIAS') {
         setError(
-          'Este dispositivo tiene historial de incidencias y no puede eliminarse. Usa Desactivar en su lugar.',
+          'No se puede eliminar porque tiene historial de incidencias o mantenimiento. Puedes desactivarlo, o eliminarlo permanentemente desde el detalle del dispositivo (solo administradores).',
         );
       } else {
         setError(err instanceof Error ? err.message : 'No se pudo eliminar el dispositivo');

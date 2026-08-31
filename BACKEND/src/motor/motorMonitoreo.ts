@@ -121,6 +121,16 @@ export class MotorMonitoreo {
     dispositivo.fallos_consecutivos = 0;
   }
 
+  /**
+   * Elimina un dispositivo del Map interno del motor. Usado cuando un dispositivo
+   * fue eliminado permanentemente del sistema y ya no debe pinguerse.
+   * Si el dispositivo no existe en el Map, no hace nada.
+   */
+  eliminarDelMap(idTelefono: number): void {
+    this.estado.eliminar(idTelefono);
+    this.ultimoBarridoPorDispositivo.delete(idTelefono);
+  }
+
   on(evento: 'cambio-estado', callback: (payload: PayloadCambioEstado) => void): void;
   on(evento: 'drift-corregido', callback: (payload: PayloadDriftCorregido) => void): void;
   on(evento: string, callback: (...args: any[]) => void): void {

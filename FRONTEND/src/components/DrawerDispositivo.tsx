@@ -16,6 +16,8 @@ import type {
 import type { EstadoDispositivoMonitoreo } from '../types/monitoreo';
 import { formatoRelativo } from '../utils/fechas';
 import { mostrarToast } from '../store/toasts';
+import { obtenerUsuario } from '../services/sesion';
+import ModalEliminacionPermanente from './ModalEliminacionPermanente';
 import estilos from './DrawerDispositivo.module.css';
 
 interface Props {
@@ -75,6 +77,9 @@ function DrawerDispositivo({ dispositivo, idDetalle, onCerrar, onGuardado }: Pro
 
   const [detalle, setDetalle] = useState<DetalleDispositivo | null>(null);
   const [cargandoDetalle, setCargandoDetalle] = useState(false);
+  const [modalEliminarAbierto, setModalEliminarAbierto] = useState(false);
+
+  const esAdministrador = obtenerUsuario()?.tipo_rol === 'ADMINISTRADOR';
 
   // Carga el detalle de solo lectura cuando se abre en ese modo
   useEffect(() => {
@@ -347,6 +352,23 @@ function DrawerDispositivo({ dispositivo, idDetalle, onCerrar, onGuardado }: Pro
                     </div>
                   </div>
                 )}
+
+                {esAdministrador && (
+                  <div className={estilos.zonaPeligro}>
+                    <p className={estilos.zpTexto}>
+                      Eliminar este dispositivo borrará permanentemente su registro y todo su
+                      historial: {detalle.total_incidencias} incidencias registradas y{' '}
+                      {detalle.total_mantenimiento_log} registros de mantenimiento. Esta acción no
+                      se puede deshacer.
+                    </p>
+                    <button
+                      className={estilos.btnPeligro}
+                      onClick={() => setModalEliminarAbierto(true)}
+                    >
+                      Eliminar permanentemente
+                    </button>
+                  </div>
+                )}
               </>
             )
           ) : (
@@ -530,6 +552,23 @@ function DrawerDispositivo({ dispositivo, idDetalle, onCerrar, onGuardado }: Pro
           )}
         </div>
       </aside>
+
+      {detalle && (
+        <ModalEliminacionPermanente
+          abierto={modalEliminarAbierto}
+          idTelefono={detalle.id_telefono}
+          extension={detalle.extension}
+          ubicacionLabel={`${detalle.tipo_ubicacion === 'HABITACION' ? 'Habitación' : 'Departamento'} ${detalle.ubicacion_nombre}`}
+          totalIncidencias={detalle.total_incidencias}
+          totalMantenimiento={detalle.total_mantenimiento_log}
+          onCancelar={() => setModalEliminarAbierto(false)}
+          onEliminado={() => {
+            setModalEliminarAbierto(false);
+            onCerrar();
+            onGuardado();
+          }}
+        />
+      )}
     </>
   );
 }

@@ -282,6 +282,45 @@
   cursor: not-allowed;
 }
 
+.zonaPeligro {
+  margin-top: 22px;
+  padding: 14px;
+  border: 1px solid #f3c9c2;
+  border-top: 3px solid var(--offline);
+  border-radius: var(--radius);
+  background: var(--offline-bg);
+}
+
+.zpTitulo {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--offline);
+  margin-bottom: 8px;
+}
+
+.zpTexto {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+  margin: 0 0 12px;
+}
+
+.btnPeligro {
+  border: 1px solid var(--offline);
+  background: var(--offline);
+  color: #fff;
+  padding: 9px 16px;
+  border-radius: var(--radius);
+  font-size: 13.5px;
+  font-weight: 500;
+}
+
+.btnPeligro:hover {
+  background: var(--offline-dot);
+}
+
 @media (max-width: 760px) {
   .drawer {
     width: 100%;

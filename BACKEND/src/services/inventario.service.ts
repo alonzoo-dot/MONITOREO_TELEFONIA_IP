@@ -4,6 +4,11 @@ import * as telefonosRepo from '../repositories/telefonos.repository';
 import * as atasRepo from '../repositories/atas.repository';
 import * as ubicacionesRepo from '../repositories/ubicaciones.repository';
 import * as incidenciasRepo from '../repositories/incidencias.repository';
+import * as mantenimientoLogRepo from '../repositories/mantenimiento_log.repository';
+import * as monitoreoRepo from '../repositories/monitoreo.repository';
+import * as eliminacionesRepo from '../repositories/eliminaciones_permanentes.repository';
+import { instanciaMotor } from '../motor/instancia';
+import * as eventosSse from './eventosSse.service';
 import type {
   DispositivoDetalle,
   DetalleDispositivo,
@@ -349,4 +354,50 @@ export async function eliminarDispositivo(idTelefono: number): Promise<void> {
     }
     await telefonosRepo.eliminarTelefono(idTelefono, cliente);
   });
+}
+
+/**
+ * Borrado físico de un dispositivo junto con todo su historial (incidencias y
+ * mantenimiento). A diferencia de `eliminarDispositivo`, nunca rechaza por tener
+ * historial: lo borra y deja un registro de auditoría en `eliminaciones_permanentes`.
+ * Irreversible por diseño.
+ */
+export async function eliminarPermanentemente(
+  idTelefono: number,
+  idUsuario: number,
+): Promise<void> {
+  const actual = await telefonosRepo.buscarDetallePorId(idTelefono);
+  if (!actual) {
+    throw new ErrorInventario('NO_ENCONTRADO', 'El dispositivo no existe.');
+  }
+
+  await ejecutarEnTransaccion(async (cliente) => {
+    const cantidadIncidencias = await incidenciasRepo.eliminarPorTelefono(idTelefono, cliente);
+    const cantidadMantenimiento = await mantenimientoLogRepo.eliminarPorTelefono(
+      idTelefono,
+      cliente,
+    );
+    await monitoreoRepo.eliminarPorTelefono(idTelefono, cliente);
+
+    if (actual.tipo === 'IP_ATA') {
+      await atasRepo.eliminarAta(idTelefono, cliente);
+    }
+    await telefonosRepo.eliminarTelefono(idTelefono, cliente);
+
+    await eliminacionesRepo.registrarEliminacion(
+      {
+        extension_original: actual.extension,
+        mac_original: actual.mac_efectiva,
+        tipo_original: actual.tipo as TipoDispositivo,
+        ubicacion_original: `${actual.tipo_ubicacion} ${actual.ubicacion_nombre}`,
+        cantidad_incidencias_borradas: cantidadIncidencias,
+        cantidad_mantenimiento_log_borradas: cantidadMantenimiento,
+        id_usuario: idUsuario,
+      },
+      cliente,
+    );
+  });
+
+  instanciaMotor?.eliminarDelMap(idTelefono);
+  eventosSse.difundir('dispositivo-eliminado', { id_telefono: idTelefono });
 }

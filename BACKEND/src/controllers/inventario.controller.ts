@@ -177,3 +177,34 @@ export async function eliminar(peticion: Request, respuesta: Response): Promise<
     respuesta.status(500).json({ mensaje: 'Error interno del servidor' });
   }
 }
+
+/**
+ * DELETE /api/dispositivos/:id/permanente — borrado físico de un dispositivo junto
+ * con todo su historial (incidencias y mantenimiento). Solo ADMINISTRADOR (ya
+ * exigido por el middleware de rol de las rutas de inventario). Irreversible.
+ */
+export async function eliminarPermanentemente(
+  peticion: Request,
+  respuesta: Response,
+): Promise<void> {
+  const idTelefono = Number(peticion.params.id);
+  if (!Number.isInteger(idTelefono)) {
+    respuesta.status(400).json({ mensaje: 'Id de dispositivo inválido' });
+    return;
+  }
+
+  const idUsuario = peticion.usuario?.id_usuario;
+  if (!idUsuario) {
+    respuesta.status(401).json({ mensaje: 'No autenticado' });
+    return;
+  }
+
+  try {
+    await inventarioService.eliminarPermanentemente(idTelefono, idUsuario);
+    respuesta.status(204).send();
+  } catch (error: unknown) {
+    if (manejarErrorInventario(error, respuesta)) return;
+    console.error('Error inesperado al eliminar permanentemente el dispositivo:', error);
+    respuesta.status(500).json({ mensaje: 'Error interno del servidor' });
+  }
+}

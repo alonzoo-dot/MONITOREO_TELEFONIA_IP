@@ -125,6 +125,14 @@ export async function quitarDeMantenimiento(
   );
 }
 
+/** Elimina la fila de monitoreo de un teléfono, si existe. */
+export async function eliminarPorTelefono(
+  idTelefono: number,
+  cliente?: PoolClient,
+): Promise<void> {
+  await consultarCon(cliente, `DELETE FROM monitoreo WHERE id_telefono = $1`, [idTelefono]);
+}
+
 /** Escribe la nueva IP de un dispositivo en la tabla que le corresponde según su tipo. */
 export async function actualizarIpDispositivo(
   idTelefono: number,

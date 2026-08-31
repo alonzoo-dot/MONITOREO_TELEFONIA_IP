@@ -38,6 +38,11 @@ export function useMonitoreoSSE(onEvento: (evento: EventoMonitoreo) => void): {
       onEventoRef.current({ tipo: 'drift-corregido', payload });
     });
 
+    fuente.addEventListener('dispositivo-eliminado', (evento) => {
+      const payload = JSON.parse((evento as MessageEvent).data);
+      onEventoRef.current({ tipo: 'dispositivo-eliminado', payload });
+    });
+
     fuente.onerror = () => {
       const ahora = Date.now();
       erroresRecientes.push(ahora);

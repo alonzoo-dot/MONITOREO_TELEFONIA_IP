@@ -73,6 +73,7 @@ export interface DetalleDispositivo {
   estado_monitoreo: 'ONLINE' | 'OFFLINE' | 'DESCONOCIDO' | 'EN_MANTENIMIENTO' | null;
   fecha_ultima_conexion: string | null;
   total_incidencias: number;
+  total_mantenimiento_log: number;
 }
 
 /** Un modelo de ATA del catálogo. */

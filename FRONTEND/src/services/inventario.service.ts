@@ -91,6 +91,14 @@ export function eliminarDispositivo(idTelefono: number): Promise<void> {
   });
 }
 
+/** Elimina permanentemente un dispositivo junto con todo su historial. Irreversible. */
+export function eliminarPermanentemente(idTelefono: number): Promise<void> {
+  return peticionApi<void>(`/dispositivos/${idTelefono}/permanente`, {
+    metodo: 'DELETE',
+    token: obtenerToken() ?? undefined,
+  });
+}
+
 /** Lista los modelos de ATA del catálogo. */
 export function listarModelosAta(): Promise<ModeloAta[]> {
   return peticionApi<ModeloAta[]>('/catalogos/modelos-ata', {

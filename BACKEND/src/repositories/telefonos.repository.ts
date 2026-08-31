@@ -171,6 +171,7 @@ export interface DetalleDispositivo {
   estado_monitoreo: 'ONLINE' | 'OFFLINE' | 'DESCONOCIDO' | 'EN_MANTENIMIENTO' | null;
   fecha_ultima_conexion: Date | null;
   total_incidencias: number;
+  total_mantenimiento_log: number;
 }
 
 /** Obtiene el detalle completo (inventario + derivados de monitoreo) de un dispositivo. */
@@ -194,7 +195,8 @@ export async function obtenerDetalle(idTelefono: number): Promise<DetalleDisposi
             t.activo,
             m.estado        AS estado_monitoreo,
             m.fecha_ultima_conexion,
-            COALESCE(inc.total, 0)::int AS total_incidencias
+            COALESCE(inc.total, 0)::int AS total_incidencias,
+            COALESCE(mlog.total, 0)::int AS total_mantenimiento_log
        FROM telefonos t
        JOIN ubicaciones u        ON u.id_ubicacion = t.id_ubicacion
        JOIN modelos_telefono mt  ON mt.id_modelo_telefono = t.id_modelo_telefono
@@ -206,6 +208,11 @@ export async function obtenerDetalle(idTelefono: number): Promise<DetalleDisposi
            FROM incidencias
           GROUP BY id_telefono
        ) inc ON inc.id_telefono = t.id_telefono
+       LEFT JOIN (
+         SELECT id_telefono, COUNT(*) AS total
+           FROM mantenimiento_log
+          GROUP BY id_telefono
+       ) mlog ON mlog.id_telefono = t.id_telefono
       WHERE t.id_telefono = $1`,
     [idTelefono],
   );

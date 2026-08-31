@@ -34,8 +34,13 @@ export interface PayloadDriftCorregido {
   ip_nueva: string;
 }
 
+export interface PayloadDispositivoEliminado {
+  id_telefono: number;
+}
+
 export type EventoMonitoreo =
   | { tipo: 'cambio-estado'; payload: PayloadCambioEstado }
-  | { tipo: 'drift-corregido'; payload: PayloadDriftCorregido };
+  | { tipo: 'drift-corregido'; payload: PayloadDriftCorregido }
+  | { tipo: 'dispositivo-eliminado'; payload: PayloadDispositivoEliminado };
 
 export type EstadoConexionSSE = 'conectando' | 'conectado' | 'reconectando' | 'expirado';

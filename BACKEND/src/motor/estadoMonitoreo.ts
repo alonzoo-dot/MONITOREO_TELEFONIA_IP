@@ -68,4 +68,9 @@ export class RegistroEstadoMonitoreo {
   obtener(idTelefono: number): EstadoDispositivo | undefined {
     return this.dispositivos.get(idTelefono);
   }
+
+  /** Quita un dispositivo del Map. Si no existe, no hace nada. */
+  eliminar(idTelefono: number): void {
+    this.dispositivos.delete(idTelefono);
+  }
 }

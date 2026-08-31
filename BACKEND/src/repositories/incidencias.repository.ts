@@ -47,3 +47,16 @@ export async function contarPendientes(): Promise<number> {
   );
   return resultado.rows[0]!.total;
 }
+
+/** Elimina todas las incidencias de un teléfono. Devuelve la cantidad de filas borradas. */
+export async function eliminarPorTelefono(
+  idTelefono: number,
+  cliente?: PoolClient,
+): Promise<number> {
+  const resultado = await consultarCon(
+    cliente,
+    `DELETE FROM incidencias WHERE id_telefono = $1 RETURNING id_incidencia`,
+    [idTelefono],
+  );
+  return resultado.rowCount ?? 0;
+}

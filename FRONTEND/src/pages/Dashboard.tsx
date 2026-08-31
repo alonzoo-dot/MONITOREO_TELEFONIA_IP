@@ -86,11 +86,14 @@ function Dashboard() {
           d.id_telefono === id_telefono ? { ...d, estado: estado_nuevo, fecha_ultima_conexion } : d,
         ),
       );
-    } else {
+    } else if (evento.tipo === 'drift-corregido') {
       const { id_telefono, ip_nueva } = evento.payload;
       setDispositivos((actuales) =>
         actuales.map((d) => (d.id_telefono === id_telefono ? { ...d, ip: ip_nueva } : d)),
       );
+    } else {
+      const { id_telefono } = evento.payload;
+      setDispositivos((actuales) => actuales.filter((d) => d.id_telefono !== id_telefono));
     }
   }, []);
 
