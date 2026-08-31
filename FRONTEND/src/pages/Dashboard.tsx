@@ -87,10 +87,17 @@ function Dashboard() {
         ),
       );
     } else if (evento.tipo === 'drift-corregido') {
-      const { id_telefono, ip_nueva } = evento.payload;
-      setDispositivos((actuales) =>
-        actuales.map((d) => (d.id_telefono === id_telefono ? { ...d, ip: ip_nueva } : d)),
-      );
+      const drift = evento.payload;
+      console.log('[DASHBOARD] drift-corregido recibido:', drift);
+      setDispositivos((actuales) => {
+        console.log('[DASHBOARD] actuales.length:', actuales.length);
+        const nuevos = actuales.map((d) =>
+          d.id_telefono === drift.id_telefono ? { ...d, ip: drift.ip_nueva } : d,
+        );
+        const cambiado = nuevos.find((d) => d.id_telefono === drift.id_telefono);
+        console.log('[DASHBOARD] IP actualizada a:', cambiado?.ip, '| encontrado:', !!cambiado);
+        return nuevos;
+      });
     } else {
       const { id_telefono } = evento.payload;
       setDispositivos((actuales) => actuales.filter((d) => d.id_telefono !== id_telefono));
