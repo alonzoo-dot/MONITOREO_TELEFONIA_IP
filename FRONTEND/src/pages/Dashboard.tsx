@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import KpiCards from '../components/dashboard/KpiCards';
 import FiltrosMonitoreo from '../components/dashboard/FiltrosMonitoreo';
@@ -14,12 +15,19 @@ import estilos from './Dashboard.module.css';
 
 const INTERVALO_REFRESCO_MS = 2 * 60 * 1000;
 
+/** Duracion de los toasts de monitoreo en milisegundos por tipo de evento. */
+const DURACION_TOAST_CAIDA_MS = 10000;
+const DURACION_TOAST_RECUPERACION_MS = 6000;
+const DURACION_TOAST_MANTENIMIENTO_MS = 5000;
+
 function Dashboard() {
   const [dispositivos, setDispositivos] = useState<DispositivoConEstado[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
   const [busqueda, setBusqueda] = useState('');
   const [filtroEstado, setFiltroEstado] = useState<FiltroEstado>('TODOS');
+  const navegar = useNavigate();
+  const irAIncidencias = useCallback(() => navegar('/incidencias'), [navegar]);
 
   // Espejo del estado actual para consultarlo desde el manejador de eventos SSE sin generar renders extra.
   const dispositivosRef = useRef<DispositivoConEstado[]>([]);
@@ -58,6 +66,8 @@ function Dashboard() {
             tipo: 'error',
             titulo: 'Teléfono fuera de línea',
             mensaje: `Extensión ${dispositivo.extension} — ${dispositivo.ubicacion_nombre}`,
+            autoCloseMs: DURACION_TOAST_CAIDA_MS,
+            onClick: irAIncidencias,
           });
           incrementarPendientes();
         } else if (estado_nuevo === 'ONLINE' && estado_anterior === 'OFFLINE') {
@@ -65,18 +75,24 @@ function Dashboard() {
             tipo: 'exito',
             titulo: 'Teléfono recuperado',
             mensaje: `Extensión ${dispositivo.extension} — ${dispositivo.ubicacion_nombre}`,
+            autoCloseMs: DURACION_TOAST_RECUPERACION_MS,
+            onClick: irAIncidencias,
           });
         } else if (estado_nuevo === 'EN_MANTENIMIENTO') {
           mostrarToast({
             tipo: 'info',
             titulo: 'Dispositivo en mantenimiento',
             mensaje: `Extensión ${dispositivo.extension} — ${dispositivo.ubicacion_nombre}`,
+            autoCloseMs: DURACION_TOAST_MANTENIMIENTO_MS,
+            onClick: irAIncidencias,
           });
         } else if (estado_anterior === 'EN_MANTENIMIENTO' && estado_nuevo === 'DESCONOCIDO') {
           mostrarToast({
             tipo: 'info',
             titulo: 'Dispositivo reactivado',
             mensaje: `Extensión ${dispositivo.extension} — ${dispositivo.ubicacion_nombre}. En breve volverá a monitorearse.`,
+            autoCloseMs: DURACION_TOAST_MANTENIMIENTO_MS,
+            onClick: irAIncidencias,
           });
         }
       }

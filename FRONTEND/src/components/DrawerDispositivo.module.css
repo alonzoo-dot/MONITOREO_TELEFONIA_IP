@@ -253,6 +253,16 @@
   margin-bottom: 15px;
 }
 
+.inputError {
+  border-color: var(--offline) !important;
+}
+
+.errorCampo {
+  font-size: 11.5px;
+  color: var(--offline);
+  margin-top: 5px;
+}
+
 .btn {
   border: 1px solid var(--line);
   background: var(--card);

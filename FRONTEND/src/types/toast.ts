@@ -6,12 +6,14 @@ export interface ToastItem {
   titulo: string;
   mensaje: string;
   autoCloseMs: number;
+  onClick?: () => void;
 }
 
-/** Datos que el llamador provee al pedir un nuevo toast; id se genera y autoCloseMs tiene valor por defecto. */
+/** Datos que el llamador provee al pedir un nuevo toast: id se genera y autoCloseMs tiene valor por defecto. */
 export interface DatosToast {
   tipo: TipoToast;
   titulo: string;
   mensaje: string;
   autoCloseMs?: number;
+  onClick?: () => void;
 }
