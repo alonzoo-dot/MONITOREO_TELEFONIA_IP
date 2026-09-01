@@ -35,7 +35,6 @@ export function useMonitoreoSSE(onEvento: (evento: EventoMonitoreo) => void): {
 
     fuente.addEventListener('drift-corregido', (evento) => {
       const payload = JSON.parse((evento as MessageEvent).data);
-      console.log('[HOOK SSE] drift-corregido recibido:', payload);
       onEventoRef.current({ tipo: 'drift-corregido', payload });
     });
 
