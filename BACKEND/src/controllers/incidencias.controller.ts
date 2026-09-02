@@ -2,6 +2,7 @@ import type { Request, Response } from 'express';
 import * as incidenciasService from '../services/incidencias.service';
 import { ErrorIncidencias } from '../services/incidencias.service';
 import { esquemaFiltrosIncidencias } from '../schemas/incidencia.schema';
+import { esquemaAtenderIncidencia } from '../schemas/incidencia.schema';
 import type { FiltrosIncidencias } from '../repositories/incidencias.repository';
 
 /**
@@ -58,6 +59,42 @@ export async function listar(peticion: Request, respuesta: Response): Promise<vo
   } catch (error: unknown) {
     if (manejarErrorIncidencias(error, respuesta)) return;
     console.error('Error inesperado al listar incidencias:', error);
+    respuesta.status(500).json({ mensaje: 'Error interno del servidor' });
+  }
+}
+
+// PATCH /api/incidencias/:id/atender  marca una caida como atendida por el usuario del token.
+export async function atender(peticion: Request, respuesta: Response): Promise<void> {
+  const idIncidencia = Number(peticion.params.id);
+  if (!Number.isInteger(idIncidencia)) {
+    respuesta.status(400).json({ mensaje: 'Id de incidencia invalido' });
+    return;
+  }
+
+  const idUsuario = peticion.usuario?.id_usuario;
+  if (idUsuario === undefined) {
+    respuesta.status(401).json({ mensaje: 'No autenticado' });
+    return;
+  }
+
+  const parseo = esquemaAtenderIncidencia.safeParse(peticion.body);
+  if (!parseo.success) {
+    const errores = parseo.error.issues.map((incidencia) => ({
+      campo: incidencia.path.join('.'),
+      detalle: incidencia.message,
+    }));
+    respuesta.status(400).json({ mensaje: 'Datos invalidos', errores });
+    return;
+  }
+
+  const descripcionFalla = parseo.data.descripcion_falla ?? null;
+
+  try {
+    const atendida = await incidenciasService.atenderIncidencia(idIncidencia, idUsuario, descripcionFalla);
+    respuesta.status(200).json(atendida);
+  } catch (error: unknown) {
+    if (manejarErrorIncidencias(error, respuesta)) return;
+    console.error('Error inesperado al atender la incidencia:', error);
     respuesta.status(500).json({ mensaje: 'Error interno del servidor' });
   }
 }

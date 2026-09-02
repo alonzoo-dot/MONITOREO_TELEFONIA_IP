@@ -184,3 +184,53 @@ export async function listarIncidencias(
   );
   return resultado.rows;
 }
+
+// Marca una caida como atendida de forma atomica.
+// El WHERE exige que siga siendo CAIDA y sin atender asi dos usuarios no se pisan.
+// Devuelve la cantidad de filas afectadas: 1 si atendio, 0 si no cumplia la condicion.
+export async function atenderIncidencia(
+  idIncidencia: number,
+  idUsuario: number,
+  descripcionFalla: string | null,
+  cliente?: PoolClient,
+): Promise<number> {
+  const resultado = await consultarCon(
+    cliente,
+    `UPDATE incidencias
+        SET id_usuario_atendio = $1,
+            fecha_atendida = now(),
+            descripcion_falla = $2
+      WHERE id_incidencia = $3
+        AND tipo_evento = 'CAIDA'
+        AND id_usuario_atendio IS NULL`,
+    [idUsuario, descripcionFalla, idIncidencia],
+  );
+  return resultado.rowCount ?? 0;
+}
+
+// Busca una incidencia por su id. Devuelve el tipo y si ya fue atendida o null si no existe.
+export async function buscarPorId(
+  idIncidencia: number,
+  cliente?: PoolClient,
+): Promise<{ tipo_evento: string; id_usuario_atendio: number | null } | null> {
+  const resultado = await consultarCon<{ tipo_evento: string; id_usuario_atendio: number | null }>(
+    cliente,
+    `SELECT tipo_evento, id_usuario_atendio FROM incidencias WHERE id_incidencia = $1`,
+    [idIncidencia],
+  );
+  return resultado.rows[0] ?? null;
+}
+
+// Devuelve una sola incidencia enriquecida por su id o null si no existe.
+export async function buscarDetallePorId(
+  idIncidencia: number,
+  cliente?: PoolClient,
+): Promise<IncidenciaDetalle | null> {
+  const resultado = await consultarCon<IncidenciaDetalle>(
+    cliente,
+    `${SELECT_INCIDENCIA}
+     WHERE i.id_incidencia = $1`,
+    [idIncidencia],
+  );
+  return resultado.rows[0] ?? null;
+}

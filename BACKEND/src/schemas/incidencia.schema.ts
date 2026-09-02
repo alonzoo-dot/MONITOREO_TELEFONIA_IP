@@ -24,3 +24,12 @@ export const esquemaFiltrosIncidencias = z.object({
 });
 
 export type FiltrosIncidenciasValidados = z.infer<typeof esquemaFiltrosIncidencias>;
+
+// El body es opcional. Sin cuerpo se trata como objeto vacio y se atiende sin observacion.
+export const esquemaAtenderIncidencia = z
+  .object({
+    descripcion_falla: z.string().trim().max(1000).optional(),
+  })
+  .default({});
+
+export type AtenderIncidenciaValidado = z.infer<typeof esquemaAtenderIncidencia>;
