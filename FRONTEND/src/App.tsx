@@ -6,11 +6,13 @@ import Inventario from './pages/Inventario';
 import Catalogos from './pages/Catalogos';
 import RutaProtegida from './components/RutaProtegida';
 import ContenedorToasts from './components/ContenedorToasts';
+import ContenedorConfirmacion from './components/ContenedorConfirmacion';
 
 function App() {
   return (
     <BrowserRouter>
       <ContenedorToasts />
+      <ContenedorConfirmacion />
       <Routes>
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<Login />} />
