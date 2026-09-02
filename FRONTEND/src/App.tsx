@@ -3,6 +3,7 @@ import Login from './pages/Login';
 import CambiarPassword from './pages/CambiarPassword';
 import Dashboard from './pages/Dashboard';
 import Inventario from './pages/Inventario';
+import Incidencias from './pages/Incidencias';
 import Catalogos from './pages/Catalogos';
 import RutaProtegida from './components/RutaProtegida';
 import ContenedorToasts from './components/ContenedorToasts';
@@ -29,6 +30,14 @@ function App() {
           element={
             <RutaProtegida>
               <Dashboard />
+            </RutaProtegida>
+          }
+        />
+        <Route
+          path="/incidencias"
+          element={
+            <RutaProtegida>
+              <Incidencias />
             </RutaProtegida>
           }
         />

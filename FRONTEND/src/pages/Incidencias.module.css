@@ -1,0 +1,231 @@
+.pagina {
+  padding: 24px 28px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.encabezado {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.encabezado h1 {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0;
+}
+
+.btnReporte {
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--ink-soft);
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.rangos {
+  display: flex;
+  gap: 6px;
+}
+
+.chip {
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--ink-soft);
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.chip:hover {
+  border-color: var(--accent);
+}
+
+.chipActivo {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.busqueda {
+  flex: 1;
+  min-width: 200px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.select,
+.piso {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-family: inherit;
+  background: var(--card);
+}
+
+.piso {
+  width: 90px;
+}
+
+.tarjetaTabla {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.tabla thead th {
+  text-align: left;
+  padding: 12px 16px;
+  color: var(--ink-faint);
+  font-weight: 500;
+  font-size: 12px;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.tabla tbody td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line-soft);
+  color: var(--ink);
+}
+
+.tabla tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.tabla tbody tr:hover {
+  background: var(--card-2);
+}
+
+.filaPendiente {
+  background: var(--attn-bg);
+}
+
+.filaPendiente:hover {
+  background: var(--attn-bg);
+}
+
+.mono {
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.badgeCaida {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  background: var(--offline-bg);
+  color: var(--offline);
+}
+
+.badgeRecuperacion {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  background: var(--online-bg);
+  color: var(--online);
+}
+
+.btnAtender {
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #fff;
+  padding: 6px 12px;
+  border-radius: 7px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.btnAtender:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.aviso {
+  padding: 48px 24px;
+  text-align: center;
+  color: var(--ink-faint);
+  font-size: 14px;
+}
+
+.btnReintentar {
+  display: block;
+  margin: 12px auto 0;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--ink);
+  padding: 7px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.paginacion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 16px;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.pagControles {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pagControles button {
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--ink);
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.pagControles button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+@media (max-width: 640px) {
+  .pagina {
+    padding: 16px;
+  }
+  .tarjetaTabla {
+    overflow-x: auto;
+  }
+}

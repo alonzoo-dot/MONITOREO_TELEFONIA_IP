@@ -1,4 +1,4 @@
-import { obtenerPendientes } from '../services/monitoreo.service';
+import { obtenerConteoPendientes } from '../services/incidencias.service';
 
 type Escucha = (valor: number) => void;
 
@@ -30,13 +30,19 @@ export function incrementarPendientes(): void {
   notificar();
 }
 
+// Baja el conteo en uno sin dejar que sea negativo. La usa la pantalla al atender.
+export function decrementarPendientes(): void {
+  valor = Math.max(0, valor - 1);
+  notificar();
+}
+
 /** Pide el conteo inicial al backend, una sola vez por sesión de la app.
  *  Llamadas repetidas (p.ej. al navegar entre páginas) no repiten la petición. */
 export function cargarPendientesInicial(): void {
   if (cargado) return;
   cargado = true;
 
-  obtenerPendientes()
+  obtenerConteoPendientes()
     .then((n) => {
       valor = n;
       notificar();
