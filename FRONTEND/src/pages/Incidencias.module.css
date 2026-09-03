@@ -13,18 +13,33 @@
 }
 
 .btnReporte {
-  border: 1px solid var(--line);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #b23b3b;
   background: var(--card);
-  color: var(--ink);
-  padding: 8px 14px;
+  color: #b23b3b;
+  padding: 8px 16px;
   border-radius: 8px;
   font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.btnReporte svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+.btnReporte:hover:not(:disabled) {
+  background: #fbf0f0;
 }
 
 .btnReporte:disabled {
   cursor: not-allowed;
-  opacity: 0.6;
+  opacity: 0.55;
 }
 
 .filtros {
@@ -223,4 +238,25 @@
   .tarjetaTabla {
     overflow-x: auto;
   }
+}
+
+.fechas {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.fecha {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  background: var(--card);
+  color: var(--ink);
+}
+
+.fechaSep {
+  color: var(--ink-faint);
+  font-size: 13px;
 }
