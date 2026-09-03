@@ -234,3 +234,18 @@ export async function buscarDetallePorId(
   );
   return resultado.rows[0] ?? null;
 }
+
+// Lista todas las incidencias que cumplen los filtros sin paginacion.
+// La usa el reporte que necesita el conjunto completo no una pagina.
+export async function listarIncidenciasSinPaginar(
+  filtros: FiltrosIncidencias,
+): Promise<IncidenciaDetalle[]> {
+  const { clausula, parametros } = construirFiltro(filtros);
+  const resultado = await ejecutarConsulta<IncidenciaDetalle>(
+    `${SELECT_INCIDENCIA}
+     ${clausula}
+     ORDER BY i.fecha_ocurrido DESC`,
+    parametros,
+  );
+  return resultado.rows;
+}

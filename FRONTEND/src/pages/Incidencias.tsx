@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { listarIncidencias } from '../services/incidencias.service';
+import Layout from '../components/Layout';
+import { listarIncidencias, descargarReporteIncidencias } from '../services/incidencias.service';
 import type { Incidencia, FiltrosIncidencias } from '../types/incidencia';
 import estilos from './Incidencias.module.css';
 import ModalAtender from '../components/ModalAtender';
@@ -46,6 +47,7 @@ function Incidencias() {
   const [parametrosUrl] = useSearchParams();
   const [soloPendientes, setSoloPendientes] = useState(parametrosUrl.get('pendientes') === '1');
   const [aAtender, setAAtender] = useState<Incidencia | null>(null);
+  const [generandoReporte, setGenerandoReporte] = useState(false);
 
   // Texto de busqueda con retardo para no pedir en cada tecla.
   const [busquedaDebounce, setBusquedaDebounce] = useState('');
@@ -90,16 +92,38 @@ function Incidencias() {
     cargar();
   }, [cargar]);
 
+  async function generarReporte() {
+    setGenerandoReporte(true);
+    try {
+      await descargarReporteIncidencias({
+        desde: calcularDesde(rango),
+        tipo: tipo || undefined,
+        piso: piso ? Number(piso) : undefined,
+        busqueda: busquedaDebounce || undefined,
+        soloPendientes: soloPendientes || undefined,
+      });
+    } catch {
+      // Si falla no rompemos la pantalla. El usuario puede reintentar.
+    } finally {
+      setGenerandoReporte(false);
+    }
+  }
+
   const totalPaginas = Math.max(1, Math.ceil(total / TAMANO_PAGINA));
   const hayFiltrosActivos =
     rango !== 'todo' || tipo !== '' || piso !== '' || busquedaDebounce !== '' || soloPendientes;
 
   return (
-    <div className={estilos.pagina}>
+    <Layout>
       <header className={estilos.encabezado}>
         <h1>Historial de incidencias</h1>
-        <button className={estilos.btnReporte} disabled title="Proximamente">
-          Generar reporte
+        <button
+          className={estilos.btnReporte}
+          onClick={generarReporte}
+          disabled={generandoReporte}
+          title="Descargar reporte PDF"
+        >
+          {generandoReporte ? 'Generando...' : 'Generar reporte'}
         </button>
       </header>
 
@@ -227,7 +251,7 @@ function Incidencias() {
           }}
         />
       )}
-    </div>
+    </Layout>
   );
 }
 

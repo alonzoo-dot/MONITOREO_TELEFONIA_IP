@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import * as incidenciasService from '../services/incidencias.service';
 import { ErrorIncidencias } from '../services/incidencias.service';
+import * as reporteService from '../services/reporteIncidencias.service';
 import { esquemaFiltrosIncidencias } from '../schemas/incidencia.schema';
 import { esquemaAtenderIncidencia } from '../schemas/incidencia.schema';
 import type { FiltrosIncidencias } from '../repositories/incidencias.repository';
@@ -59,6 +60,29 @@ export async function listar(peticion: Request, respuesta: Response): Promise<vo
   } catch (error: unknown) {
     if (manejarErrorIncidencias(error, respuesta)) return;
     console.error('Error inesperado al listar incidencias:', error);
+    respuesta.status(500).json({ mensaje: 'Error interno del servidor' });
+  }
+}
+
+// GET /api/incidencias/reporte  genera un PDF con las incidencias que cumplen los filtros.
+export async function reporte(peticion: Request, respuesta: Response): Promise<void> {
+  const parseo = esquemaFiltrosIncidencias.safeParse(peticion.query);
+  if (!parseo.success) {
+    respuesta.status(400).json({ mensaje: 'Filtros invalidos' });
+    return;
+  }
+
+  const { pagina, tamanoPagina, soloPendientes, ...resto } = parseo.data;
+  const filtros: FiltrosIncidencias = { ...resto, soloPendientes };
+
+  try {
+    const pdf = await reporteService.generarReporteIncidencias(filtros);
+    respuesta.setHeader('Content-Type', 'application/pdf');
+    respuesta.setHeader('Content-Disposition', 'attachment; filename="reporte-incidencias.pdf"');
+    respuesta.status(200).send(pdf);
+  } catch (error: unknown) {
+    if (manejarErrorIncidencias(error, respuesta)) return;
+    console.error('Error inesperado al generar el reporte:', error);
     respuesta.status(500).json({ mensaje: 'Error interno del servidor' });
   }
 }

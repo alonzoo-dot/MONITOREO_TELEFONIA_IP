@@ -1,9 +1,3 @@
-.pagina {
-  padding: 24px 28px;
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
 .encabezado {
   display: flex;
   align-items: center;
@@ -21,10 +15,14 @@
 .btnReporte {
   border: 1px solid var(--line);
   background: var(--card);
-  color: var(--ink-soft);
+  color: var(--ink);
   padding: 8px 14px;
   border-radius: 8px;
   font-size: 13px;
+  cursor: pointer;
+}
+
+.btnReporte:disabled {
   cursor: not-allowed;
   opacity: 0.6;
 }
@@ -222,9 +220,6 @@
 }
 
 @media (max-width: 640px) {
-  .pagina {
-    padding: 16px;
-  }
   .tarjetaTabla {
     overflow-x: auto;
   }

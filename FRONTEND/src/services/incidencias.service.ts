@@ -1,4 +1,4 @@
-import { peticionApi } from './api';
+import { peticionApi, URL_BASE } from './api';
 import { obtenerToken } from './sesion';
 import type { Incidencia, RespuestaIncidencias, FiltrosIncidencias } from '../types/incidencia';
 
@@ -46,4 +46,27 @@ export async function obtenerConteoPendientes(): Promise<number> {
     token: obtenerToken() ?? undefined,
   });
   return datos.pendientes;
+}
+
+// Descarga el reporte PDF con los filtros dados y dispara la descarga en el navegador.
+// El endpoint devuelve un binario asi que se maneja como blob no como JSON.
+export async function descargarReporteIncidencias(
+  filtros: FiltrosIncidencias = {},
+): Promise<void> {
+  const query = construirQuery(filtros);
+  const respuesta = await fetch(`${URL_BASE}/incidencias/reporte${query}`, {
+    headers: { Authorization: `Bearer ${obtenerToken()}` },
+  });
+  if (!respuesta.ok) {
+    throw new Error('No se pudo generar el reporte');
+  }
+  const blob = await respuesta.blob();
+  const url = URL.createObjectURL(blob);
+  const enlace = document.createElement('a');
+  enlace.href = url;
+  enlace.download = 'reporte-incidencias.pdf';
+  document.body.appendChild(enlace);
+  enlace.click();
+  document.body.removeChild(enlace);
+  URL.revokeObjectURL(url);
 }
