@@ -7,6 +7,12 @@ import type {
   RespuestaTendencia,
   Granularidad,
 } from '../types/estadistica';
+import TarjetasFotoActual from '../components/estadisticas/TarjetasFotoActual';
+import GraficaTendencia from '../components/estadisticas/GraficaTendencia';
+import GraficaTopDispositivos from '../components/estadisticas/GraficaTopDispositivos';
+import GraficaDistribucionBarras from '../components/estadisticas/GraficaDistribucionBarras';
+import GraficaDistribucionModelo from '../components/estadisticas/GraficaDistribucionModelo';
+import TarjetaTiempoAtencion from '../components/estadisticas/TarjetaTiempoAtencion';
 
 // Formatea una fecha a YYYY-MM-DD
 function formatearFecha(fecha: Date): string {
@@ -132,34 +138,10 @@ function Estadisticas() {
             <button onClick={cargarFotoActual}>Reintentar</button>
           </p>
         ) : fotoActual ? (
-          <table>
-            <tbody>
-              <tr>
-                <td>Generado en</td>
-                <td>{fotoActual.generadoEn}</td>
-              </tr>
-              <tr>
-                <td>Total</td>
-                <td>{fotoActual.total}</td>
-              </tr>
-              <tr>
-                <td>Online</td>
-                <td>{fotoActual.online}</td>
-              </tr>
-              <tr>
-                <td>Offline</td>
-                <td>{fotoActual.offline}</td>
-              </tr>
-              <tr>
-                <td>Mantenimiento</td>
-                <td>{fotoActual.mantenimiento}</td>
-              </tr>
-              <tr>
-                <td>Desconocido</td>
-                <td>{fotoActual.desconocido}</td>
-              </tr>
-            </tbody>
-          </table>
+          <>
+            <p>Generado en {fotoActual.generadoEn}</p>
+            <TarjetasFotoActual foto={fotoActual} />
+          </>
         ) : null}
       </section>
 
@@ -172,26 +154,9 @@ function Estadisticas() {
             No se pudo cargar la tendencia.
             <button onClick={cargarTendencia}>Reintentar</button>
           </p>
-        ) : !tendencia || tendencia.puntos.length === 0 ? (
-          <p>Sin datos en el periodo</p>
-        ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>Periodo</th>
-                <th>Caidas</th>
-              </tr>
-            </thead>
-            <tbody>
-              {tendencia.puntos.map((punto) => (
-                <tr key={punto.periodo}>
-                  <td>{punto.periodo}</td>
-                  <td>{punto.caidas}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+        ) : tendencia ? (
+          <GraficaTendencia puntos={tendencia.puntos} />
+        ) : null}
       </section>
 
       <section>
@@ -206,96 +171,28 @@ function Estadisticas() {
         ) : resumen ? (
           <>
             <h3>Top dispositivos</h3>
-            {resumen.topDispositivos.length === 0 ? (
-              <p>Sin datos en el periodo</p>
-            ) : (
-              <table>
-                <thead>
-                  <tr>
-                    <th>Extension</th>
-                    <th>Ubicacion</th>
-                    <th>Tipo de ubicacion</th>
-                    <th>Caidas</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {resumen.topDispositivos.map((fila) => (
-                    <tr key={fila.idTelefono}>
-                      <td>{fila.extension}</td>
-                      <td>{fila.ubicacion}</td>
-                      <td>{fila.tipoUbicacion}</td>
-                      <td>{fila.caidas}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
+            <GraficaTopDispositivos datos={resumen.topDispositivos} />
 
             <h3>Distribucion por piso</h3>
-            {resumen.distribucionPiso.length === 0 ? (
-              <p>Sin datos en el periodo</p>
-            ) : (
-              <table>
-                <thead>
-                  <tr>
-                    <th>Piso</th>
-                    <th>Caidas</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {resumen.distribucionPiso.map((fila) => (
-                    <tr key={fila.piso}>
-                      <td>{fila.piso}</td>
-                      <td>{fila.caidas}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
+            <GraficaDistribucionBarras
+              datos={resumen.distribucionPiso.map((fila) => ({
+                etiqueta: fila.piso,
+                caidas: fila.caidas,
+              }))}
+              nombreEje="Piso"
+            />
 
             <h3>Distribucion por modelo</h3>
-            {resumen.distribucionModelo.length === 0 ? (
-              <p>Sin datos en el periodo</p>
-            ) : (
-              <table>
-                <thead>
-                  <tr>
-                    <th>Modelo</th>
-                    <th>Caidas</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {resumen.distribucionModelo.map((fila) => (
-                    <tr key={fila.modelo}>
-                      <td>{fila.modelo}</td>
-                      <td>{fila.caidas}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
+            <GraficaDistribucionModelo datos={resumen.distribucionModelo} />
 
             <h3>Distribucion por tipo de ubicacion</h3>
-            {resumen.distribucionTipoUbicacion.length === 0 ? (
-              <p>Sin datos en el periodo</p>
-            ) : (
-              <table>
-                <thead>
-                  <tr>
-                    <th>Tipo de ubicacion</th>
-                    <th>Caidas</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {resumen.distribucionTipoUbicacion.map((fila) => (
-                    <tr key={fila.tipoUbicacion}>
-                      <td>{fila.tipoUbicacion}</td>
-                      <td>{fila.caidas}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
+            <GraficaDistribucionBarras
+              datos={resumen.distribucionTipoUbicacion.map((fila) => ({
+                etiqueta: fila.tipoUbicacion,
+                caidas: fila.caidas,
+              }))}
+              nombreEje="Tipo de ubicacion"
+            />
 
             <h3>Carga por usuario</h3>
             {resumen.cargaUsuarios.length === 0 ? (
@@ -320,11 +217,7 @@ function Estadisticas() {
             )}
 
             <h3>Tiempo de atencion</h3>
-            <p>
-              Atendidas: {resumen.tiempoAtencion.atendidas} - Promedio (min):{' '}
-              {resumen.tiempoAtencion.promedioMinutos ?? '-'} - Mediana (min):{' '}
-              {resumen.tiempoAtencion.medianaMinutos ?? '-'}
-            </p>
+            <TarjetaTiempoAtencion tiempo={resumen.tiempoAtencion} />
           </>
         ) : null}
       </section>

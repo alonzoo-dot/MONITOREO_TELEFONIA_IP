@@ -5,6 +5,7 @@ import Dashboard from './pages/Dashboard';
 import Inventario from './pages/Inventario';
 import Incidencias from './pages/Incidencias';
 import Catalogos from './pages/Catalogos';
+import Estadisticas from './pages/Estadisticas';
 import RutaProtegida from './components/RutaProtegida';
 import ContenedorToasts from './components/ContenedorToasts';
 import ContenedorConfirmacion from './components/ContenedorConfirmacion';
@@ -38,6 +39,15 @@ function App() {
           element={
             <RutaProtegida>
               <Incidencias />
+            </RutaProtegida>
+          }
+        />
+        {/* RUTA TEMPORAL DE VERIFICACION se reemplaza por el montaje definitivo en el prompt 10 */}
+        <Route
+          path="/estadisticas"
+          element={
+            <RutaProtegida>
+              <Estadisticas />
             </RutaProtegida>
           }
         />
