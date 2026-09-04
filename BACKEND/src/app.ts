@@ -6,6 +6,7 @@ import rutasInventario from './routes/inventario.routes';
 import rutasCatalogos from './routes/catalogos.routes';
 import rutasMonitoreo from './routes/monitoreo.routes';
 import rutasIncidencias from './routes/incidencias.routes';
+import rutasEstadisticas from './routes/estadisticas.routes';
 
 export function crearAplicacion(): Application {
   const aplicacion = express();
@@ -36,6 +37,9 @@ export function crearAplicacion(): Application {
 
    // Rutas de incidencias (historial, atender, conteo de pendientes)
   aplicacion.use('/api/incidencias', rutasIncidencias);
+
+  // Rutas de estadisticas (tendencia, resumen, foto actual de la red)
+  aplicacion.use('/api/estadisticas', rutasEstadisticas);
 
   return aplicacion;
 }
