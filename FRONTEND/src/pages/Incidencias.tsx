@@ -11,15 +11,40 @@ const TAMANO_PAGINA = 50;
 
 type RangoRapido = 'hoy' | 'semana' | 'mes' | 'todo';
 
-// Calcula la fecha desde segun el rango rapido elegido. Devuelve ISO o undefined para todo.
-function calcularDesde(rango: RangoRapido): string | undefined {
-  if (rango === 'todo') return undefined;
-  const ahora = new Date();
-  const desde = new Date(ahora);
-  if (rango === 'hoy') desde.setHours(0, 0, 0, 0);
-  if (rango === 'semana') desde.setDate(ahora.getDate() - 7);
-  if (rango === 'mes') desde.setMonth(ahora.getMonth() - 1);
-  return desde.toISOString();
+// Devuelve la fecha en formato YYYY-MM-DD para usar en un input date.
+function aFechaInput(fecha: Date): string {
+  const anio = fecha.getFullYear();
+  const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+  const dia = String(fecha.getDate()).padStart(2, '0');
+  return `${anio}-${mes}-${dia}`;
+}
+
+// Calcula el par desde/hasta en formato input para un rango rapido.
+// hasta siempre es hoy. desde varia segun el rango. todo devuelve ambos vacios.
+function rangoRapidoAFechas(rango: RangoRapido): { desde: string; hasta: string } {
+  if (rango === 'todo') return { desde: '', hasta: '' };
+  const hoy = new Date();
+  const desde = new Date(hoy);
+  if (rango === 'hoy') {
+    // desde y hasta el mismo dia
+  } else if (rango === 'semana') {
+    desde.setDate(hoy.getDate() - 7);
+  } else if (rango === 'mes') {
+    desde.setMonth(hoy.getMonth() - 1);
+  }
+  return { desde: aFechaInput(desde), hasta: aFechaInput(hoy) };
+}
+
+// Convierte una fecha input YYYY-MM-DD al ISO de inicio del dia para el filtro desde.
+function inicioDelDiaISO(fechaInput: string): string | undefined {
+  if (!fechaInput) return undefined;
+  return new Date(`${fechaInput}T00:00:00`).toISOString();
+}
+
+// Convierte una fecha input YYYY-MM-DD al ISO de fin del dia para el filtro hasta.
+function finDelDiaISO(fechaInput: string): string | undefined {
+  if (!fechaInput) return undefined;
+  return new Date(`${fechaInput}T23:59:59`).toISOString();
 }
 
 // Formatea una fecha ISO a algo legible en espanol.
@@ -40,7 +65,8 @@ function Incidencias() {
   const [error, setError] = useState(false);
 
   // Filtros
-  const [rango, setRango] = useState<RangoRapido>('todo');
+  const [desde, setDesde] = useState('');
+  const [hasta, setHasta] = useState('');
   const [tipo, setTipo] = useState<'' | 'CAIDA' | 'RECUPERACION'>('');
   const [piso, setPiso] = useState<string>('');
   const [busqueda, setBusqueda] = useState('');
@@ -62,13 +88,14 @@ function Incidencias() {
   useEffect(() => {
     if (primerRender.current) return;
     setPagina(1);
-  }, [rango, tipo, piso, busquedaDebounce, soloPendientes]);
+  }, [desde, hasta, tipo, piso, busquedaDebounce, soloPendientes]);
 
   const cargar = useCallback(async () => {
     setCargando(true);
     setError(false);
     const filtros: FiltrosIncidencias = {
-      desde: calcularDesde(rango),
+      desde: inicioDelDiaISO(desde),
+      hasta: finDelDiaISO(hasta),
       tipo: tipo || undefined,
       piso: piso ? Number(piso) : undefined,
       busqueda: busquedaDebounce || undefined,
@@ -85,7 +112,7 @@ function Incidencias() {
     } finally {
       setCargando(false);
     }
-  }, [rango, tipo, piso, busquedaDebounce, soloPendientes, pagina]);
+  }, [desde, hasta, tipo, piso, busquedaDebounce, soloPendientes, pagina]);
 
   useEffect(() => {
     primerRender.current = false;
@@ -96,7 +123,8 @@ function Incidencias() {
     setGenerandoReporte(true);
     try {
       await descargarReporteIncidencias({
-        desde: calcularDesde(rango),
+        desde: inicioDelDiaISO(desde),
+        hasta: finDelDiaISO(hasta),
         tipo: tipo || undefined,
         piso: piso ? Number(piso) : undefined,
         busqueda: busquedaDebounce || undefined,
@@ -109,9 +137,22 @@ function Incidencias() {
     }
   }
 
+  // Determina si un rango rapido coincide con el desde/hasta actual para resaltarlo.
+  function rangoActivo(r: RangoRapido): boolean {
+    const objetivo = rangoRapidoAFechas(r);
+    return desde === objetivo.desde && hasta === objetivo.hasta;
+  }
+
+  // Aplica un rango rapido rellenando desde/hasta.
+  function aplicarRangoRapido(r: RangoRapido): void {
+    const fechas = rangoRapidoAFechas(r);
+    setDesde(fechas.desde);
+    setHasta(fechas.hasta);
+  }
+
   const totalPaginas = Math.max(1, Math.ceil(total / TAMANO_PAGINA));
   const hayFiltrosActivos =
-    rango !== 'todo' || tipo !== '' || piso !== '' || busquedaDebounce !== '' || soloPendientes;
+    desde !== '' || hasta !== '' || tipo !== '' || piso !== '' || busquedaDebounce !== '' || soloPendientes;
 
   return (
     <Layout>
@@ -121,9 +162,18 @@ function Incidencias() {
           className={estilos.btnReporte}
           onClick={generarReporte}
           disabled={generandoReporte}
-          title="Descargar reporte PDF"
+          title="Descargar reporte PDF con los filtros actuales"
         >
-          {generandoReporte ? 'Generando...' : 'Generar reporte'}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <path d="M14 2v6h6" />
+            <path d="M9 13h6M9 17h6" />
+          </svg>
+          {generandoReporte
+            ? 'Generando...'
+            : soloPendientes
+              ? 'Generar reporte (solo pendientes)'
+              : 'Generar reporte (todo)'}
         </button>
       </header>
 
@@ -132,12 +182,32 @@ function Incidencias() {
           {(['hoy', 'semana', 'mes', 'todo'] as RangoRapido[]).map((r) => (
             <button
               key={r}
-              className={rango === r ? `${estilos.chip} ${estilos.chipActivo}` : estilos.chip}
-              onClick={() => setRango(r)}
+              className={rangoActivo(r) ? `${estilos.chip} ${estilos.chipActivo}` : estilos.chip}
+              onClick={() => aplicarRangoRapido(r)}
             >
               {r === 'hoy' ? 'Hoy' : r === 'semana' ? 'Semana' : r === 'mes' ? 'Mes' : 'Todo'}
             </button>
           ))}
+        </div>
+
+        <div className={estilos.fechas}>
+          <input
+            className={estilos.fecha}
+            type="date"
+            value={desde}
+            max={hasta || undefined}
+            onChange={(e) => setDesde(e.target.value)}
+            aria-label="Desde"
+          />
+          <span className={estilos.fechaSep}>-</span>
+          <input
+            className={estilos.fecha}
+            type="date"
+            value={hasta}
+            min={desde || undefined}
+            onChange={(e) => setHasta(e.target.value)}
+            aria-label="Hasta"
+          />
         </div>
 
         <input
