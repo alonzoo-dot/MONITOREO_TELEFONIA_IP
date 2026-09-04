@@ -53,7 +53,7 @@ const SECCIONES = [
   {
     texto: 'Incidencias',
     ruta: '/incidencias',
-    activa: false,
+    activa: true,
     icono: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M12 8v4l3 2" />
@@ -127,7 +127,7 @@ function Layout({ children }: Props) {
             seccion.activa ? (
               <NavLink
                 key={seccion.ruta}
-                to={seccion.ruta}
+                to={seccion.ruta === '/incidencias' && pendientes > 0 ? '/incidencias?pendientes=1' : seccion.ruta}
                 className={({ isActive }) =>
                   isActive ? `${estilos.item} ${estilos.itemActivo}` : estilos.item
                 }
@@ -135,7 +135,7 @@ function Layout({ children }: Props) {
               >
                 <span className={estilos.icWrap}>
                   <span className={estilos.ic}>{seccion.icono}</span>
-                  {seccion.ruta === '/dashboard' && pendientes > 0 && (
+                  {seccion.ruta === '/incidencias' && pendientes > 0 && (
                     <span className={estilos.badgeNum}>{pendientes > 9 ? '9+' : pendientes}</span>
                   )}
                 </span>

@@ -7,14 +7,22 @@ if (!URL_BASE) {
   );
 }
 
-/** Error de una petición al backend. Conserva el `codigo` de negocio, si vino en la respuesta. */
+/** Error por campo dentro de un ErrorApi */
+export interface ErrorCampo {
+  campo: string;
+  mensaje: string;
+}
+
+/** Error de una petición al backend. Conserva el `codigo` de negocio y los `errores` por campo, si vinieron en la respuesta. */
 export class ErrorApi extends Error {
   readonly codigo?: string;
+  readonly errores?: ErrorCampo[];
 
-  constructor(mensaje: string, codigo?: string) {
+  constructor(mensaje: string, codigo?: string, errores?: ErrorCampo[]) {
     super(mensaje);
     this.name = 'ErrorApi';
     this.codigo = codigo;
+    this.errores = errores;
   }
 }
 
@@ -51,7 +59,13 @@ export async function peticionApi<T>(
   const datos = tieneCuerpo ? await respuesta.json() : null;
 
   if (!respuesta.ok) {
-    throw new ErrorApi(datos?.mensaje ?? 'Error en la petición', datos?.codigo);
+    const erroresCampo: ErrorCampo[] | undefined = Array.isArray(datos?.errores)
+      ? datos.errores.map((e: { campo: string; detalle: string }) => ({
+          campo: e.campo,
+          mensaje: e.detalle,
+        }))
+      : undefined;
+    throw new ErrorApi(datos?.mensaje ?? 'Error en la petición', datos?.codigo, erroresCampo);
   }
 
   return datos as T;

@@ -1,10 +1,23 @@
 import { z } from 'zod';
 
-/** Formato de dirección MAC: seis pares hex separados por ':' o '-'. */
-const REGEX_MAC = /^([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}$/;
-
 /** IPv4 dentro de los rangos del hotel: 10.81.20.x o 10.81.21.x (último octeto 0–255). */
 export const REGEX_IP_HOTEL = /^10\.81\.(20|21)\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$/;
+
+/** Quita separadores no hex y reinserta ':' cada dos caracteres. */
+const normalizarMac = (valor: string): string => {
+  const limpio = valor.replace(/[^0-9a-fA-F]/g, '').toUpperCase();
+  return limpio.match(/.{2}/g)!.join(':');
+};
+
+/** Acepta cualquier formato de MAC con separadores hex válidos y normaliza a AA:BB:CC:DD:EE:FF */
+const macFlexible = z
+  .string()
+  .trim()
+  .refine(
+    (v) => /^[0-9a-fA-F:\-\s.]+$/.test(v) && v.replace(/[^0-9a-fA-F]/g, '').length === 12,
+    { message: 'MAC invalida. Debe contener 12 digitos hexadecimales' },
+  )
+  .transform(normalizarMac);
 
 /**
  * Esquema de forma para crear o editar un dispositivo. Valida tipos, enums y
@@ -38,13 +51,7 @@ export const esquemaDispositivo = z.object({
     .trim()
     .min(1, 'El número de serie del teléfono es obligatorio')
     .max(30, 'El número de serie no puede superar 30 caracteres'),
-  mac: z
-    .string()
-    .trim()
-    .regex(REGEX_MAC, 'El formato de la MAC no es válido')
-    .transform((v) => v.toUpperCase())
-    .nullable()
-    .default(null),
+  mac: macFlexible.nullable().default(null),
   ip: z
     .string()
     .trim()
@@ -65,5 +72,5 @@ export const esquemaDispositivo = z.object({
     .default(null),
 });
 
-/** Tipo inferido del esquema, para tipar el body ya validado. */
+/** Tipo inferido del esquema para tipar el body ya validado. */
 export type DispositivoValidado = z.infer<typeof esquemaDispositivo>;

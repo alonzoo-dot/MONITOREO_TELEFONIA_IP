@@ -10,6 +10,7 @@ import {
   eliminarDispositivo,
 } from '../services/inventario.service';
 import { ErrorApi } from '../services/api';
+import { confirmar } from '../store/confirmaciones';
 import type { Dispositivo, FiltrosDispositivo, ModeloTelefono } from '../types/inventario';
 import estilos from './Inventario.module.css';
 
@@ -102,10 +103,17 @@ function Inventario() {
 
   async function alternarActivo(d: Dispositivo) {
     const confirmado = d.activo
-      ? window.confirm(
-          '¿Desactivar este dispositivo? Dejará de monitorearse y desaparecerá del inventario activo. Podrás reactivarlo después.',
-        )
-      : window.confirm('¿Reactivar este dispositivo? Volverá a aparecer en el inventario activo.');
+      ? await confirmar({
+          titulo: 'Desactivar dispositivo',
+          mensaje:
+            '¿Desactivar este dispositivo? Dejará de monitorearse y desaparecerá del inventario activo. Podrás reactivarlo después.',
+          variante: 'neutra',
+        })
+      : await confirmar({
+          titulo: 'Reactivar dispositivo',
+          mensaje: '¿Reactivar este dispositivo? Volverá a aparecer en el inventario activo.',
+          variante: 'neutra',
+        });
     if (!confirmado) return;
 
     try {
@@ -122,9 +130,12 @@ function Inventario() {
   }
 
   async function eliminar(d: Dispositivo) {
-    const confirmado = window.confirm(
-      '¿Eliminar este dispositivo permanentemente? Esta acción NO se puede deshacer. Solo úsala para registros capturados por error.',
-    );
+    const confirmado = await confirmar({
+      titulo: 'Eliminar dispositivo',
+      mensaje:
+        '¿Eliminar este dispositivo permanentemente? Esta acción NO se puede deshacer. Solo úsala para registros capturados por error.',
+      variante: 'peligro',
+    });
     if (!confirmado) return;
 
     try {
