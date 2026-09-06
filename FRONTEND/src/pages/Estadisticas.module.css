@@ -8,9 +8,10 @@
 .encabezado h1 {
   font-size: 20px;
   font-weight: 600;
-  letter-spacing: -0.01em;
+  letter-spacing: 0.5px;
   color: var(--ink);
   margin: 0;
+  text-transform: uppercase;
 }
 
 .filtros {
@@ -35,6 +36,7 @@
   color: var(--ink-faint);
   text-transform: uppercase;
   letter-spacing: 0.03em;
+  text-align: center;
 }
 
 .campo input,
@@ -49,6 +51,7 @@
   letter-spacing: normal;
   color: var(--ink);
   background: var(--card);
+  text-align: left;
 }
 
 .campo input:focus,
@@ -58,19 +61,29 @@
 }
 
 .btnReporte {
-  border: 1px solid var(--accent);
-  background: var(--card);
-  color: var(--accent);
-  padding: 9px 16px;
-  border-radius: var(--radius);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #E24444;
+  background: rgba(226, 68, 68, 0.12);
+  color: #E24444;
+  padding: 8px 16px;
+  border-radius: 8px;
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
   transition: background 0.15s ease;
+  margin-left: auto;
+}
+
+.btnReporte svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
 }
 
 .btnReporte:hover:not(:disabled) {
-  background: var(--accent-soft);
+  background: rgba(226, 68, 68, 0.20);
 }
 
 .btnReporte:disabled {
@@ -93,6 +106,12 @@
   font-weight: 600;
   color: var(--ink);
   margin: 0 0 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.tituloTiempoAtencion {
+  text-align: center;
 }
 
 .subtitulo {
@@ -182,6 +201,11 @@
   .filtros {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .btnReporte {
+    margin-left: 0;
+    justify-content: center;
   }
 
   .filaSuperior {

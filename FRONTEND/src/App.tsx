@@ -42,11 +42,10 @@ function App() {
             </RutaProtegida>
           }
         />
-        {/* RUTA TEMPORAL DE VERIFICACION se reemplaza por el montaje definitivo en el prompt 10 */}
         <Route
           path="/estadisticas"
           element={
-            <RutaProtegida>
+            <RutaProtegida roles={['ADMINISTRADOR', 'TECNICO']}>
               <Estadisticas />
             </RutaProtegida>
           }

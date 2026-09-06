@@ -64,7 +64,7 @@ const SECCIONES = [
   {
     texto: 'Estadísticas',
     ruta: '/estadisticas',
-    activa: false,
+    activa: true,
     icono: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M3 3v18h18" />
