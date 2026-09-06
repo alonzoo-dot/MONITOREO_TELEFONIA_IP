@@ -1,4 +1,4 @@
-import { peticionApi } from './api';
+import { peticionApi, URL_BASE } from './api';
 import { obtenerToken } from './sesion';
 import type {
   RespuestaTendencia,
@@ -42,4 +42,25 @@ export async function obtenerFotoActual(): Promise<RespuestaFotoActual> {
   return peticionApi<RespuestaFotoActual>('/estadisticas/foto-actual', {
     token: obtenerToken() ?? undefined,
   });
+}
+
+// Descarga el reporte PDF con el rango dado y dispara la descarga en el navegador.
+// El endpoint devuelve un binario asi que se maneja como blob no como JSON.
+export async function descargarReporteEstadisticas(desde?: string, hasta?: string): Promise<void> {
+  const query = construirQuery(desde, hasta);
+  const respuesta = await fetch(`${URL_BASE}/estadisticas/reporte${query}`, {
+    headers: { Authorization: `Bearer ${obtenerToken()}` },
+  });
+  if (!respuesta.ok) {
+    throw new Error('No se pudo generar el reporte');
+  }
+  const blob = await respuesta.blob();
+  const url = URL.createObjectURL(blob);
+  const enlace = document.createElement('a');
+  enlace.href = url;
+  enlace.download = 'reporte-estadisticas.pdf';
+  document.body.appendChild(enlace);
+  enlace.click();
+  document.body.removeChild(enlace);
+  URL.revokeObjectURL(url);
 }

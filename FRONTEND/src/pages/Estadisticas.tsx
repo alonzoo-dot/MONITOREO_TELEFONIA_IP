@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import Layout from '../components/Layout';
-import { obtenerFotoActual, obtenerResumen, obtenerTendencia } from '../services/estadistica.service';
+import {
+  obtenerFotoActual,
+  obtenerResumen,
+  obtenerTendencia,
+  descargarReporteEstadisticas,
+} from '../services/estadistica.service';
 import type {
   RespuestaFotoActual,
   RespuestaResumen,
@@ -13,6 +18,8 @@ import GraficaTopDispositivos from '../components/estadisticas/GraficaTopDisposi
 import GraficaDistribucionBarras from '../components/estadisticas/GraficaDistribucionBarras';
 import GraficaDistribucionModelo from '../components/estadisticas/GraficaDistribucionModelo';
 import TarjetaTiempoAtencion from '../components/estadisticas/TarjetaTiempoAtencion';
+import { COLOR_PISO, COLOR_TIPO } from '../components/estadisticas/coloresGraficas';
+import estilos from './Estadisticas.module.css';
 
 // Formatea una fecha a YYYY-MM-DD
 function formatearFecha(fecha: Date): string {
@@ -20,6 +27,21 @@ function formatearFecha(fecha: Date): string {
   const mes = String(fecha.getMonth() + 1).padStart(2, '0');
   const dia = String(fecha.getDate()).padStart(2, '0');
   return `${anio}-${mes}-${dia}`;
+}
+
+// Formatea un ISO a fecha y hora local legible en es-MX
+function formatearFechaHora(iso: string): string {
+  const fecha = new Date(iso);
+  return fecha
+    .toLocaleString('es-MX', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    })
+    .replace(',', '');
 }
 
 // Calcula el rango inicial de los ultimos 30 dias
@@ -47,6 +69,9 @@ function Estadisticas() {
   const [tendencia, setTendencia] = useState<RespuestaTendencia | null>(null);
   const [cargandoTendencia, setCargandoTendencia] = useState(false);
   const [errorTendencia, setErrorTendencia] = useState(false);
+
+  const [generandoReporte, setGenerandoReporte] = useState(false);
+  const [errorReporte, setErrorReporte] = useState(false);
 
   const cargarFotoActual = useCallback(async () => {
     setCargandoFoto(true);
@@ -102,20 +127,35 @@ function Estadisticas() {
     cargarTendencia();
   }, [cargarTendencia]);
 
+  // Descarga el reporte PDF con el rango de fechas actual
+  async function generarReporte() {
+    setGenerandoReporte(true);
+    setErrorReporte(false);
+    try {
+      await descargarReporteEstadisticas(desde || undefined, hasta || undefined);
+    } catch {
+      setErrorReporte(true);
+    } finally {
+      setGenerandoReporte(false);
+    }
+  }
+
   return (
     <Layout>
-      <h1>Estadisticas</h1>
+      <div className={estilos.encabezado}>
+        <h1>Estadisticas</h1>
+      </div>
 
-      <div>
-        <label>
+      <div className={estilos.filtros}>
+        <label className={estilos.campo}>
           Desde
           <input type="date" value={desde} onChange={(e) => setDesde(e.target.value)} />
         </label>
-        <label>
+        <label className={estilos.campo}>
           Hasta
           <input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} />
         </label>
-        <label>
+        <label className={estilos.campo}>
           Granularidad
           <select
             value={granularidad}
@@ -126,99 +166,144 @@ function Estadisticas() {
             <option value="mes">Mes</option>
           </select>
         </label>
+
+        <button
+          className={estilos.btnReporte}
+          onClick={generarReporte}
+          disabled={generandoReporte}
+          title="Descargar reporte PDF con el rango actual"
+        >
+          {generandoReporte ? 'Generando...' : 'Descargar reporte PDF'}
+        </button>
       </div>
 
-      <section>
-        <h2>Foto actual</h2>
-        {cargandoFoto ? (
-          <p>Cargando...</p>
-        ) : errorFoto ? (
-          <p>
-            No se pudo cargar la foto actual.
-            <button onClick={cargarFotoActual}>Reintentar</button>
-          </p>
-        ) : fotoActual ? (
-          <>
-            <p>Generado en {fotoActual.generadoEn}</p>
-            <TarjetasFotoActual foto={fotoActual} />
-          </>
-        ) : null}
+      {errorReporte && <p className={estilos.avisoReporte}>No se pudo generar el reporte.</p>}
+
+      <section className={estilos.filaSuperior}>
+        <div className={estilos.tarjeta}>
+          <h2 className={estilos.tituloSeccion}>Foto actual</h2>
+          {cargandoFoto ? (
+            <p className={estilos.aviso}>Cargando...</p>
+          ) : errorFoto ? (
+            <p className={estilos.aviso}>
+              No se pudo cargar la foto actual.
+              <button className={estilos.btnReintentar} onClick={cargarFotoActual}>
+                Reintentar
+              </button>
+            </p>
+          ) : fotoActual ? (
+            <>
+              <p className={estilos.subtitulo}>
+                Actualizado: {formatearFechaHora(fotoActual.generadoEn)}
+              </p>
+              <TarjetasFotoActual foto={fotoActual} />
+            </>
+          ) : null}
+        </div>
+
+        <div className={estilos.tarjeta}>
+          <h2 className={estilos.tituloSeccion}>Tiempo de atencion</h2>
+          {cargandoResumen ? (
+            <p className={estilos.aviso}>Cargando...</p>
+          ) : errorResumen ? (
+            <p className={estilos.aviso}>
+              No se pudo cargar el resumen.
+              <button className={estilos.btnReintentar} onClick={cargarResumen}>
+                Reintentar
+              </button>
+            </p>
+          ) : resumen ? (
+            <TarjetaTiempoAtencion tiempo={resumen.tiempoAtencion} />
+          ) : null}
+        </div>
       </section>
 
-      <section>
-        <h2>Tendencia</h2>
+      <section className={`${estilos.tarjeta} ${estilos.tendencia}`}>
+        <h2 className={estilos.tituloSeccion}>Tendencia</h2>
         {cargandoTendencia ? (
-          <p>Cargando...</p>
+          <p className={estilos.aviso}>Cargando...</p>
         ) : errorTendencia ? (
-          <p>
+          <p className={estilos.aviso}>
             No se pudo cargar la tendencia.
-            <button onClick={cargarTendencia}>Reintentar</button>
+            <button className={estilos.btnReintentar} onClick={cargarTendencia}>
+              Reintentar
+            </button>
           </p>
         ) : tendencia ? (
           <GraficaTendencia puntos={tendencia.puntos} />
         ) : null}
       </section>
 
-      <section>
-        <h2>Resumen</h2>
+      <section className={estilos.seccion}>
         {cargandoResumen ? (
-          <p>Cargando...</p>
+          <p className={estilos.aviso}>Cargando...</p>
         ) : errorResumen ? (
-          <p>
+          <p className={estilos.aviso}>
             No se pudo cargar el resumen.
-            <button onClick={cargarResumen}>Reintentar</button>
+            <button className={estilos.btnReintentar} onClick={cargarResumen}>
+              Reintentar
+            </button>
           </p>
         ) : resumen ? (
-          <>
-            <h3>Top dispositivos</h3>
-            <GraficaTopDispositivos datos={resumen.topDispositivos} />
+          <div className={estilos.cuadricula}>
+            <div className={estilos.tarjeta}>
+              <h3 className={estilos.subtitulo}>Top dispositivos</h3>
+              <GraficaTopDispositivos datos={resumen.topDispositivos} />
+            </div>
 
-            <h3>Distribucion por piso</h3>
-            <GraficaDistribucionBarras
-              datos={resumen.distribucionPiso.map((fila) => ({
-                etiqueta: fila.piso,
-                caidas: fila.caidas,
-              }))}
-              nombreEje="Piso"
-            />
+            <div className={estilos.tarjeta}>
+              <h3 className={estilos.subtitulo}>Distribucion por piso</h3>
+              <GraficaDistribucionBarras
+                datos={resumen.distribucionPiso.map((fila) => ({
+                  etiqueta: fila.piso,
+                  caidas: fila.caidas,
+                }))}
+                nombreEje="Piso"
+                color={COLOR_PISO}
+              />
+            </div>
 
-            <h3>Distribucion por modelo</h3>
-            <GraficaDistribucionModelo datos={resumen.distribucionModelo} />
+            <div className={estilos.tarjeta}>
+              <h3 className={estilos.subtitulo}>Distribucion por modelo</h3>
+              <GraficaDistribucionModelo datos={resumen.distribucionModelo} />
+            </div>
 
-            <h3>Distribucion por tipo de ubicacion</h3>
-            <GraficaDistribucionBarras
-              datos={resumen.distribucionTipoUbicacion.map((fila) => ({
-                etiqueta: fila.tipoUbicacion,
-                caidas: fila.caidas,
-              }))}
-              nombreEje="Tipo de ubicacion"
-            />
+            <div className={estilos.tarjeta}>
+              <h3 className={estilos.subtitulo}>Distribucion por tipo de ubicacion</h3>
+              <GraficaDistribucionBarras
+                datos={resumen.distribucionTipoUbicacion.map((fila) => ({
+                  etiqueta: fila.tipoUbicacion,
+                  caidas: fila.caidas,
+                }))}
+                nombreEje="Tipo de ubicacion"
+                color={COLOR_TIPO}
+              />
+            </div>
 
-            <h3>Carga por usuario</h3>
-            {resumen.cargaUsuarios.length === 0 ? (
-              <p>Sin datos en el periodo</p>
-            ) : (
-              <table>
-                <thead>
-                  <tr>
-                    <th>Usuario</th>
-                    <th>Atendidas</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {resumen.cargaUsuarios.map((fila) => (
-                    <tr key={fila.idUsuario}>
-                      <td>{fila.usuario}</td>
-                      <td>{fila.atendidas}</td>
+            <div className={`${estilos.tarjeta} ${estilos.cuadriculaAncha}`}>
+              <h3 className={estilos.subtitulo}>Carga por usuario</h3>
+              {resumen.cargaUsuarios.length === 0 ? (
+                <p className={estilos.aviso}>Sin datos en el periodo</p>
+              ) : (
+                <table className={estilos.tabla}>
+                  <thead>
+                    <tr>
+                      <th>Usuario</th>
+                      <th>Atendidas</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-
-            <h3>Tiempo de atencion</h3>
-            <TarjetaTiempoAtencion tiempo={resumen.tiempoAtencion} />
-          </>
+                  </thead>
+                  <tbody>
+                    {resumen.cargaUsuarios.map((fila) => (
+                      <tr key={fila.idUsuario}>
+                        <td>{fila.usuario}</td>
+                        <td>{fila.atendidas}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
         ) : null}
       </section>
     </Layout>

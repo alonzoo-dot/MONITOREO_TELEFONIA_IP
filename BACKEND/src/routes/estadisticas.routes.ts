@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { obtenerTendencia, obtenerResumen, obtenerFotoActual } from '../controllers/estadisticas.controller'
+import { obtenerTendencia, obtenerResumen, obtenerFotoActual, obtenerReporte } from '../controllers/estadisticas.controller'
 import { requiereAutenticacion } from '../middlewares/auth.middleware'
 import { requiereRol } from '../middlewares/autorizacion.middleware'
 
@@ -17,5 +17,8 @@ rutasEstadisticas.get('/tendencia', obtenerTendencia)
 
 // GET /api/estadisticas/resumen metricas agregadas del rango
 rutasEstadisticas.get('/resumen', obtenerResumen)
+
+// GET /api/estadisticas/reporte genera un PDF con las estadisticas del rango
+rutasEstadisticas.get('/reporte', obtenerReporte)
 
 export default rutasEstadisticas

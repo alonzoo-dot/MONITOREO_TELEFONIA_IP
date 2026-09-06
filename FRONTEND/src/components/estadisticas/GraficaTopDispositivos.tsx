@@ -7,6 +7,7 @@ import {
   Tooltip,
 } from 'recharts';
 import type { TopDispositivo } from '../../types/estadistica';
+import { COLOR_TOP } from './coloresGraficas';
 
 interface Props {
   datos: TopDispositivo[];
@@ -39,11 +40,20 @@ function GraficaTopDispositivos({ datos }: Props) {
 
   return (
     <ResponsiveContainer width="100%" height={300}>
-      <BarChart layout="vertical" data={datos}>
-        <XAxis type="number" allowDecimals={false} />
-        <YAxis type="category" dataKey="extension" width={100} />
+      <BarChart layout="vertical" data={datos} margin={{ top: 5, right: 10, bottom: 20, left: 10 }}>
+        <XAxis
+          type="number"
+          allowDecimals={false}
+          label={{ value: 'Caidas', position: 'insideBottom', offset: -5 }}
+        />
+        <YAxis
+          type="category"
+          dataKey="extension"
+          width={100}
+          label={{ value: 'Extension', angle: -90, position: 'insideLeft' }}
+        />
         <Tooltip content={<TooltipPersonalizado />} />
-        <Bar dataKey="caidas" />
+        <Bar dataKey="caidas" fill={COLOR_TOP} />
       </BarChart>
     </ResponsiveContainer>
   );

@@ -1,13 +1,14 @@
 import {
   ResponsiveContainer,
-  LineChart,
-  Line,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   Tooltip,
   CartesianGrid,
 } from 'recharts';
 import type { PuntoTendencia } from '../../types/estadistica';
+import { COLOR_TENDENCIA } from './coloresGraficas';
 
 interface Props {
   puntos: PuntoTendencia[];
@@ -20,13 +21,20 @@ function GraficaTendencia({ puntos }: Props) {
 
   return (
     <ResponsiveContainer width="100%" height={300}>
-      <LineChart data={puntos}>
-        <CartesianGrid strokeDasharray="3 3" />
-        <XAxis dataKey="periodo" />
-        <YAxis allowDecimals={false} />
+      <BarChart data={puntos} margin={{ top: 5, right: 10, bottom: 20, left: 10 }}>
+        <CartesianGrid vertical={false} />
+        <XAxis
+          dataKey="periodo"
+          tick={{ fontSize: 11 }}
+          label={{ value: 'Fecha', position: 'insideBottom', offset: -5 }}
+        />
+        <YAxis
+          allowDecimals={false}
+          label={{ value: 'Caidas', angle: -90, position: 'insideLeft' }}
+        />
         <Tooltip />
-        <Line type="monotone" dataKey="caidas" dot={false} />
-      </LineChart>
+        <Bar dataKey="caidas" fill={COLOR_TENDENCIA} radius={[4, 4, 0, 0]} />
+      </BarChart>
     </ResponsiveContainer>
   );
 }
