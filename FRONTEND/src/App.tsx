@@ -6,6 +6,7 @@ import Inventario from './pages/Inventario';
 import Incidencias from './pages/Incidencias';
 import Catalogos from './pages/Catalogos';
 import Estadisticas from './pages/Estadisticas';
+import Usuarios from './pages/Usuarios';
 import RutaProtegida from './components/RutaProtegida';
 import ContenedorToasts from './components/ContenedorToasts';
 import ContenedorConfirmacion from './components/ContenedorConfirmacion';
@@ -55,6 +56,14 @@ function App() {
           element={
             <RutaProtegida rol="ADMINISTRADOR">
               <Inventario />
+            </RutaProtegida>
+          }
+        />
+        <Route
+          path="/usuarios"
+          element={
+            <RutaProtegida rol="ADMINISTRADOR">
+              <Usuarios />
             </RutaProtegida>
           }
         />
