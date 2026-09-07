@@ -5,7 +5,24 @@ import {
   editarUsuario,
   resetearPassword,
   ErrorUsuarios,
+  type CodigoErrorUsuarios,
 } from '../services/usuarios.service';
+
+/** Traduce el codigo de un ErrorUsuarios al estado HTTP correspondiente. */
+function estadoPorCodigo(codigo: CodigoErrorUsuarios): number {
+  switch (codigo) {
+    case 'NO_ENCONTRADO':
+      return 404;
+    case 'ROL_INVALIDO':
+      return 400;
+    case 'USUARIO_DUPLICADO':
+    case 'AUTO_DESACTIVACION':
+    case 'ULTIMO_ADMIN':
+      return 409;
+    default:
+      return 409;
+  }
+}
 
 /** POST /api/usuarios — crea un usuario nuevo con contraseña temporal. */
 export async function crear(peticion: Request, respuesta: Response): Promise<void> {
@@ -25,7 +42,7 @@ export async function crear(peticion: Request, respuesta: Response): Promise<voi
     respuesta.status(201).json(resultado);
   } catch (error: unknown) {
     if (error instanceof ErrorUsuarios) {
-      respuesta.status(409).json({ mensaje: error.message });
+      respuesta.status(estadoPorCodigo(error.codigo)).json({ mensaje: error.message, codigo: error.codigo });
       return;
     }
     console.error('Error inesperado al crear usuario:', error);
@@ -59,12 +76,15 @@ export async function editar(peticion: Request, respuesta: Response): Promise<vo
     return;
   }
 
+  // El id del administrador que ejecuta la accion lo adjunta requiereAutenticacion
+  const idUsuarioEjecutor = peticion.usuario!.id_usuario;
+
   try {
-    await editarUsuario(idUsuario, nombre_completo, id_rol, activo);
+    await editarUsuario(idUsuario, nombre_completo, id_rol, activo, idUsuarioEjecutor);
     respuesta.status(200).json({ mensaje: 'Usuario actualizado correctamente' });
   } catch (error: unknown) {
     if (error instanceof ErrorUsuarios) {
-      respuesta.status(404).json({ mensaje: error.message });
+      respuesta.status(estadoPorCodigo(error.codigo)).json({ mensaje: error.message, codigo: error.codigo });
       return;
     }
     console.error('Error inesperado al editar usuario:', error);
@@ -86,7 +106,7 @@ export async function resetear(peticion: Request, respuesta: Response): Promise<
     respuesta.status(200).json({ password_temporal: passwordTemporal });
   } catch (error: unknown) {
     if (error instanceof ErrorUsuarios) {
-      respuesta.status(404).json({ mensaje: error.message });
+      respuesta.status(estadoPorCodigo(error.codigo)).json({ mensaje: error.message, codigo: error.codigo });
       return;
     }
     console.error('Error inesperado al resetear contraseña:', error);

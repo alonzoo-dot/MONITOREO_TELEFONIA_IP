@@ -5,15 +5,28 @@ import {
   actualizarUsuario,
   resetearPasswordUsuario,
   existeUsuario,
+  contarAdministradoresActivos,
+  obtenerRolPorId,
   type UsuarioPublico,
 } from '../repositories/usuarios.repository';
 import { cifrarPassword, generarPasswordTemporal } from '../utils/password';
 
-/** Error de negocio en la gestión de usuarios (ej. usuario duplicado). */
+/** Codigos de error de negocio de la gestion de usuarios. */
+export type CodigoErrorUsuarios =
+  | 'NO_ENCONTRADO'
+  | 'USUARIO_DUPLICADO'
+  | 'ROL_INVALIDO'
+  | 'AUTO_DESACTIVACION'
+  | 'ULTIMO_ADMIN';
+
+/** Error de negocio en la gestion de usuarios con un codigo para mapear el estado HTTP. */
 export class ErrorUsuarios extends Error {
-  constructor(mensaje: string) {
+  public readonly codigo: CodigoErrorUsuarios;
+
+  constructor(codigo: CodigoErrorUsuarios, mensaje: string) {
     super(mensaje);
     this.name = 'ErrorUsuarios';
+    this.codigo = codigo;
   }
 }
 
@@ -33,7 +46,7 @@ export async function registrarUsuario(
   // Regla: no permitir nombres de usuario duplicados
   const yaExiste = await existeUsuario(usuario);
   if (yaExiste) {
-    throw new ErrorUsuarios('Ya existe un usuario con ese nombre');
+    throw new ErrorUsuarios('USUARIO_DUPLICADO', 'Ya existe un usuario con ese nombre');
   }
 
   // Generar y cifrar la contraseña temporal
@@ -63,11 +76,34 @@ export async function editarUsuario(
   nombreCompleto: string,
   idRol: number,
   activo: boolean,
+  idUsuarioEjecutor: number,
 ): Promise<void> {
   // Verificar que el usuario exista antes de editarlo
-  const usuario = await buscarPorId(idUsuario);
-  if (!usuario) {
-    throw new ErrorUsuarios('El usuario no existe');
+  const objetivo = await buscarPorId(idUsuario);
+  if (!objetivo) {
+    throw new ErrorUsuarios('NO_ENCONTRADO', 'El usuario no existe');
+  }
+
+  // Verificar que el rol indicado exista para no violar la llave foranea
+  const tipoRolNuevo = await obtenerRolPorId(idRol);
+  if (!tipoRolNuevo) {
+    throw new ErrorUsuarios('ROL_INVALIDO', 'El rol indicado no existe');
+  }
+
+  // Regla 1: nadie puede desactivar su propia cuenta
+  if (idUsuario === idUsuarioEjecutor && activo === false) {
+    throw new ErrorUsuarios('AUTO_DESACTIVACION', 'No puedes desactivar tu propia cuenta');
+  }
+
+  // Reglas 2 y 3: el sistema siempre debe conservar al menos un administrador activo
+  const eraAdminActivo = objetivo.tipo_rol === 'ADMINISTRADOR' && objetivo.activo === true;
+  const seguiraAdminActivo = tipoRolNuevo === 'ADMINISTRADOR' && activo === true;
+
+  if (eraAdminActivo && !seguiraAdminActivo) {
+    const adminsActivos = await contarAdministradoresActivos();
+    if (adminsActivos <= 1) {
+      throw new ErrorUsuarios('ULTIMO_ADMIN', 'No se puede dejar el sistema sin administradores activos');
+    }
   }
 
   await actualizarUsuario(idUsuario, nombreCompleto, idRol, activo);
@@ -78,7 +114,7 @@ export async function resetearPassword(idUsuario: number): Promise<string> {
   // Verificar que el usuario exista
   const usuario = await buscarPorId(idUsuario);
   if (!usuario) {
-    throw new ErrorUsuarios('El usuario no existe');
+    throw new ErrorUsuarios('NO_ENCONTRADO', 'El usuario no existe');
   }
 
   // Generar y cifrar una nueva contraseña temporal
