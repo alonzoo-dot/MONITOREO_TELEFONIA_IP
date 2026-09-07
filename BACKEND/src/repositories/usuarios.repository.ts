@@ -126,3 +126,23 @@ export async function resetearPasswordUsuario(
     [nuevoPasswordHash, idUsuario],
   );
 }
+
+/** Cuenta cuantos administradores activos existen en el sistema. */
+export async function contarAdministradoresActivos(): Promise<number> {
+  const resultado = await ejecutarConsulta<{ total: string }>(
+    `SELECT COUNT(*) AS total
+       FROM usuarios u
+       JOIN roles r ON r.id_rol = u.id_rol
+      WHERE r.tipo_rol = 'ADMINISTRADOR' AND u.activo = true`,
+  );
+  return Number(resultado.rows[0]!.total);
+}
+
+/** Devuelve el tipo_rol de un rol por su id o null si no existe. */
+export async function obtenerRolPorId(idRol: number): Promise<string | null> {
+  const resultado = await ejecutarConsulta<{ tipo_rol: string }>(
+    'SELECT tipo_rol FROM roles WHERE id_rol = $1',
+    [idRol],
+  );
+  return resultado.rows[0]?.tipo_rol ?? null;
+}
