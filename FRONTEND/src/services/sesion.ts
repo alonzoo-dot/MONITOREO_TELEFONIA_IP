@@ -31,3 +31,8 @@ export function cerrarSesion(): void {
   localStorage.removeItem(CLAVE_TOKEN);
   localStorage.removeItem(CLAVE_USUARIO);
 }
+
+/** Indica si el usuario de la sesion actual tiene rol ADMINISTRADOR. */
+export function esAdministrador(): boolean {
+  return obtenerUsuario()?.tipo_rol === 'ADMINISTRADOR';
+}

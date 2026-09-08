@@ -102,6 +102,41 @@
   cursor: not-allowed;
 }
 
+/* Contenedor de la fila de botones (cancelar + guardar) */
+.filaBotones {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+/* En la fila el boton primario ocupa el espacio disponible */
+.filaBotones .boton {
+  flex: 1;
+}
+
+/* Boton secundario neutro: mismo alto y forma que el primario pero sin relleno de color */
+.botonSecundario {
+  height: 44px;
+  padding: 0 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--card);
+  color: var(--ink-soft);
+  font-family: inherit;
+  font-size: 14.5px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.botonSecundario:hover {
+  background: var(--bg);
+  color: var(--ink);
+}
+
 .error {
   display: flex;
   align-items: center;

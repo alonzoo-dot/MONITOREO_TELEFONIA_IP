@@ -20,9 +20,13 @@ import { esquemaDispositivo } from '../schemas/dispositivo.schema';
 
 const rutasInventario = Router();
 
-// Todas las rutas de inventario requieren: token válido + rol ADMINISTRADOR
+// Todas las rutas de inventario requieren token valido. El rol se aplica por endpoint.
+// Lectura (GET del listado y del detalle) la pueden usar ADMINISTRADOR y TECNICO.
+// La escritura y la importacion son solo ADMINISTRADOR.
 rutasInventario.use(requiereAutenticacion);
-rutasInventario.use(requiereRol('ADMINISTRADOR'));
+
+const permiteLectura = requiereRol('ADMINISTRADOR', 'TECNICO');
+const permiteEscritura = requiereRol('ADMINISTRADOR');
 
 /** Envuelve el middleware de multer para traducir sus errores a respuestas 400. */
 function manejarSubida(peticion: Request, respuesta: Response, siguiente: NextFunction): void {
@@ -35,17 +39,20 @@ function manejarSubida(peticion: Request, respuesta: Response, siguiente: NextFu
   });
 }
 
-// Rutas específicas ANTES de las paramétricas (/:id) para que no las capture
-rutasInventario.get('/', listar);
-rutasInventario.get('/plantilla', descargarPlantilla);
-rutasInventario.post('/importar', manejarSubida, importar);
-rutasInventario.get('/:id/detalle', obtenerDetalle);
-rutasInventario.get('/:id', obtener);
-rutasInventario.post('/', validar(esquemaDispositivo), crear);
-rutasInventario.put('/:id', validar(esquemaDispositivo), editar);
-rutasInventario.patch('/:id/desactivar', desactivar);
-rutasInventario.patch('/:id/reactivar', reactivar);
-rutasInventario.delete('/:id/permanente', eliminarPermanentemente);
-rutasInventario.delete('/:id', eliminar);
+// Rutas especificas ANTES de las parametricas (/:id) para que no las capture
+// Lectura: listado y detalle disponibles para ADMINISTRADOR y TECNICO
+rutasInventario.get('/', permiteLectura, listar);
+// La plantilla es parte del flujo de importacion: solo ADMINISTRADOR
+rutasInventario.get('/plantilla', permiteEscritura, descargarPlantilla);
+rutasInventario.post('/importar', permiteEscritura, manejarSubida, importar);
+rutasInventario.get('/:id/detalle', permiteLectura, obtenerDetalle);
+rutasInventario.get('/:id', permiteLectura, obtener);
+// Escritura: solo ADMINISTRADOR
+rutasInventario.post('/', permiteEscritura, validar(esquemaDispositivo), crear);
+rutasInventario.put('/:id', permiteEscritura, validar(esquemaDispositivo), editar);
+rutasInventario.patch('/:id/desactivar', permiteEscritura, desactivar);
+rutasInventario.patch('/:id/reactivar', permiteEscritura, reactivar);
+rutasInventario.delete('/:id/permanente', permiteEscritura, eliminarPermanentemente);
+rutasInventario.delete('/:id', permiteEscritura, eliminar);
 
 export default rutasInventario;

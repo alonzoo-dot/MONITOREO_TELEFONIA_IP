@@ -54,7 +54,7 @@ function App() {
         <Route
           path="/inventario"
           element={
-            <RutaProtegida rol="ADMINISTRADOR">
+            <RutaProtegida roles={['ADMINISTRADOR', 'TECNICO']}>
               <Inventario />
             </RutaProtegida>
           }
@@ -70,7 +70,7 @@ function App() {
         <Route
           path="/catalogos"
           element={
-            <RutaProtegida rol="ADMINISTRADOR">
+            <RutaProtegida roles={['ADMINISTRADOR', 'TECNICO']}>
               <Catalogos />
             </RutaProtegida>
           }

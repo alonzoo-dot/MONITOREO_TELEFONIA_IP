@@ -7,6 +7,7 @@ import {
   listarDepartamentos,
 } from '../services/inventario.service';
 import type { ModeloTelefono, ModeloAta, Departamento } from '../types/inventario';
+import { esAdministrador } from '../services/sesion';
 import estilos from './Catalogos.module.css';
 
 type Pestana = 'telefono' | 'ata' | 'departamento';
@@ -18,6 +19,8 @@ export interface EdicionCatalogo {
 }
 
 function Catalogos() {
+  // Solo el ADMINISTRADOR ve los controles de escritura. El TECNICO consulta en solo lectura.
+  const puedeEscribir = esAdministrador();
   const [pestana, setPestana] = useState<Pestana>('telefono');
 
   const [modelosTel, setModelosTel] = useState<ModeloTelefono[]>([]);
@@ -63,15 +66,17 @@ function Catalogos() {
     <Layout>
       <div className={estilos.head}>
         <h1>Catálogos</h1>
-        <button
-          className={estilos.btnPri}
-          onClick={() => setEdicion({ tipo: pestana, registro: null })}
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 5v14M5 12h14" />
-          </svg>
-          Nuevo
-        </button>
+        {puedeEscribir && (
+          <button
+            className={estilos.btnPri}
+            onClick={() => setEdicion({ tipo: pestana, registro: null })}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+            Nuevo
+          </button>
+        )}
       </div>
 
       <div className={estilos.tabs}>
@@ -104,15 +109,17 @@ function Catalogos() {
                   <td>{m.modelo}</td>
                   <td>{m.marca}</td>
                   <td>
-                    <button
-                      className={estilos.ib}
-                      title="Editar"
-                      onClick={() => setEdicion({ tipo: 'telefono', registro: m })}
-                    >
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
-                      </svg>
-                    </button>
+                    {puedeEscribir && (
+                      <button
+                        className={estilos.ib}
+                        title="Editar"
+                        onClick={() => setEdicion({ tipo: 'telefono', registro: m })}
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
+                        </svg>
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -144,15 +151,17 @@ function Catalogos() {
                   <td>{m.marca}</td>
                   <td>{m.cantidad_puertos}</td>
                   <td>
-                    <button
-                      className={estilos.ib}
-                      title="Editar"
-                      onClick={() => setEdicion({ tipo: 'ata', registro: m })}
-                    >
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
-                      </svg>
-                    </button>
+                    {puedeEscribir && (
+                      <button
+                        className={estilos.ib}
+                        title="Editar"
+                        onClick={() => setEdicion({ tipo: 'ata', registro: m })}
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
+                        </svg>
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -180,15 +189,17 @@ function Catalogos() {
                 <tr key={d.id_departamento}>
                   <td>{d.nombre}</td>
                   <td>
-                    <button
-                      className={estilos.ib}
-                      title="Editar"
-                      onClick={() => setEdicion({ tipo: 'departamento', registro: d })}
-                    >
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
-                      </svg>
-                    </button>
+                    {puedeEscribir && (
+                      <button
+                        className={estilos.ib}
+                        title="Editar"
+                        onClick={() => setEdicion({ tipo: 'departamento', registro: d })}
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
+                        </svg>
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
