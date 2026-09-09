@@ -11,6 +11,7 @@ import {
 } from '../services/inventario.service';
 import { ErrorApi } from '../services/api';
 import { confirmar } from '../store/confirmaciones';
+import { esAdministrador } from '../services/sesion';
 import type { Dispositivo, FiltrosDispositivo, ModeloTelefono } from '../types/inventario';
 import estilos from './Inventario.module.css';
 
@@ -22,6 +23,8 @@ const ETIQUETA_TIPO: Record<string, string> = {
 };
 
 function Inventario() {
+  // Solo el ADMINISTRADOR ve los controles de escritura. El TECNICO consulta en solo lectura.
+  const puedeEscribir = esAdministrador();
   const [dispositivos, setDispositivos] = useState<Dispositivo[]>([]);
   const [todos, setTodos] = useState<Dispositivo[]>([]);
   const [modelos, setModelos] = useState<ModeloTelefono[]>([]);
@@ -225,24 +228,26 @@ function Inventario() {
         <h1>Inventario</h1>
       </div>
 
-      <div className={estilos.actionbar}>
-        <button className={estilos.btnSec} onClick={() => setImportarAbierto(true)}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
-          </svg>
-          Importar desde Excel
-        </button>
-        <button
-          className={estilos.btnPri}
-          style={{ marginLeft: 'auto' }}
-          onClick={() => setDrawer(null)}
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 5v14M5 12h14" />
-          </svg>
-          Nuevo dispositivo
-        </button>
-      </div>
+      {puedeEscribir && (
+        <div className={estilos.actionbar}>
+          <button className={estilos.btnSec} onClick={() => setImportarAbierto(true)}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
+            </svg>
+            Importar desde Excel
+          </button>
+          <button
+            className={estilos.btnPri}
+            style={{ marginLeft: 'auto' }}
+            onClick={() => setDrawer(null)}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+            Nuevo dispositivo
+          </button>
+        </div>
+      )}
 
       <div className={estilos.controls}>
         <div className={estilos.search}>
@@ -390,39 +395,43 @@ function Inventario() {
                           <circle cx="12" cy="12" r="3" />
                         </svg>
                       </button>
-                      <button
-                        className={estilos.ib}
-                        title="Editar"
-                        onClick={() => setDrawer(d)}
-                      >
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
-                        </svg>
-                      </button>
-                      <button
-                        className={`${estilos.ib} ${d.activo ? estilos.ibDanger : estilos.ibOk}`}
-                        title={d.activo ? 'Desactivar' : 'Reactivar'}
-                        onClick={() => alternarActivo(d)}
-                      >
-                        {d.activo ? (
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M18.36 6.64a9 9 0 1 1-12.73 0M12 2v10" />
-                          </svg>
-                        ) : (
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M20 6 9 17l-5-5" />
-                          </svg>
-                        )}
-                      </button>
-                      <button
-                        className={`${estilos.ib} ${estilos.ibDanger}`}
-                        title="Eliminar"
-                        onClick={() => eliminar(d)}
-                      >
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6h16zM10 11v6M14 11v6" />
-                        </svg>
-                      </button>
+                      {puedeEscribir && (
+                        <>
+                          <button
+                            className={estilos.ib}
+                            title="Editar"
+                            onClick={() => setDrawer(d)}
+                          >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
+                            </svg>
+                          </button>
+                          <button
+                            className={`${estilos.ib} ${d.activo ? estilos.ibDanger : estilos.ibOk}`}
+                            title={d.activo ? 'Desactivar' : 'Reactivar'}
+                            onClick={() => alternarActivo(d)}
+                          >
+                            {d.activo ? (
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M18.36 6.64a9 9 0 1 1-12.73 0M12 2v10" />
+                              </svg>
+                            ) : (
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M20 6 9 17l-5-5" />
+                              </svg>
+                            )}
+                          </button>
+                          <button
+                            className={`${estilos.ib} ${estilos.ibDanger}`}
+                            title="Eliminar"
+                            onClick={() => eliminar(d)}
+                          >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6h16zM10 11v6M14 11v6" />
+                            </svg>
+                          </button>
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>

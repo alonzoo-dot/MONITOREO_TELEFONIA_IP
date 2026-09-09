@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { cambiarPassword } from '../services/auth.service';
 import { obtenerToken } from '../services/sesion';
+import { mostrarToast } from '../store/toasts';
 import Marca from '../components/Marca';
 import estilos from './Login.module.css';
 
@@ -68,8 +69,17 @@ function CambiarPassword() {
     setCargando(true);
     try {
       await cambiarPassword(token, passwordNuevo, modoForzado ? undefined : passwordActual);
-      alert('Contraseña actualizada correctamente');
-      navegar('/dashboard');
+      mostrarToast({
+        tipo: 'exito',
+        titulo: 'Contraseña actualizada',
+        mensaje: 'Tu contraseña se cambió correctamente.',
+      });
+      // En el primer ingreso (forzado) sigue al dashboard. En cambio voluntario vuelve atras.
+      if (modoForzado) {
+        navegar('/dashboard');
+      } else {
+        navegar(-1);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al cambiar la contraseña');
     } finally {
@@ -169,11 +179,11 @@ function CambiarPassword() {
 
         <div className={estilos.filaBotones}>
           {!modoForzado && (
-            <button className={estilos.botonSecundario} onClick={() => navegar(-1)}>
+            <button type="button" className={estilos.botonSecundario} onClick={() => navegar(-1)}>
               Cancelar
             </button>
           )}
-          <button className={estilos.boton} onClick={manejarCambio} disabled={cargando}>
+          <button type="button" className={estilos.boton} onClick={manejarCambio} disabled={cargando}>
             {cargando ? 'Guardando...' : 'Guardar contraseña'}
           </button>
         </div>
