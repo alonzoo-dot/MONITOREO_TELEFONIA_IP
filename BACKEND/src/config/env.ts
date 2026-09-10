@@ -19,5 +19,11 @@ export const configuracion = {
   jwtExpiracion: process.env.JWT_EXPIRES_IN ?? '12h',
   /** Si es true, el motor de monitoreo ICMP arranca al levantar el backend. */
   motorActivo: process.env.MOTOR_ACTIVO === 'true',
+  /** Credenciales de administrador de los telefonos Snom, usadas en HTTP Basic. */
+  snomUsuario: process.env.SNOM_USUARIO ?? '',
+  snomPassword: process.env.SNOM_PASSWORD ?? '',
+  /** IP y puerto SIP fijos de la central Mitel, usados por SoftphoneGateway. */
+  mitelIp: process.env.MITEL_IP ?? '',
+  mitelPuertoSip: Number(process.env.MITEL_PUERTO_SIP ?? 5060),
 } as const;
 
