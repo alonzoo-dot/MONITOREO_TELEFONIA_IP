@@ -117,8 +117,12 @@ async function registrar(contexto: ContextoSip): Promise<ResultadoLlamada> {
   }
 
   if (primeraRespuesta.status === 401 || primeraRespuesta.status === 407) {
+    console.log(
+      `[SOFTPHONE] REGISTER requirio autenticacion (status ${primeraRespuesta.status}), reintentando con auth...`,
+    );
     const autenticacion = extraerAutenticacion(primeraRespuesta);
     if (!autenticacion) {
+      console.log('[SOFTPHONE] REGISTER: no se pudo extraer un desafio de autenticacion valido.');
       return { exito: false, detalle: 'El Mitel exigio autenticacion pero no envio un desafio valido.' };
     }
 
@@ -173,6 +177,8 @@ function enviarRegister(
 async function invitar(contexto: ContextoSip): Promise<ResultadoLlamada> {
   const uri = `sip:${contexto.extensionDestino}@${contexto.mitelIp}`;
 
+  console.log(`[SOFTPHONE] === INICIO INVITE hacia ${uri} ===`);
+
   let transaccion = construirInvite(contexto, 1, null);
   let respuesta = await enviarYEsperar(
     contexto.socket,
@@ -183,18 +189,24 @@ async function invitar(contexto: ContextoSip): Promise<ResultadoLlamada> {
   );
 
   if (respuesta === null) {
+    console.log('[SOFTPHONE] INVITE (CSeq 1): sin respuesta (timeout).');
     return { exito: false, detalle: 'Sin respuesta del Mitel al intentar llamar (timeout).' };
   }
 
   if (respuesta.status === 401 || respuesta.status === 407) {
+    console.log(
+      `[SOFTPHONE] INVITE (CSeq 1) requirio autenticacion (status ${respuesta.status} ${respuesta.reason}). ACK + reintento con auth...`,
+    );
     const autenticacion = extraerAutenticacion(respuesta);
     await enviarAck(contexto, transaccion, respuesta, uri);
 
     if (!autenticacion) {
+      console.log('[SOFTPHONE] INVITE: no se pudo extraer un desafio de autenticacion valido.');
       return { exito: false, detalle: 'El Mitel exigio autenticacion pero no envio un desafio valido.' };
     }
 
     transaccion = construirInvite(contexto, 2, autenticacion);
+    console.log('[SOFTPHONE] Reenviando INVITE (CSeq 2) con Authorization/Proxy-Authorization...');
     respuesta = await enviarYEsperar(
       contexto.socket,
       transaccion.mensaje,
@@ -204,21 +216,28 @@ async function invitar(contexto: ContextoSip): Promise<ResultadoLlamada> {
     );
 
     if (respuesta === null) {
+      console.log('[SOFTPHONE] INVITE (CSeq 2, con auth): sin respuesta (timeout).');
       return { exito: false, detalle: 'Sin respuesta del Mitel al intentar llamar con autenticacion (timeout).' };
     }
+    console.log(`[SOFTPHONE] INVITE (CSeq 2, con auth) respondio: ${respuesta.status} ${respuesta.reason}`);
   }
 
   if (respuesta.status === 180 || respuesta.status === 183) {
+    console.log('[SOFTPHONE] INVITE resultado: timbrando. Enviando CANCEL.');
     await enviarCancel(contexto, transaccion, respuesta, uri);
     return { exito: true, detalle: 'El telefono esta timbrando.' };
   }
 
   if (respuesta.status === 200) {
+    console.log('[SOFTPHONE] INVITE resultado: contestada. Enviando ACK.');
     await enviarAck(contexto, transaccion, respuesta, uri);
     return { exito: true, detalle: 'Llamada contestada.' };
   }
 
   // Cualquier otra respuesta final no exitosa: reconocerla con ACK y no dejarla en el aire.
+  console.log(
+    `[SOFTPHONE] INVITE resultado final NO exitoso: ${respuesta.status} ${respuesta.reason}. Enviando ACK.`,
+  );
   await enviarAck(contexto, transaccion, respuesta, uri);
 
   if (respuesta.status === 486) {
@@ -260,6 +279,7 @@ function construirInvite(
   }
 
   const mensaje = construirMensaje('INVITE', uri, headers, cuerpo);
+  console.log(`[SOFTPHONE-INVITE-RAW]\n${mensaje}`);
   return { mensaje, branch, cseq };
 }
 
@@ -478,6 +498,15 @@ function generarCadenaAleatoria(bytes: number): string {
 
 // --- Transporte UDP ---
 
+// Extrae la linea de peticion y el CSeq de un mensaje SIP saliente, solo para logging.
+function extraerLineaYCseqParaLog(mensaje: string): { lineaPeticion: string; cseq: string } {
+  const lineas = mensaje.split('\r\n');
+  const lineaPeticion = lineas[0] ?? '';
+  const lineaCseq = lineas.find((linea) => linea.toLowerCase().startsWith('cseq:')) ?? '';
+  const cseq = lineaCseq.split(':')[1]?.trim() ?? '';
+  return { lineaPeticion, cseq };
+}
+
 function enviarYEsperar(
   socket: dgram.Socket,
   mensaje: string,
@@ -486,6 +515,7 @@ function enviarYEsperar(
   timeoutMs: number,
 ): Promise<RespuestaSip | null> {
   return new Promise((resolve) => {
+    const { lineaPeticion, cseq } = extraerLineaYCseqParaLog(mensaje);
     let resuelto = false;
 
     const finalizar = (resultado: RespuestaSip | null): void => {
@@ -498,20 +528,32 @@ function enviarYEsperar(
       resolve(resultado);
     };
 
-    const temporizador = setTimeout(() => finalizar(null), timeoutMs);
+    const temporizador = setTimeout(() => {
+      console.log(`[SOFTPHONE] TIMEOUT sin respuesta a: ${lineaPeticion} (CSeq: ${cseq})`);
+      finalizar(null);
+    }, timeoutMs);
 
     function onMensaje(paquete: Buffer): void {
       const respuesta = parsearRespuesta(paquete.toString('utf8'));
-      // Ignorar 100 Trying: no es una respuesta final ni util para decidir el resultado.
-      if (respuesta === null || respuesta.status === 100) {
+      if (respuesta === null) {
         return;
       }
+      // Ignorar 100 Trying: no es una respuesta final ni util para decidir el resultado.
+      if (respuesta.status === 100) {
+        console.log(`[SOFTPHONE] recibido (ignorado): 100 ${respuesta.reason}`);
+        return;
+      }
+      console.log(
+        `[SOFTPHONE] recibido: ${respuesta.status} ${respuesta.reason} (respuesta a: ${lineaPeticion}, CSeq: ${cseq})`,
+      );
       finalizar(respuesta);
     }
 
+    console.log(`[SOFTPHONE] ENVIA: ${lineaPeticion} (CSeq: ${cseq})`);
     socket.on('message', onMensaje);
     socket.send(mensaje, puerto, ip, (error) => {
       if (error) {
+        console.log(`[SOFTPHONE] error al enviar ${lineaPeticion} (CSeq: ${cseq}): ${error.message}`);
         finalizar(null);
       }
     });
@@ -520,6 +562,8 @@ function enviarYEsperar(
 
 function enviarSinEsperar(socket: dgram.Socket, mensaje: string, ip: string, puerto: number): Promise<void> {
   return new Promise((resolve) => {
+    const { lineaPeticion, cseq } = extraerLineaYCseqParaLog(mensaje);
+    console.log(`[SOFTPHONE] ENVIA: ${lineaPeticion} (CSeq: ${cseq})`);
     socket.send(mensaje, puerto, ip, () => resolve());
   });
 }
