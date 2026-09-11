@@ -51,14 +51,14 @@ export async function marcar(peticion: Request, respuesta: Response): Promise<vo
 
 // POST /api/llamadas/hacer-timbrar  hace timbrar un telefono via softphone SIP.
 export async function hacerTimbrar(peticion: Request, respuesta: Response): Promise<void> {
-  const { idTelefono, extensionOrigen, usuarioSip, passwordSip } = peticion.body as HacerTimbrarValidado;
+  const { extensionOrigen, usuarioSip, passwordSip, extensionDestino } = peticion.body as HacerTimbrarValidado;
 
   try {
     const resultado = await llamadasService.hacerTimbrar(
-      idTelefono,
       extensionOrigen,
       usuarioSip,
       passwordSip,
+      extensionDestino,
     );
     respuesta.status(200).json(resultado);
   } catch (error: unknown) {

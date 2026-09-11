@@ -66,18 +66,15 @@ export async function marcar(
   return gateway.ejecutar({ ip: origen.ip_efectiva, extensionDestino: extensionDestino.trim() });
 }
 
-// Hace timbrar un telefono (el destino) usando un softphone SIP que se registra
-// con una extension e credenciales propias, via SoftphoneGateway.
+// Hace timbrar una extension destino (no necesariamente un dispositivo del
+// inventario) usando un softphone SIP que se registra con una extension e
+// credenciales propias, via SoftphoneGateway.
 export async function hacerTimbrar(
-  idTelefono: number,
   extensionOrigen: string,
   usuarioSip: string,
   passwordSip: string,
+  extensionDestino: string,
 ): Promise<ResultadoLlamada> {
-  const destino = await llamadasRepo.buscarDispositivoParaLlamada(idTelefono);
-  if (destino === null) {
-    throw new ErrorLlamadas('DESTINO_NO_ENCONTRADO', 'El telefono a timbrar no existe o esta inactivo.');
-  }
   if (extensionOrigen.trim() === '') {
     throw new ErrorLlamadas(
       'EXTENSION_ORIGEN_REQUERIDA',
@@ -90,12 +87,15 @@ export async function hacerTimbrar(
   if (passwordSip.trim() === '') {
     throw new ErrorLlamadas('PASSWORD_SIP_REQUERIDO', 'Debe indicar la contrasena SIP.');
   }
+  if (extensionDestino.trim() === '') {
+    throw new ErrorLlamadas('EXTENSION_DESTINO_REQUERIDA', 'Debe indicar una extension de destino.');
+  }
 
   const gateway = new SoftphoneGateway();
   return gateway.ejecutar({
     extensionOrigen: extensionOrigen.trim(),
     usuarioSip: usuarioSip.trim(),
     passwordSip,
-    extensionDestino: destino.extension,
+    extensionDestino: extensionDestino.trim(),
   });
 }

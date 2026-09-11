@@ -5,6 +5,8 @@ import { activarMantenimiento, desactivarMantenimiento } from '../../services/mo
 import { ErrorApi } from '../../services/api';
 import { mostrarToast } from '../../store/toasts';
 import ModalConfirmacion from '../ModalConfirmacion';
+import ModalMarcar from '../ModalMarcar';
+import ModalTimbrar from '../ModalTimbrar';
 import estilos from './TablaMonitoreo.module.css';
 
 const INTERVALO_REFRESCO_MS = 30 * 1000;
@@ -51,6 +53,9 @@ function TablaMonitoreo({ dispositivos, cargando }: Props) {
   // Dispositivo sobre el que se pidió poner/quitar mantenimiento; null = modal cerrado.
   const [objetivo, setObjetivo] = useState<DispositivoConEstado | null>(null);
   const [procesando, setProcesando] = useState(false);
+
+  // Dispositivo sobre el que se pidio marcar/timbrar; null = modal de llamada cerrado.
+  const [llamadaObjetivo, setLlamadaObjetivo] = useState<DispositivoConEstado | null>(null);
 
   async function confirmarMantenimiento() {
     if (!objetivo) return;
@@ -144,24 +149,37 @@ function TablaMonitoreo({ dispositivos, cargando }: Props) {
                 </td>
                 <td>
                   <span className={estilos.cardLabel}>Acciones</span>
-                  {d.estado === 'EN_MANTENIMIENTO' ? (
+                  <div className={estilos.acciones}>
                     <button
-                      className={`${estilos.actionBtn} ${estilos.actionBtnOk}`}
-                      onClick={() => setObjetivo(d)}
+                      className={estilos.actionBtn}
+                      onClick={() => setLlamadaObjetivo(d)}
+                      disabled={d.tipo === 'ANALOGICO'}
+                      title={d.tipo === 'ANALOGICO' ? 'Sin IP, no se puede contactar' : undefined}
                     >
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M18.36 6.64a9 9 0 1 1-12.73 0M12 2v10" />
+                        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z" />
                       </svg>
-                      Reactivar
+                      Marcar
                     </button>
-                  ) : (
-                    <button className={estilos.actionBtn} onClick={() => setObjetivo(d)}>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
-                      </svg>
-                      Mantenimiento
-                    </button>
-                  )}
+                    {d.estado === 'EN_MANTENIMIENTO' ? (
+                      <button
+                        className={`${estilos.actionBtn} ${estilos.actionBtnOk}`}
+                        onClick={() => setObjetivo(d)}
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M18.36 6.64a9 9 0 1 1-12.73 0M12 2v10" />
+                        </svg>
+                        Reactivar
+                      </button>
+                    ) : (
+                      <button className={estilos.actionBtn} onClick={() => setObjetivo(d)}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+                        </svg>
+                        Mantenimiento
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))
@@ -184,6 +202,20 @@ function TablaMonitoreo({ dispositivos, cargando }: Props) {
         onConfirmar={confirmarMantenimiento}
         onCancelar={() => setObjetivo(null)}
       />
+
+      {llamadaObjetivo && llamadaObjetivo.tipo === 'IP_NATIVO' && (
+        <ModalMarcar
+          idOrigen={llamadaObjetivo.id_telefono}
+          extensionOrigen={llamadaObjetivo.extension}
+          alCerrar={() => setLlamadaObjetivo(null)}
+        />
+      )}
+      {llamadaObjetivo && llamadaObjetivo.tipo === 'IP_ATA' && (
+        <ModalTimbrar
+          extensionOrigen={llamadaObjetivo.extension}
+          alCerrar={() => setLlamadaObjetivo(null)}
+        />
+      )}
     </div>
   );
 }
