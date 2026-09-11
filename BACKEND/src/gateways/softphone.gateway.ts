@@ -4,26 +4,14 @@ import * as os from 'os';
 import { configuracion } from '../config/env';
 import type { LlamadaGateway, ParametrosLlamada, ResultadoLlamada } from './llamada.gateway';
 
-// Softphone SIP/UDP minimo: se registra en el Mitel, invita a una extension
-// destino para hacerla timbrar, y cancela/cierra. No mantiene sesion viva.
+// Softphone SIP/UDP minimo: se registra en el Mitel y luego invita a una
+// extension destino para hacerla timbrar (sin negociar audio real).
+// Logica portada 1:1 desde una herramienta de prueba externa que si logra
+// hacer timbrar el destino contra el mismo Mitel.
 
-const TIMEOUT_REGISTER_MS = 6000;
-const TIMEOUT_INVITE_MS = 6000;
 const USER_AGENT = 'HotelWatch';
-
-interface ContextoSip {
-  socket: dgram.Socket;
-  mitelIp: string;
-  mitelPuerto: number;
-  localIp: string;
-  localPuerto: number;
-  callId: string;
-  fromTag: string;
-  extensionOrigen: string;
-  usuarioSip: string;
-  passwordSip: string;
-  extensionDestino: string;
-}
+const TIMEOUT_REGISTER_MS = 6000;
+const TIMEOUT_INVITE_MS = 8000;
 
 interface DesafioAuth {
   realm: string;
@@ -37,22 +25,29 @@ interface RespuestaSip {
   status: number;
   reason: string;
   headers: Record<string, string>;
-  cseqMethod: string;
+  cseqM: string;
 }
 
-interface TransaccionInvite {
-  mensaje: string;
-  branch: string;
-  cseq: number;
+interface Esperador {
+  predicado: (r: RespuestaSip) => boolean;
+  resolver: (r: RespuestaSip | null) => void;
 }
 
-interface DatosAutenticacion {
-  desafio: DesafioAuth;
-  esProxy: boolean;
+interface ContextoSip {
+  socket: dgram.Socket;
+  mitelIp: string;
+  mitelPuerto: number;
+  localIp: string;
+  localPuerto: number;
+  aor: string;
+  contact: string;
+  extensionOrigen: string;
+  usuarioSip: string;
+  passwordSip: string;
+  extensionDestino: string;
+  esperadores: Esperador[];
 }
 
-// Marca por SIP/UDP: registra la extension origen en el Mitel y luego invita
-// a la extension destino para hacerla timbrar (sin negociar audio real).
 export class SoftphoneGateway implements LlamadaGateway {
   async ejecutar(parametros: ParametrosLlamada): Promise<ResultadoLlamada> {
     const { extensionOrigen, usuarioSip, passwordSip, extensionDestino } = parametros;
@@ -71,23 +66,29 @@ export class SoftphoneGateway implements LlamadaGateway {
 
     let socket: dgram.Socket | null = null;
     try {
-      const localIp = await determinarIpLocal(mitelIp, mitelPuerto);
+      const localIp = await localIpHacia(mitelIp, mitelPuerto);
       socket = dgram.createSocket('udp4');
       const localPuerto = await enlazarSocket(socket);
 
+      // Un unico socket para todo el flujo: REGISTER e INVITE comparten transporte.
       const contexto: ContextoSip = {
         socket,
         mitelIp,
         mitelPuerto,
         localIp,
         localPuerto,
-        callId: `${generarCadenaAleatoria(8)}@${localIp}`,
-        fromTag: generarCadenaAleatoria(4),
+        aor: `sip:${extensionOrigen}@${mitelIp}`,
+        contact: `<sip:${extensionOrigen}@${localIp}:${localPuerto}>`,
         extensionOrigen,
         usuarioSip,
         passwordSip,
         extensionDestino,
+        esperadores: [],
       };
+
+      socket.on('message', (paquete) => {
+        despacharRespuesta(contexto, paquete);
+      });
 
       const resultadoRegistro = await registrar(contexto);
       if (!resultadoRegistro.exito) {
@@ -104,87 +105,211 @@ export class SoftphoneGateway implements LlamadaGateway {
   }
 }
 
+// --- Despacho de respuestas entrantes hacia quien las este esperando ---
+
+function despacharRespuesta(contexto: ContextoSip, paquete: Buffer): void {
+  const respuesta = parsear(paquete.toString('utf8'));
+  if (respuesta === null) {
+    return;
+  }
+  if (respuesta.status === 100) {
+    console.log(`[SOFTPHONE] recibido (ignorado): 100 ${respuesta.reason}`);
+    return;
+  }
+  console.log(
+    `[SOFTPHONE] recibido: ${respuesta.status} ${respuesta.reason} (CSeq method: ${respuesta.cseqM})`,
+  );
+
+  const esperadores = contexto.esperadores;
+  for (let i = esperadores.length - 1; i >= 0; i -= 1) {
+    const esperador = esperadores[i];
+    if (esperador.predicado(respuesta)) {
+      esperadores.splice(i, 1);
+      esperador.resolver(respuesta);
+    }
+  }
+}
+
+function esperar(
+  contexto: ContextoSip,
+  predicado: (r: RespuestaSip) => boolean,
+  ms: number,
+): Promise<RespuestaSip | null> {
+  return new Promise((resolve) => {
+    const entrada: Esperador = {
+      predicado,
+      resolver: (r) => {
+        clearTimeout(temporizador);
+        resolve(r);
+      },
+    };
+    const temporizador = setTimeout(() => {
+      const indice = contexto.esperadores.indexOf(entrada);
+      if (indice !== -1) {
+        contexto.esperadores.splice(indice, 1);
+      }
+      console.log('[SOFTPHONE] TIMEOUT sin respuesta esperada.');
+      resolve(null);
+    }, ms);
+    contexto.esperadores.push(entrada);
+  });
+}
+
+function enviar(contexto: ContextoSip, mensaje: string, etiqueta: string): void {
+  console.log(`[SOFTPHONE] ENVIA: ${etiqueta}`);
+  contexto.socket.send(Buffer.from(mensaje), contexto.mitelPuerto, contexto.mitelIp);
+}
+
+function via(contexto: ContextoSip, branch: string): string {
+  return `SIP/2.0/UDP ${contexto.localIp}:${contexto.localPuerto};branch=${branch};rport`;
+}
+
 // --- Registro (REGISTER) ---
 
 async function registrar(contexto: ContextoSip): Promise<ResultadoLlamada> {
-  const primeraRespuesta = await enviarRegister(contexto, 1, null);
-  if (primeraRespuesta === null) {
+  const callIdR = `${rnd(8)}@${contexto.localIp}`;
+  const fromTagR = rnd(4);
+
+  const construirRegister = (
+    cseq: number,
+    nombreHeaderAuth: 'Authorization' | 'Proxy-Authorization' | null,
+    auth: string | null,
+  ): string => {
+    const branch = `z9hG4bK${rnd(6)}`;
+    const headers: Record<string, string> = {
+      Via: via(contexto, branch),
+      'Max-Forwards': '70',
+      From: `<${contexto.aor}>;tag=${fromTagR}`,
+      To: `<${contexto.aor}>`,
+      'Call-ID': callIdR,
+      CSeq: `${cseq} REGISTER`,
+      Contact: contexto.contact,
+      Expires: '300',
+      'User-Agent': USER_AGENT,
+    };
+    if (nombreHeaderAuth && auth) {
+      headers[nombreHeaderAuth] = auth;
+    }
+    return construir('REGISTER', contexto.aor, headers, '');
+  };
+
+  enviar(contexto, construirRegister(1, null, null), 'REGISTER (CSeq: 1)');
+  let respuesta = await esperar(
+    contexto,
+    (r) => r.cseqM === 'REGISTER' && r.status >= 200,
+    TIMEOUT_REGISTER_MS,
+  );
+
+  if (respuesta === null) {
     return { exito: false, detalle: 'Sin respuesta del Mitel al registrar (timeout).' };
   }
 
-  if (primeraRespuesta.status === 200) {
-    return { exito: true, detalle: 'Registro SIP exitoso.' };
-  }
-
-  if (primeraRespuesta.status === 401 || primeraRespuesta.status === 407) {
+  if (respuesta.status === 401 || respuesta.status === 407) {
     console.log(
-      `[SOFTPHONE] REGISTER requirio autenticacion (status ${primeraRespuesta.status}), reintentando con auth...`,
+      `[SOFTPHONE] REGISTER requirio autenticacion (status ${respuesta.status}), reintentando con auth...`,
     );
-    const autenticacion = extraerAutenticacion(primeraRespuesta);
-    if (!autenticacion) {
+    const esProxy = respuesta.status === 407;
+    const encabezado = esProxy ? respuesta.headers['proxy-authenticate'] : respuesta.headers['www-authenticate'];
+    const desafio = encabezado ? parseAuth(encabezado) : null;
+    if (!desafio) {
       console.log('[SOFTPHONE] REGISTER: no se pudo extraer un desafio de autenticacion valido.');
       return { exito: false, detalle: 'El Mitel exigio autenticacion pero no envio un desafio valido.' };
     }
 
-    const segundaRespuesta = await enviarRegister(contexto, 2, autenticacion);
-    if (segundaRespuesta === null) {
+    const auth = digest(desafio, 'REGISTER', `sip:${contexto.mitelIp}`, contexto.usuarioSip, contexto.passwordSip);
+    const nombreHeaderAuth = esProxy ? 'Proxy-Authorization' : 'Authorization';
+
+    enviar(contexto, construirRegister(2, nombreHeaderAuth, auth), 'REGISTER (CSeq: 2, con auth)');
+    respuesta = await esperar(
+      contexto,
+      (r) => r.cseqM === 'REGISTER' && r.status >= 200,
+      TIMEOUT_REGISTER_MS,
+    );
+
+    if (respuesta === null) {
       return { exito: false, detalle: 'Sin respuesta del Mitel al registrar con autenticacion (timeout).' };
     }
-    if (segundaRespuesta.status === 200) {
-      return { exito: true, detalle: 'Registro SIP exitoso.' };
-    }
-    if (segundaRespuesta.status === 401 || segundaRespuesta.status === 403) {
+  }
+
+  if (respuesta.status !== 200) {
+    if (respuesta.status === 401 || respuesta.status === 403) {
       return { exito: false, detalle: 'Credenciales SIP invalidas.' };
     }
-    return { exito: false, detalle: `El Mitel rechazo el registro (estado ${segundaRespuesta.status}).` };
+    return { exito: false, detalle: `El Mitel rechazo el registro (estado ${respuesta.status}).` };
   }
 
-  if (primeraRespuesta.status === 403) {
-    return { exito: false, detalle: 'Credenciales SIP invalidas.' };
-  }
-
-  return { exito: false, detalle: `El Mitel rechazo el registro (estado ${primeraRespuesta.status}).` };
-}
-
-function enviarRegister(
-  contexto: ContextoSip,
-  cseq: number,
-  autenticacion: DatosAutenticacion | null,
-): Promise<RespuestaSip | null> {
-  const uri = `sip:${contexto.mitelIp}`;
-  const branch = generarBranch();
-  const headers: Record<string, string> = {
-    Via: `SIP/2.0/UDP ${contexto.localIp}:${contexto.localPuerto};branch=${branch};rport`,
-    'Max-Forwards': '70',
-    From: `<sip:${contexto.extensionOrigen}@${contexto.mitelIp}>;tag=${contexto.fromTag}`,
-    To: `<sip:${contexto.extensionOrigen}@${contexto.mitelIp}>`,
-    'Call-ID': contexto.callId,
-    CSeq: `${cseq} REGISTER`,
-    Contact: `<sip:${contexto.extensionOrigen}@${contexto.localIp}:${contexto.localPuerto}>`,
-    Expires: '300',
-    'User-Agent': USER_AGENT,
-  };
-  if (autenticacion) {
-    agregarAuthorization(headers, autenticacion, 'REGISTER', uri, contexto);
-  }
-
-  const mensaje = construirMensaje('REGISTER', uri, headers, '');
-  return enviarYEsperar(contexto.socket, mensaje, contexto.mitelIp, contexto.mitelPuerto, TIMEOUT_REGISTER_MS);
+  console.log('[SOFTPHONE] Registro SIP exitoso.');
+  return { exito: true, detalle: 'Registro SIP exitoso.' };
 }
 
 // --- Invitacion (INVITE) ---
 
 async function invitar(contexto: ContextoSip): Promise<ResultadoLlamada> {
-  const uri = `sip:${contexto.extensionDestino}@${contexto.mitelIp}`;
+  const callIdI = `${rnd(8)}@${contexto.localIp}`;
+  const fromTagI = rnd(4);
+  const targetUri = `sip:${contexto.extensionDestino}@${contexto.mitelIp}`;
 
-  console.log(`[SOFTPHONE] === INICIO INVITE hacia ${uri} ===`);
+  const construirSdp = (): string => {
+    const ts = Date.now();
+    const lineas = [
+      'v=0',
+      `o=- ${ts} ${ts} IN IP4 ${contexto.localIp}`,
+      's=HotelWatch',
+      `c=IN IP4 ${contexto.localIp}`,
+      't=0 0',
+      'm=audio 40000 RTP/AVP 0 8',
+      'a=rtpmap:0 PCMU/8000',
+      'a=rtpmap:8 PCMA/8000',
+      'a=sendrecv',
+    ];
+    return lineas.join('\r\n') + '\r\n';
+  };
 
-  let transaccion = construirInvite(contexto, 1, null);
-  let respuesta = await enviarYEsperar(
-    contexto.socket,
-    transaccion.mensaje,
-    contexto.mitelIp,
-    contexto.mitelPuerto,
+  const construirInvite = (
+    cseq: number,
+    branch: string,
+    nombreHeaderAuth: 'Authorization' | 'Proxy-Authorization' | null,
+    auth: string | null,
+  ): string => {
+    const headers: Record<string, string> = {
+      Via: via(contexto, branch),
+      'Max-Forwards': '70',
+      From: `<${contexto.aor}>;tag=${fromTagI}`,
+      To: `<${targetUri}>`,
+      'Call-ID': callIdI,
+      CSeq: `${cseq} INVITE`,
+      Contact: contexto.contact,
+      'Content-Type': 'application/sdp',
+      'User-Agent': USER_AGENT,
+    };
+    if (nombreHeaderAuth && auth) {
+      headers[nombreHeaderAuth] = auth;
+    }
+    return construir('INVITE', targetUri, headers, construirSdp());
+  };
+
+  const construirAckOCancel = (metodo: 'ACK' | 'CANCEL', cseq: number, branch: string, toFinal: string): string => {
+    const headers: Record<string, string> = {
+      Via: via(contexto, branch),
+      'Max-Forwards': '70',
+      From: `<${contexto.aor}>;tag=${fromTagI}`,
+      To: toFinal,
+      'Call-ID': callIdI,
+      CSeq: `${cseq} ${metodo}`,
+      'User-Agent': USER_AGENT,
+    };
+    return construir(metodo, targetUri, headers, '');
+  };
+
+  console.log(`[SOFTPHONE] === INICIO INVITE hacia ${targetUri} ===`);
+
+  let branchInvite = `z9hG4bK${rnd(6)}`;
+  let cseqInvite = 1;
+  enviar(contexto, construirInvite(cseqInvite, branchInvite, null, null), 'INVITE (CSeq: 1)');
+
+  let respuesta = await esperar(
+    contexto,
+    (r) => r.cseqM === 'INVITE' && (r.status >= 180 || r.status === 401 || r.status === 407),
     TIMEOUT_INVITE_MS,
   );
 
@@ -197,23 +322,34 @@ async function invitar(contexto: ContextoSip): Promise<ResultadoLlamada> {
     console.log(
       `[SOFTPHONE] INVITE (CSeq 1) requirio autenticacion (status ${respuesta.status} ${respuesta.reason}). ACK + reintento con auth...`,
     );
-    const autenticacion = extraerAutenticacion(respuesta);
-    await enviarAck(contexto, transaccion, respuesta, uri);
 
-    if (!autenticacion) {
+    const toDeError = respuesta.headers['to'] ?? `<${targetUri}>`;
+    enviar(
+      contexto,
+      construirAckOCancel('ACK', cseqInvite, branchInvite, toDeError),
+      'ACK (a respuesta de error del INVITE CSeq 1)',
+    );
+
+    const esProxy = respuesta.status === 407;
+    const encabezado = esProxy ? respuesta.headers['proxy-authenticate'] : respuesta.headers['www-authenticate'];
+    const desafio = encabezado ? parseAuth(encabezado) : null;
+    if (!desafio) {
       console.log('[SOFTPHONE] INVITE: no se pudo extraer un desafio de autenticacion valido.');
       return { exito: false, detalle: 'El Mitel exigio autenticacion pero no envio un desafio valido.' };
     }
 
-    transaccion = construirInvite(contexto, 2, autenticacion);
-    console.log('[SOFTPHONE] Reenviando INVITE (CSeq 2) con Authorization/Proxy-Authorization...');
-    respuesta = await enviarYEsperar(
-      contexto.socket,
-      transaccion.mensaje,
-      contexto.mitelIp,
-      contexto.mitelPuerto,
-      TIMEOUT_INVITE_MS,
+    const auth = digest(desafio, 'INVITE', targetUri, contexto.usuarioSip, contexto.passwordSip);
+    const nombreHeaderAuth = esProxy ? 'Proxy-Authorization' : 'Authorization';
+
+    branchInvite = `z9hG4bK${rnd(6)}`;
+    cseqInvite = 2;
+    enviar(
+      contexto,
+      construirInvite(cseqInvite, branchInvite, nombreHeaderAuth, auth),
+      'INVITE (CSeq: 2, con auth)',
     );
+
+    respuesta = await esperar(contexto, (r) => r.cseqM === 'INVITE' && r.status >= 180, TIMEOUT_INVITE_MS);
 
     if (respuesta === null) {
       console.log('[SOFTPHONE] INVITE (CSeq 2, con auth): sin respuesta (timeout).');
@@ -222,15 +358,17 @@ async function invitar(contexto: ContextoSip): Promise<ResultadoLlamada> {
     console.log(`[SOFTPHONE] INVITE (CSeq 2, con auth) respondio: ${respuesta.status} ${respuesta.reason}`);
   }
 
+  const toFinal = respuesta.headers['to'] ?? `<${targetUri}>`;
+
   if (respuesta.status === 180 || respuesta.status === 183) {
     console.log('[SOFTPHONE] INVITE resultado: timbrando. Enviando CANCEL.');
-    await enviarCancel(contexto, transaccion, respuesta, uri);
+    enviar(contexto, construirAckOCancel('CANCEL', cseqInvite, branchInvite, toFinal), 'CANCEL');
     return { exito: true, detalle: 'El telefono esta timbrando.' };
   }
 
   if (respuesta.status === 200) {
     console.log('[SOFTPHONE] INVITE resultado: contestada. Enviando ACK.');
-    await enviarAck(contexto, transaccion, respuesta, uri);
+    enviar(contexto, construirAckOCancel('ACK', cseqInvite, branchInvite, toFinal), 'ACK');
     return { exito: true, detalle: 'Llamada contestada.' };
   }
 
@@ -238,7 +376,7 @@ async function invitar(contexto: ContextoSip): Promise<ResultadoLlamada> {
   console.log(
     `[SOFTPHONE] INVITE resultado final NO exitoso: ${respuesta.status} ${respuesta.reason}. Enviando ACK.`,
   );
-  await enviarAck(contexto, transaccion, respuesta, uri);
+  enviar(contexto, construirAckOCancel('ACK', cseqInvite, branchInvite, toFinal), 'ACK');
 
   if (respuesta.status === 486) {
     return { exito: false, detalle: 'El destino esta ocupado.' };
@@ -255,130 +393,12 @@ async function invitar(contexto: ContextoSip): Promise<ResultadoLlamada> {
   return { exito: false, detalle: `El Mitel rechazo la llamada (estado ${respuesta.status}).` };
 }
 
-function construirInvite(
-  contexto: ContextoSip,
-  cseq: number,
-  autenticacion: DatosAutenticacion | null,
-): TransaccionInvite {
-  const uri = `sip:${contexto.extensionDestino}@${contexto.mitelIp}`;
-  const branch = generarBranch();
-  const cuerpo = construirSdp(contexto.localIp);
-  const headers: Record<string, string> = {
-    Via: `SIP/2.0/UDP ${contexto.localIp}:${contexto.localPuerto};branch=${branch};rport`,
-    'Max-Forwards': '70',
-    From: `<sip:${contexto.extensionOrigen}@${contexto.mitelIp}>;tag=${contexto.fromTag}`,
-    To: `<sip:${contexto.extensionDestino}@${contexto.mitelIp}>`,
-    'Call-ID': contexto.callId,
-    CSeq: `${cseq} INVITE`,
-    Contact: `<sip:${contexto.extensionOrigen}@${contexto.localIp}:${contexto.localPuerto}>`,
-    'Content-Type': 'application/sdp',
-    'User-Agent': USER_AGENT,
-  };
-  if (autenticacion) {
-    agregarAuthorization(headers, autenticacion, 'INVITE', uri, contexto);
-  }
-
-  const mensaje = construirMensaje('INVITE', uri, headers, cuerpo);
-  console.log(`[SOFTPHONE-INVITE-RAW]\n${mensaje}`);
-  return { mensaje, branch, cseq };
-}
-
-function construirSdp(localIp: string): string {
-  const idSesion = Date.now();
-  const lineas = [
-    'v=0',
-    `o=- ${idSesion} ${idSesion} IN IP4 ${localIp}`,
-    's=-',
-    `c=IN IP4 ${localIp}`,
-    't=0 0',
-    'm=audio 40000 RTP/AVP 0 8',
-    'a=rtpmap:0 PCMU/8000',
-    'a=rtpmap:8 PCMA/8000',
-  ];
-  return lineas.join('\r\n') + '\r\n';
-}
-
-// ACK y CANCEL reutilizan el branch y el CSeq de la transaccion INVITE que respondieron,
-// y toman el To de la respuesta (que puede traer el tag agregado por el Mitel).
-
-async function enviarAck(
-  contexto: ContextoSip,
-  transaccion: TransaccionInvite,
-  respuesta: RespuestaSip,
-  uri: string,
-): Promise<void> {
-  const headers: Record<string, string> = {
-    Via: `SIP/2.0/UDP ${contexto.localIp}:${contexto.localPuerto};branch=${transaccion.branch};rport`,
-    'Max-Forwards': '70',
-    From: `<sip:${contexto.extensionOrigen}@${contexto.mitelIp}>;tag=${contexto.fromTag}`,
-    To: obtenerToHeader(respuesta, contexto),
-    'Call-ID': contexto.callId,
-    CSeq: `${transaccion.cseq} ACK`,
-    'User-Agent': USER_AGENT,
-  };
-  const mensaje = construirMensaje('ACK', uri, headers, '');
-  await enviarSinEsperar(contexto.socket, mensaje, contexto.mitelIp, contexto.mitelPuerto);
-}
-
-async function enviarCancel(
-  contexto: ContextoSip,
-  transaccion: TransaccionInvite,
-  respuesta: RespuestaSip,
-  uri: string,
-): Promise<void> {
-  const headers: Record<string, string> = {
-    Via: `SIP/2.0/UDP ${contexto.localIp}:${contexto.localPuerto};branch=${transaccion.branch};rport`,
-    'Max-Forwards': '70',
-    From: `<sip:${contexto.extensionOrigen}@${contexto.mitelIp}>;tag=${contexto.fromTag}`,
-    To: obtenerToHeader(respuesta, contexto),
-    'Call-ID': contexto.callId,
-    CSeq: `${transaccion.cseq} CANCEL`,
-    'User-Agent': USER_AGENT,
-  };
-  const mensaje = construirMensaje('CANCEL', uri, headers, '');
-  await enviarSinEsperar(contexto.socket, mensaje, contexto.mitelIp, contexto.mitelPuerto);
-}
-
-function obtenerToHeader(respuesta: RespuestaSip, contexto: ContextoSip): string {
-  return respuesta.headers['to'] ?? `<sip:${contexto.extensionDestino}@${contexto.mitelIp}>`;
-}
-
 // --- Autenticacion digest (RFC 2617) ---
 
-function extraerAutenticacion(respuesta: RespuestaSip): DatosAutenticacion | null {
-  const esProxy = respuesta.status === 407;
-  const encabezado = esProxy ? respuesta.headers['proxy-authenticate'] : respuesta.headers['www-authenticate'];
-  if (!encabezado) {
-    return null;
-  }
-  const desafio = parsearAuth(encabezado);
-  if (!desafio) {
-    return null;
-  }
-  return { desafio, esProxy };
-}
-
-function agregarAuthorization(
-  headers: Record<string, string>,
-  autenticacion: DatosAutenticacion,
-  metodo: string,
-  uri: string,
-  contexto: ContextoSip,
-): void {
-  const nombreHeader = autenticacion.esProxy ? 'Proxy-Authorization' : 'Authorization';
-  headers[nombreHeader] = construirAuthorization(
-    autenticacion.desafio,
-    metodo,
-    uri,
-    contexto.usuarioSip,
-    contexto.passwordSip,
-  );
-}
-
-function parsearAuth(header: string): DesafioAuth | null {
+function parseAuth(header: string): DesafioAuth | null {
   const sinEsquema = header.replace(/^Digest\s+/i, '');
   const partes: Record<string, string> = {};
-  const patron = /(\w+)=(?:"([^"]*)"|([^,\s]+))/g;
+  const patron = /(\w+)=(?:"([^"]*)"|([^,\s]*))/g;
   let coincidencia: RegExpExecArray | null;
   while ((coincidencia = patron.exec(sinEsquema)) !== null) {
     const clave = coincidencia[1].toLowerCase();
@@ -397,52 +417,33 @@ function parsearAuth(header: string): DesafioAuth | null {
   };
 }
 
-function construirAuthorization(
-  desafio: DesafioAuth,
-  metodo: string,
-  uri: string,
-  usuario: string,
-  password: string,
-): string {
-  const { respuesta, cnonce, nc } = calcularDigest(desafio, metodo, uri, usuario, password);
-  const partes = [
-    `Digest username="${usuario}"`,
-    `realm="${desafio.realm}"`,
-    `nonce="${desafio.nonce}"`,
-    `uri="${uri}"`,
-    `response="${respuesta}"`,
-  ];
-  if (desafio.algorithm) {
-    partes.push(`algorithm=${desafio.algorithm}`);
-  }
-  if (desafio.qop) {
-    partes.push(`qop=${desafio.qop}`, `nc=${nc}`, `cnonce="${cnonce}"`);
-  }
-  if (desafio.opaque) {
-    partes.push(`opaque="${desafio.opaque}"`);
-  }
-  return partes.join(', ');
-}
-
-function calcularDigest(
-  desafio: DesafioAuth,
-  metodo: string,
-  uri: string,
-  usuario: string,
-  password: string,
-): { respuesta: string; cnonce?: string; nc?: string } {
-  const ha1 = md5(`${usuario}:${desafio.realm}:${password}`);
+function digest(ch: DesafioAuth, metodo: string, uri: string, usuario: string, password: string): string {
+  const ha1 = md5(`${usuario}:${ch.realm}:${password}`);
   const ha2 = md5(`${metodo}:${uri}`);
 
-  if (desafio.qop) {
+  const partes = [
+    `Digest username="${usuario}"`,
+    `realm="${ch.realm}"`,
+    `nonce="${ch.nonce}"`,
+    `uri="${uri}"`,
+  ];
+
+  if (ch.qop) {
+    const qop = ch.qop.split(',')[0];
     const nc = '00000001';
-    const cnonce = generarCadenaAleatoria(8);
-    const respuesta = md5(`${ha1}:${desafio.nonce}:${nc}:${cnonce}:${desafio.qop}:${ha2}`);
-    return { respuesta, cnonce, nc };
+    const cnonce = rnd(4);
+    const respuesta = md5(`${ha1}:${ch.nonce}:${nc}:${cnonce}:${qop}:${ha2}`);
+    partes.push(`response="${respuesta}"`, 'algorithm=MD5', `qop=${qop}`, `nc=${nc}`, `cnonce="${cnonce}"`);
+  } else {
+    const respuesta = md5(`${ha1}:${ch.nonce}:${ha2}`);
+    partes.push(`response="${respuesta}"`, 'algorithm=MD5');
   }
 
-  const respuesta = md5(`${ha1}:${desafio.nonce}:${ha2}`);
-  return { respuesta };
+  if (ch.opaque) {
+    partes.push(`opaque="${ch.opaque}"`);
+  }
+
+  return partes.join(', ');
 }
 
 function md5(texto: string): string {
@@ -451,19 +452,19 @@ function md5(texto: string): string {
 
 // --- Construccion y parseo de mensajes SIP ---
 
-function construirMensaje(metodo: string, ruri: string, headers: Record<string, string>, body: string): string {
+function construir(metodo: string, ruri: string, headers: Record<string, string>, body: string): string {
   const lineaPeticion = `${metodo} ${ruri} SIP/2.0`;
   const lineasHeaders = Object.entries(headers).map(([nombre, valor]) => `${nombre}: ${valor}`);
   const lineaContentLength = `Content-Length: ${Buffer.byteLength(body, 'utf8')}`;
   return [lineaPeticion, ...lineasHeaders, lineaContentLength, '', body].join('\r\n');
 }
 
-function parsearRespuesta(mensaje: string): RespuestaSip | null {
+function parsear(mensaje: string): RespuestaSip | null {
   const separadorCuerpo = mensaje.indexOf('\r\n\r\n');
   const cabecera = separadorCuerpo === -1 ? mensaje : mensaje.slice(0, separadorCuerpo);
   const lineas = cabecera.split('\r\n');
   const primeraLinea = lineas[0] ?? '';
-  const coincidenciaEstado = primeraLinea.match(/^SIP\/2\.0\s+(\d{3})\s*(.*)$/);
+  const coincidenciaEstado = primeraLinea.match(/^SIP\/2\.0\s+(\d+)\s+(.*)$/);
   if (!coincidenciaEstado) {
     return null;
   }
@@ -483,102 +484,61 @@ function parsearRespuesta(mensaje: string): RespuestaSip | null {
   }
 
   const cseqHeader = headers['cseq'] ?? '';
-  const cseqMethod = cseqHeader.split(' ')[1] ?? '';
+  const cseqM = cseqHeader.split(' ')[1] ?? '';
 
-  return { status, reason, headers, cseqMethod };
+  return { status, reason, headers, cseqM };
 }
 
-function generarBranch(): string {
-  return `z9hG4bK${generarCadenaAleatoria(8)}`;
-}
-
-function generarCadenaAleatoria(bytes: number): string {
+function rnd(bytes: number): string {
   return crypto.randomBytes(bytes).toString('hex');
 }
 
 // --- Transporte UDP ---
 
-// Extrae la linea de peticion y el CSeq de un mensaje SIP saliente, solo para logging.
-function extraerLineaYCseqParaLog(mensaje: string): { lineaPeticion: string; cseq: string } {
-  const lineas = mensaje.split('\r\n');
-  const lineaPeticion = lineas[0] ?? '';
-  const lineaCseq = lineas.find((linea) => linea.toLowerCase().startsWith('cseq:')) ?? '';
-  const cseq = lineaCseq.split(':')[1]?.trim() ?? '';
-  return { lineaPeticion, cseq };
+function enlazarSocket(socket: dgram.Socket): Promise<number> {
+  return new Promise((resolve, reject) => {
+    socket.once('error', reject);
+    socket.bind(0, () => {
+      socket.removeListener('error', reject);
+      resolve(socket.address().port);
+    });
+  });
 }
 
-function enviarYEsperar(
-  socket: dgram.Socket,
-  mensaje: string,
-  ip: string,
-  puerto: number,
-  timeoutMs: number,
-): Promise<RespuestaSip | null> {
+// Determina la IP local con la que se llegaria al Mitel. Usa un socket UDP
+// temporal "conectado" para que el sistema operativo resuelva la interfaz de
+// salida; si eso falla o devuelve una IP no utilizable, cae a recorrer las
+// interfaces de red locales.
+function localIpHacia(host: string, puerto: number): Promise<string> {
   return new Promise((resolve) => {
-    const { lineaPeticion, cseq } = extraerLineaYCseqParaLog(mensaje);
+    const sondeo = dgram.createSocket('udp4');
     let resuelto = false;
 
-    const finalizar = (resultado: RespuestaSip | null): void => {
+    const finalizar = (ip: string): void => {
       if (resuelto) {
         return;
       }
       resuelto = true;
       clearTimeout(temporizador);
-      socket.removeListener('message', onMensaje);
-      resolve(resultado);
+      sondeo.close();
+      resolve(ip);
     };
 
     const temporizador = setTimeout(() => {
-      console.log(`[SOFTPHONE] TIMEOUT sin respuesta a: ${lineaPeticion} (CSeq: ${cseq})`);
-      finalizar(null);
-    }, timeoutMs);
+      finalizar(obtenerIpLocalPorInterfaces());
+    }, 1500);
 
-    function onMensaje(paquete: Buffer): void {
-      const respuesta = parsearRespuesta(paquete.toString('utf8'));
-      if (respuesta === null) {
-        return;
-      }
-      // Ignorar 100 Trying: no es una respuesta final ni util para decidir el resultado.
-      if (respuesta.status === 100) {
-        console.log(`[SOFTPHONE] recibido (ignorado): 100 ${respuesta.reason}`);
-        return;
-      }
-      console.log(
-        `[SOFTPHONE] recibido: ${respuesta.status} ${respuesta.reason} (respuesta a: ${lineaPeticion}, CSeq: ${cseq})`,
-      );
-      finalizar(respuesta);
-    }
-
-    console.log(`[SOFTPHONE] ENVIA: ${lineaPeticion} (CSeq: ${cseq})`);
-    socket.on('message', onMensaje);
-    socket.send(mensaje, puerto, ip, (error) => {
-      if (error) {
-        console.log(`[SOFTPHONE] error al enviar ${lineaPeticion} (CSeq: ${cseq}): ${error.message}`);
-        finalizar(null);
-      }
-    });
-  });
-}
-
-function enviarSinEsperar(socket: dgram.Socket, mensaje: string, ip: string, puerto: number): Promise<void> {
-  return new Promise((resolve) => {
-    const { lineaPeticion, cseq } = extraerLineaYCseqParaLog(mensaje);
-    console.log(`[SOFTPHONE] ENVIA: ${lineaPeticion} (CSeq: ${cseq})`);
-    socket.send(mensaje, puerto, ip, () => resolve());
-  });
-}
-
-function determinarIpLocal(mitelIp: string, mitelPuerto: number): Promise<string> {
-  return new Promise((resolve) => {
-    const sondeo = dgram.createSocket('udp4');
     sondeo.once('error', () => {
-      sondeo.close();
-      resolve(obtenerIpLocalPorInterfaces());
+      finalizar(obtenerIpLocalPorInterfaces());
     });
-    sondeo.connect(mitelPuerto, mitelIp, () => {
+
+    sondeo.connect(puerto, host, () => {
       const direccion = sondeo.address().address;
-      sondeo.close();
-      resolve(direccion);
+      if (!direccion || direccion === '0.0.0.0' || direccion.startsWith('127.')) {
+        finalizar(obtenerIpLocalPorInterfaces());
+        return;
+      }
+      finalizar(direccion);
     });
   });
 }
@@ -594,14 +554,4 @@ function obtenerIpLocalPorInterfaces(): string {
     }
   }
   return '127.0.0.1';
-}
-
-function enlazarSocket(socket: dgram.Socket): Promise<number> {
-  return new Promise((resolve, reject) => {
-    socket.once('error', reject);
-    socket.bind(0, () => {
-      socket.removeListener('error', reject);
-      resolve(socket.address().port);
-    });
-  });
 }
