@@ -1,9 +1,14 @@
 import { Router } from 'express';
-import { listarDispositivos, marcar, hacerTimbrar, colgar } from '../controllers/llamadas.controller';
+import { listarDispositivos, marcar, hacerTimbrar, colgar, colgarMarcado } from '../controllers/llamadas.controller';
 import { requiereAutenticacion } from '../middlewares/auth.middleware';
 import { requiereRol } from '../middlewares/autorizacion.middleware';
 import { validar } from '../middlewares/validacion.middleware';
-import { esquemaMarcar, esquemaHacerTimbrar, esquemaColgar } from '../schemas/llamadas.schema';
+import {
+  esquemaMarcar,
+  esquemaHacerTimbrar,
+  esquemaColgar,
+  esquemaColgarMarcado,
+} from '../schemas/llamadas.schema';
 
 const rutasLlamadas = Router();
 
@@ -16,5 +21,6 @@ rutasLlamadas.get('/dispositivos', listarDispositivos);
 rutasLlamadas.post('/marcar', validar(esquemaMarcar), marcar);
 rutasLlamadas.post('/hacer-timbrar', validar(esquemaHacerTimbrar), hacerTimbrar);
 rutasLlamadas.post('/colgar', validar(esquemaColgar), colgar);
+rutasLlamadas.post('/colgar-marcado', validar(esquemaColgarMarcado), colgarMarcado);
 
 export default rutasLlamadas;

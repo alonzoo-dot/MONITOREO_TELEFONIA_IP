@@ -1,7 +1,12 @@
 import type { Request, Response } from 'express';
 import * as llamadasService from '../services/llamadas.service';
 import { ErrorLlamadas } from '../gateways/errores';
-import type { MarcarValidado, HacerTimbrarValidado, ColgarValidado } from '../schemas/llamadas.schema';
+import type {
+  MarcarValidado,
+  HacerTimbrarValidado,
+  ColgarValidado,
+  ColgarMarcadoValidado,
+} from '../schemas/llamadas.schema';
 
 /**
  * Traduce un ErrorLlamadas a su código HTTP según el 'codigo' del error.
@@ -78,6 +83,20 @@ export async function colgar(peticion: Request, respuesta: Response): Promise<vo
   } catch (error: unknown) {
     if (manejarErrorLlamadas(error, respuesta)) return;
     console.error('Error inesperado al colgar:', error);
+    respuesta.status(500).json({ mensaje: 'Error interno del servidor' });
+  }
+}
+
+// POST /api/llamadas/colgar-marcado  cuelga (RELEASE_ALL_CALLS) el telefono IP nativo que marco.
+export async function colgarMarcado(peticion: Request, respuesta: Response): Promise<void> {
+  const { idTelefono } = peticion.body as ColgarMarcadoValidado;
+
+  try {
+    const resultado = await llamadasService.colgarMarcado(idTelefono);
+    respuesta.status(200).json(resultado);
+  } catch (error: unknown) {
+    if (manejarErrorLlamadas(error, respuesta)) return;
+    console.error('Error inesperado al colgar marcado:', error);
     respuesta.status(500).json({ mensaje: 'Error interno del servidor' });
   }
 }

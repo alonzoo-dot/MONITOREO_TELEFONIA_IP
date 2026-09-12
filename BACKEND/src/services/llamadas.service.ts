@@ -67,6 +67,24 @@ export async function marcar(
   return gateway.ejecutar({ ip: origen.ip_efectiva, extensionDestino: extensionDestino.trim() });
 }
 
+// Cuelga (RELEASE_ALL_CALLS) el telefono IP nativo que marco, identificado por
+// el mismo idTelefono que se uso como idOrigen al marcar.
+export async function colgarMarcado(idTelefono: number): Promise<ResultadoLlamada> {
+  const origen = await llamadasRepo.buscarDispositivoParaLlamada(idTelefono);
+  if (origen === null) {
+    throw new ErrorLlamadas('ORIGEN_NO_ENCONTRADO', 'El telefono de origen no existe o esta inactivo.');
+  }
+  if (origen.tipo !== 'IP_NATIVO') {
+    throw new ErrorLlamadas('TIPO_NO_COMPATIBLE', 'Solo los telefonos IP nativos pueden colgarse desde el sistema');
+  }
+  if (!origen.ip_efectiva) {
+    throw new ErrorLlamadas('SIN_IP', 'El telefono no tiene conexión, no se puede colgar');
+  }
+
+  const gateway = new SnomGateway();
+  return gateway.colgar({ ip: origen.ip_efectiva });
+}
+
 // Hace timbrar una extension destino (no necesariamente un dispositivo del
 // inventario) usando un softphone SIP que se registra con una extension e
 // credenciales propias, via SoftphoneGateway.

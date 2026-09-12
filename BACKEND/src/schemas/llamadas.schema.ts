@@ -42,3 +42,11 @@ export const esquemaColgar = z.object({
 
 /** Tipo inferido del esquema para tipar el body ya validado. */
 export type ColgarValidado = z.infer<typeof esquemaColgar>;
+
+/** Body para colgar (RELEASE_ALL_CALLS) el telefono IP nativo que marco. */
+export const esquemaColgarMarcado = z.object({
+  idTelefono: z.number().int('El id de telefono debe ser un numero entero').positive('El id de telefono debe ser un numero positivo'),
+});
+
+/** Tipo inferido del esquema para tipar el body ya validado. */
+export type ColgarMarcadoValidado = z.infer<typeof esquemaColgarMarcado>;

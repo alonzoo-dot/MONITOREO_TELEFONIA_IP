@@ -24,6 +24,16 @@ export async function marcar(
   });
 }
 
+// Cuelga (RELEASE_ALL_CALLS) el telefono IP nativo que marco, identificado por
+// el mismo idOrigen que se uso al marcar.
+export async function colgarMarcado(idTelefono: number): Promise<ResultadoLlamada> {
+  return peticionApi<ResultadoLlamada>('/llamadas/colgar-marcado', {
+    metodo: 'POST',
+    cuerpo: { idTelefono },
+    token: obtenerToken() ?? undefined,
+  });
+}
+
 // Hace timbrar un telefono via softphone SIP, registrandose con una extension
 // y credenciales propias. Mismo tratamiento de exito:false que marcar().
 export async function hacerTimbrar(
