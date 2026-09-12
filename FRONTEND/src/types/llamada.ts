@@ -12,7 +12,9 @@ export interface DispositivoLlamable {
 }
 
 // Resultado de un intento de marcado/timbrado. exito:false no es un error HTTP.
+// idSesion viene cuando hacer-timbrar deja el telefono sonando; se usa para colgar despues.
 export interface ResultadoLlamada {
   exito: boolean;
   detalle: string;
+  idSesion?: string;
 }

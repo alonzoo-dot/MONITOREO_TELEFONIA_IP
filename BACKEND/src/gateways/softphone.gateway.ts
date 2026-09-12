@@ -2,16 +2,22 @@ import * as dgram from 'dgram';
 import * as crypto from 'crypto';
 import * as os from 'os';
 import { configuracion } from '../config/env';
-import type { LlamadaGateway, ParametrosLlamada, ResultadoLlamada } from './llamada.gateway';
+import type { ParametrosLlamada, ResultadoLlamada } from './llamada.gateway';
 
 // Softphone SIP/UDP minimo: se registra en el Mitel y luego invita a una
 // extension destino para hacerla timbrar (sin negociar audio real).
 // Logica portada 1:1 desde una herramienta de prueba externa que si logra
 // hacer timbrar el destino contra el mismo Mitel.
+//
+// A diferencia de la herramienta original, aca el timbrado NO se corta solo:
+// al llegar 180/183 la sesion SIP se mantiene viva (socket abierto, Call-ID,
+// tags y branch guardados) hasta que alguien pida colgar explicitamente via
+// colgar(idSesion), o hasta que expire la red de seguridad.
 
 const USER_AGENT = 'HotelWatch';
 const TIMEOUT_REGISTER_MS = 6000;
 const TIMEOUT_INVITE_MS = 8000;
+const TIMEOUT_SEGURIDAD_MS = 120000;
 
 interface DesafioAuth {
   realm: string;
@@ -48,61 +54,150 @@ interface ContextoSip {
   esperadores: Esperador[];
 }
 
-export class SoftphoneGateway implements LlamadaGateway {
-  async ejecutar(parametros: ParametrosLlamada): Promise<ResultadoLlamada> {
-    const { extensionOrigen, usuarioSip, passwordSip, extensionDestino } = parametros;
-    if (!extensionOrigen || !usuarioSip || !passwordSip || !extensionDestino) {
-      return {
-        exito: false,
-        detalle: 'Se requiere extensionOrigen, usuarioSip, passwordSip y extensionDestino.',
-      };
-    }
+/** Resultado de iniciar un timbrado: si queda timbrando/contestado, trae idSesion para poder colgar despues. */
+export type ResultadoTimbrado = ResultadoLlamada & { idSesion?: string };
 
-    const mitelIp = configuracion.mitelIp;
-    const mitelPuerto = configuracion.mitelPuertoSip;
-    if (!mitelIp) {
-      return { exito: false, detalle: 'No hay IP del Mitel configurada.' };
-    }
+/** Sesion SIP viva de una llamada iniciada con iniciarTimbrado, hasta que se cuelgue. */
+interface Sesion {
+  socket: dgram.Socket;
+  localIp: string;
+  localPuerto: number;
+  mitelIp: string;
+  mitelPuerto: number;
+  targetUri: string;
+  aor: string;
+  fromTagI: string;
+  callIdI: string;
+  branchI: string;
+  cseqInvite: number;
+  estado: 'timbrando' | 'contestada';
+  toTag: string | null;
+  safety: NodeJS.Timeout;
+}
 
-    let socket: dgram.Socket | null = null;
-    try {
-      const localIp = await localIpHacia(mitelIp, mitelPuerto);
-      socket = dgram.createSocket('udp4');
-      const localPuerto = await enlazarSocket(socket);
+const sesiones = new Map<string, Sesion>();
 
-      // Un unico socket para todo el flujo: REGISTER e INVITE comparten transporte.
-      const contexto: ContextoSip = {
-        socket,
-        mitelIp,
-        mitelPuerto,
-        localIp,
-        localPuerto,
-        aor: `sip:${extensionOrigen}@${mitelIp}`,
-        contact: `<sip:${extensionOrigen}@${localIp}:${localPuerto}>`,
-        extensionOrigen,
-        usuarioSip,
-        passwordSip,
-        extensionDestino,
-        esperadores: [],
-      };
-
-      socket.on('message', (paquete) => {
-        despacharRespuesta(contexto, paquete);
-      });
-
-      const resultadoRegistro = await registrar(contexto);
-      if (!resultadoRegistro.exito) {
-        return resultadoRegistro;
-      }
-
-      return await invitar(contexto);
-    } catch (error) {
-      const mensaje = error instanceof Error ? error.message : 'Error desconocido.';
-      return { exito: false, detalle: `Fallo el softphone SIP: ${mensaje}` };
-    } finally {
-      socket?.close();
-    }
+// Registra REGISTER + INVITE contra el Mitel (con el mismo reintento de auth
+// probado en la herramienta original) y, si el destino empieza a timbrar o
+// contesta de inmediato, deja la sesion SIP viva en el Map en vez de cerrarla.
+export async function iniciarTimbrado(parametros: ParametrosLlamada): Promise<ResultadoTimbrado> {
+  const { extensionOrigen, usuarioSip, passwordSip, extensionDestino } = parametros;
+  if (!extensionOrigen || !usuarioSip || !passwordSip || !extensionDestino) {
+    return {
+      exito: false,
+      detalle: 'Se requiere extensionOrigen, usuarioSip, passwordSip y extensionDestino.',
+    };
   }
+
+  const mitelIp = configuracion.mitelIp;
+  const mitelPuerto = configuracion.mitelPuertoSip;
+  if (!mitelIp) {
+    return { exito: false, detalle: 'No hay IP del Mitel configurada.' };
+  }
+
+  let socket: dgram.Socket | null = null;
+  try {
+    const localIp = await localIpHacia(mitelIp, mitelPuerto);
+    socket = dgram.createSocket('udp4');
+    const localPuerto = await enlazarSocket(socket);
+
+    // Un unico socket para todo el flujo: REGISTER e INVITE comparten transporte.
+    // Si el destino queda timbrando/contestado, este mismo socket se mantiene
+    // abierto como parte de la sesion viva.
+    const contexto: ContextoSip = {
+      socket,
+      mitelIp,
+      mitelPuerto,
+      localIp,
+      localPuerto,
+      aor: `sip:${extensionOrigen}@${mitelIp}`,
+      contact: `<sip:${extensionOrigen}@${localIp}:${localPuerto}>`,
+      extensionOrigen,
+      usuarioSip,
+      passwordSip,
+      extensionDestino,
+      esperadores: [],
+    };
+
+    socket.on('message', (paquete) => {
+      despacharRespuesta(contexto, paquete);
+    });
+
+    const resultadoRegistro = await registrar(contexto);
+    if (!resultadoRegistro.exito) {
+      socket.close();
+      return resultadoRegistro;
+    }
+
+    return await invitarYMantener(contexto, socket);
+  } catch (error) {
+    const mensaje = error instanceof Error ? error.message : 'Error desconocido.';
+    socket?.close();
+    return { exito: false, detalle: `Fallo el softphone SIP: ${mensaje}` };
+  }
+}
+
+// Cuelga (o cancela, si todavia esta timbrando) una sesion iniciada con
+// iniciarTimbrado. Nunca lanza: siempre devuelve un ResultadoLlamada.
+export function colgar(idSesion: string): ResultadoLlamada {
+  return colgarInterno(idSesion);
+}
+
+function colgarInterno(idSesion: string, motivo?: string): ResultadoLlamada {
+  const sesion = sesiones.get(idSesion);
+  if (!sesion) {
+    return { exito: false, detalle: 'No hay una llamada activa con ese identificador.' };
+  }
+
+  clearTimeout(sesion.safety);
+  sesiones.delete(idSesion);
+
+  if (sesion.estado === 'contestada') {
+    const branchBye = `z9hG4bK${rnd(6)}`;
+    const headers: Record<string, string> = {
+      Via: viaSesion(sesion, branchBye),
+      'Max-Forwards': '70',
+      From: `<${sesion.aor}>;tag=${sesion.fromTagI}`,
+      To: sesion.toTag ? `<${sesion.targetUri}>;tag=${sesion.toTag}` : `<${sesion.targetUri}>`,
+      'Call-ID': sesion.callIdI,
+      CSeq: `${sesion.cseqInvite + 1} BYE`,
+      'User-Agent': USER_AGENT,
+    };
+    const mensaje = construir('BYE', sesion.targetUri, headers, '');
+    console.log(`[SOFTPHONE] ENVIA: BYE${motivo ? ` (${motivo})` : ''}`);
+    sesion.socket.send(Buffer.from(mensaje), sesion.mitelPuerto, sesion.mitelIp);
+  } else {
+    const headers: Record<string, string> = {
+      Via: viaSesion(sesion, sesion.branchI),
+      'Max-Forwards': '70',
+      From: `<${sesion.aor}>;tag=${sesion.fromTagI}`,
+      To: `<${sesion.targetUri}>`,
+      'Call-ID': sesion.callIdI,
+      CSeq: `${sesion.cseqInvite} CANCEL`,
+      'User-Agent': USER_AGENT,
+    };
+    const mensaje = construir('CANCEL', sesion.targetUri, headers, '');
+    console.log(`[SOFTPHONE] ENVIA: CANCEL${motivo ? ` (${motivo})` : ''}`);
+    sesion.socket.send(Buffer.from(mensaje), sesion.mitelPuerto, sesion.mitelIp);
+  }
+
+  const detalle = sesion.estado === 'contestada' ? 'Llamada colgada.' : 'Timbrado cortado.';
+
+  // Pequeno delay para dar tiempo a que el mensaje salga por el socket antes de cerrarlo.
+  setTimeout(() => {
+    sesion.socket.close();
+  }, 800);
+
+  return { exito: true, detalle };
+}
+
+function viaSesion(sesion: Sesion, branch: string): string {
+  return `SIP/2.0/UDP ${sesion.localIp}:${sesion.localPuerto};branch=${branch};rport`;
+}
+
+function extraerTag(header: string): string | null {
+  const coincidencia = header.match(/;tag=([^;>\s]+)/);
+  return coincidencia ? coincidencia[1] : null;
 }
 
 // --- Despacho de respuestas entrantes hacia quien las este esperando ---
@@ -243,8 +338,13 @@ async function registrar(contexto: ContextoSip): Promise<ResultadoLlamada> {
 }
 
 // --- Invitacion (INVITE) ---
+//
+// Igual que la herramienta original hasta la primera respuesta >=180 (mismo
+// reintento de auth). La diferencia esta en que pasa al llegar 180/183: en
+// vez de mandar CANCEL y devolver, guarda la sesion viva en el Map y deja un
+// esperador persistente para el 200 OK que pueda llegar mas tarde.
 
-async function invitar(contexto: ContextoSip): Promise<ResultadoLlamada> {
+async function invitarYMantener(contexto: ContextoSip, socket: dgram.Socket): Promise<ResultadoTimbrado> {
   const callIdI = `${rnd(8)}@${contexto.localIp}`;
   const fromTagI = rnd(4);
   const targetUri = `sip:${contexto.extensionDestino}@${contexto.mitelIp}`;
@@ -315,6 +415,7 @@ async function invitar(contexto: ContextoSip): Promise<ResultadoLlamada> {
 
   if (respuesta === null) {
     console.log('[SOFTPHONE] INVITE (CSeq 1): sin respuesta (timeout).');
+    socket.close();
     return { exito: false, detalle: 'Sin respuesta del Mitel al intentar llamar (timeout).' };
   }
 
@@ -335,6 +436,7 @@ async function invitar(contexto: ContextoSip): Promise<ResultadoLlamada> {
     const desafio = encabezado ? parseAuth(encabezado) : null;
     if (!desafio) {
       console.log('[SOFTPHONE] INVITE: no se pudo extraer un desafio de autenticacion valido.');
+      socket.close();
       return { exito: false, detalle: 'El Mitel exigio autenticacion pero no envio un desafio valido.' };
     }
 
@@ -353,6 +455,7 @@ async function invitar(contexto: ContextoSip): Promise<ResultadoLlamada> {
 
     if (respuesta === null) {
       console.log('[SOFTPHONE] INVITE (CSeq 2, con auth): sin respuesta (timeout).');
+      socket.close();
       return { exito: false, detalle: 'Sin respuesta del Mitel al intentar llamar con autenticacion (timeout).' };
     }
     console.log(`[SOFTPHONE] INVITE (CSeq 2, con auth) respondio: ${respuesta.status} ${respuesta.reason}`);
@@ -361,15 +464,69 @@ async function invitar(contexto: ContextoSip): Promise<ResultadoLlamada> {
   const toFinal = respuesta.headers['to'] ?? `<${targetUri}>`;
 
   if (respuesta.status === 180 || respuesta.status === 183) {
-    console.log('[SOFTPHONE] INVITE resultado: timbrando. Enviando CANCEL.');
-    enviar(contexto, construirAckOCancel('CANCEL', cseqInvite, branchInvite, toFinal), 'CANCEL');
-    return { exito: true, detalle: 'El telefono esta timbrando.' };
+    console.log('[SOFTPHONE] INVITE resultado: timbrando. Manteniendo la sesion viva.');
+
+    const idSesion = rnd(8);
+    const sesion: Sesion = {
+      socket,
+      localIp: contexto.localIp,
+      localPuerto: contexto.localPuerto,
+      mitelIp: contexto.mitelIp,
+      mitelPuerto: contexto.mitelPuerto,
+      targetUri,
+      aor: contexto.aor,
+      fromTagI,
+      callIdI,
+      branchI: branchInvite,
+      cseqInvite,
+      estado: 'timbrando',
+      toTag: null,
+      safety: setTimeout(() => colgarInterno(idSesion, 'corte automatico de seguridad'), TIMEOUT_SEGURIDAD_MS),
+    };
+    sesiones.set(idSesion, sesion);
+
+    // Esperador persistente (sin timeout): si mas adelante llega el 200 OK del
+    // INVITE, marca la sesion como contestada y responde con ACK.
+    contexto.esperadores.push({
+      predicado: (r) => r.cseqM === 'INVITE' && r.status === 200,
+      resolver: (r) => {
+        if (r === null) return;
+        const activa = sesiones.get(idSesion);
+        if (!activa || activa.estado !== 'timbrando') return;
+        const toHeader = r.headers['to'] ?? toFinal;
+        activa.toTag = extraerTag(toHeader);
+        activa.estado = 'contestada';
+        const branchAck = `z9hG4bK${rnd(6)}`;
+        enviar(contexto, construirAckOCancel('ACK', activa.cseqInvite, branchAck, toHeader), 'ACK (200 OK tardio)');
+      },
+    });
+
+    return { exito: true, detalle: 'El telefono esta timbrando', idSesion };
   }
 
   if (respuesta.status === 200) {
-    console.log('[SOFTPHONE] INVITE resultado: contestada. Enviando ACK.');
+    console.log('[SOFTPHONE] INVITE resultado: contestada de inmediato.');
     enviar(contexto, construirAckOCancel('ACK', cseqInvite, branchInvite, toFinal), 'ACK');
-    return { exito: true, detalle: 'Llamada contestada.' };
+
+    const idSesion = rnd(8);
+    sesiones.set(idSesion, {
+      socket,
+      localIp: contexto.localIp,
+      localPuerto: contexto.localPuerto,
+      mitelIp: contexto.mitelIp,
+      mitelPuerto: contexto.mitelPuerto,
+      targetUri,
+      aor: contexto.aor,
+      fromTagI,
+      callIdI,
+      branchI: branchInvite,
+      cseqInvite,
+      estado: 'contestada',
+      toTag: extraerTag(toFinal),
+      safety: setTimeout(() => colgarInterno(idSesion, 'corte automatico de seguridad'), TIMEOUT_SEGURIDAD_MS),
+    });
+
+    return { exito: true, detalle: 'Llamada contestada.', idSesion };
   }
 
   // Cualquier otra respuesta final no exitosa: reconocerla con ACK y no dejarla en el aire.
@@ -377,6 +534,7 @@ async function invitar(contexto: ContextoSip): Promise<ResultadoLlamada> {
     `[SOFTPHONE] INVITE resultado final NO exitoso: ${respuesta.status} ${respuesta.reason}. Enviando ACK.`,
   );
   enviar(contexto, construirAckOCancel('ACK', cseqInvite, branchInvite, toFinal), 'ACK');
+  socket.close();
 
   if (respuesta.status === 486) {
     return { exito: false, detalle: 'El destino esta ocupado.' };

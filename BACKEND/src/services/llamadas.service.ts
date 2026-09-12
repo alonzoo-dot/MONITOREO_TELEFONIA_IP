@@ -1,7 +1,8 @@
 import * as llamadasRepo from '../repositories/llamadas.repository';
 import type { DispositivoMarcable } from '../repositories/llamadas.repository';
 import { SnomGateway } from '../gateways/snom.gateway';
-import { SoftphoneGateway } from '../gateways/softphone.gateway';
+import * as softphoneGateway from '../gateways/softphone.gateway';
+import type { ResultadoTimbrado } from '../gateways/softphone.gateway';
 import { ErrorLlamadas } from '../gateways/errores';
 import type { ResultadoLlamada } from '../gateways/llamada.gateway';
 
@@ -74,7 +75,7 @@ export async function hacerTimbrar(
   usuarioSip: string,
   passwordSip: string,
   extensionDestino: string,
-): Promise<ResultadoLlamada> {
+): Promise<ResultadoTimbrado> {
   if (extensionOrigen.trim() === '') {
     throw new ErrorLlamadas(
       'EXTENSION_ORIGEN_REQUERIDA',
@@ -91,11 +92,20 @@ export async function hacerTimbrar(
     throw new ErrorLlamadas('EXTENSION_DESTINO_REQUERIDA', 'Debe indicar una extension de destino.');
   }
 
-  const gateway = new SoftphoneGateway();
-  return gateway.ejecutar({
+  return softphoneGateway.iniciarTimbrado({
     extensionOrigen: extensionOrigen.trim(),
     usuarioSip: usuarioSip.trim(),
     passwordSip,
     extensionDestino: extensionDestino.trim(),
   });
+}
+
+// Cuelga (o cancela el timbrado de) una llamada iniciada con hacerTimbrar,
+// identificada por el idSesion que devolvio esa llamada.
+export async function colgarTimbrado(idSesion: string): Promise<ResultadoLlamada> {
+  if (idSesion.trim() === '') {
+    throw new ErrorLlamadas('ID_SESION_REQUERIDO', 'Debe indicar el id de sesion de la llamada.');
+  }
+
+  return softphoneGateway.colgar(idSesion.trim());
 }

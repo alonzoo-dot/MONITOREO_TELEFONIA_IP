@@ -27,14 +27,24 @@ export async function marcar(
 // Hace timbrar un telefono via softphone SIP, registrandose con una extension
 // y credenciales propias. Mismo tratamiento de exito:false que marcar().
 export async function hacerTimbrar(
-  idTelefono: number,
   extensionOrigen: string,
   usuarioSip: string,
   passwordSip: string,
+  extensionDestino: string,
 ): Promise<ResultadoLlamada> {
   return peticionApi<ResultadoLlamada>('/llamadas/hacer-timbrar', {
     metodo: 'POST',
-    cuerpo: { idTelefono, extensionOrigen, usuarioSip, passwordSip },
+    cuerpo: { extensionOrigen, usuarioSip, passwordSip, extensionDestino },
+    token: obtenerToken() ?? undefined,
+  });
+}
+
+// Cuelga (o cancela el timbrado de) una llamada iniciada con hacerTimbrar,
+// identificada por el idSesion que devolvio esa llamada.
+export async function colgarTimbrado(idSesion: string): Promise<ResultadoLlamada> {
+  return peticionApi<ResultadoLlamada>('/llamadas/colgar', {
+    metodo: 'POST',
+    cuerpo: { idSesion },
     token: obtenerToken() ?? undefined,
   });
 }

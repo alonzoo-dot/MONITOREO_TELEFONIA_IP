@@ -1,9 +1,9 @@
 import { Router } from 'express';
-import { listarDispositivos, marcar, hacerTimbrar } from '../controllers/llamadas.controller';
+import { listarDispositivos, marcar, hacerTimbrar, colgar } from '../controllers/llamadas.controller';
 import { requiereAutenticacion } from '../middlewares/auth.middleware';
 import { requiereRol } from '../middlewares/autorizacion.middleware';
 import { validar } from '../middlewares/validacion.middleware';
-import { esquemaMarcar, esquemaHacerTimbrar } from '../schemas/llamadas.schema';
+import { esquemaMarcar, esquemaHacerTimbrar, esquemaColgar } from '../schemas/llamadas.schema';
 
 const rutasLlamadas = Router();
 
@@ -15,5 +15,6 @@ rutasLlamadas.use(requiereRol('ADMINISTRADOR', 'TECNICO'));
 rutasLlamadas.get('/dispositivos', listarDispositivos);
 rutasLlamadas.post('/marcar', validar(esquemaMarcar), marcar);
 rutasLlamadas.post('/hacer-timbrar', validar(esquemaHacerTimbrar), hacerTimbrar);
+rutasLlamadas.post('/colgar', validar(esquemaColgar), colgar);
 
 export default rutasLlamadas;
