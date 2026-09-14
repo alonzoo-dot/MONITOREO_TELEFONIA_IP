@@ -1,6 +1,7 @@
 import express, { type Application, type Request, type Response } from 'express';
 import cors from 'cors';
 import rutasAuth from './routes/auth.routes';
+import rutasSetup from './routes/setup.routes';
 import rutasUsuarios from './routes/usuarios.routes';
 import rutasInventario from './routes/inventario.routes';
 import rutasCatalogos from './routes/catalogos.routes';
@@ -22,6 +23,9 @@ export function crearAplicacion(): Application {
   });
 
   // Rutas de autenticación
+  // Configuracion inicial: publica y solo operativa mientras no exista ningun usuario
+  aplicacion.use('/api/setup', rutasSetup);
+
   aplicacion.use('/api/auth', rutasAuth);
 
   // Rutas de gestión de usuarios
