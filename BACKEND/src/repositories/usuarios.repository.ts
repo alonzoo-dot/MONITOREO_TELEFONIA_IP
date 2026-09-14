@@ -174,3 +174,40 @@ export async function crearPrimerAdministrador(
   );
   return resultado.rows[0]!.id_usuario;
 }
+
+/**
+ * Crea o rescata una cuenta de administrador. Si el usuario no existe lo crea con
+ * rol ADMINISTRADOR. Si ya existe le asigna la contrasena indicada y se asegura de
+ * dejarlo activo y con rol ADMINISTRADOR. Siempre obliga a cambiar la contrasena
+ * porque la genero el sistema y viajo por consola.
+ * Devuelve true si creo un usuario nuevo y false si rescato uno existente.
+ */
+export async function crearORescatarAdministrador(
+  usuario: string,
+  passwordHash: string,
+): Promise<boolean> {
+  const existente = await ejecutarConsulta<{ id_usuario: number }>(
+    'SELECT id_usuario FROM usuarios WHERE usuario = $1',
+    [usuario],
+  );
+
+  if (existente.rows.length > 0) {
+    await ejecutarConsulta(
+      `UPDATE usuarios
+          SET password_hash = $1,
+              debe_cambiar_password = true,
+              activo = true,
+              id_rol = (SELECT id_rol FROM roles WHERE tipo_rol = 'ADMINISTRADOR')
+        WHERE usuario = $2`,
+      [passwordHash, usuario],
+    );
+    return false;
+  }
+
+  await ejecutarConsulta(
+    `INSERT INTO usuarios (id_rol, usuario, nombre_completo, password_hash, debe_cambiar_password, activo)
+     VALUES ((SELECT id_rol FROM roles WHERE tipo_rol = 'ADMINISTRADOR'), $1, $2, $3, true, true)`,
+    [usuario, 'Administrador de rescate', passwordHash],
+  );
+  return true;
+}
