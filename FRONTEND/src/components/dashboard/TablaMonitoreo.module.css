@@ -12,7 +12,7 @@
 }
 
 .tcard thead th {
-  text-align: left;
+  text-align: center;
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -101,13 +101,20 @@
   color: var(--ink-faint);
 }
 
+.acciones {
+  display: inline-grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
 .actionBtn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--online-line);
   background: var(--card);
-  color: var(--ink-soft);
+  color: var(--online);
   height: 30px;
   padding: 0 11px;
   border-radius: 7px;
@@ -116,12 +123,23 @@
   white-space: nowrap;
 }
 
+.actionBtnAttn {
+  border-color: var(--attn-line);
+  color: var(--attn);
+}
+
 .actionBtn svg {
   width: 13px;
   height: 13px;
 }
 
 .actionBtn:hover:not(:disabled) {
+  background: var(--online-bg);
+  color: var(--online);
+  border-color: var(--online-line);
+}
+
+.actionBtnAttn:hover:not(:disabled) {
   background: var(--attn-bg);
   color: var(--attn);
   border-color: var(--attn-line);

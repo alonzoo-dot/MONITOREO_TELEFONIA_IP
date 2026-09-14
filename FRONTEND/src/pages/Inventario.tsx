@@ -386,7 +386,7 @@ function Inventario() {
                   <td>
                     <div className={estilos.acts}>
                       <button
-                        className={estilos.ib}
+                        className={`${estilos.ib} ${estilos.ibVer}`}
                         title="Ver detalle"
                         onClick={() => setIdDetalle(d.id_telefono)}
                       >
@@ -398,7 +398,7 @@ function Inventario() {
                       {puedeEscribir && (
                         <>
                           <button
-                            className={estilos.ib}
+                            className={`${estilos.ib} ${estilos.ibEdit}`}
                             title="Editar"
                             onClick={() => setDrawer(d)}
                           >
@@ -422,7 +422,7 @@ function Inventario() {
                             )}
                           </button>
                           <button
-                            className={`${estilos.ib} ${estilos.ibDanger}`}
+                            className={`${estilos.ib} ${estilos.ibDelete}`}
                             title="Eliminar"
                             onClick={() => eliminar(d)}
                           >
