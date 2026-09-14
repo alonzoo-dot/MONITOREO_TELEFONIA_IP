@@ -1,12 +1,14 @@
 import express, { type Application, type Request, type Response } from 'express';
 import cors from 'cors';
 import rutasAuth from './routes/auth.routes';
+import rutasSetup from './routes/setup.routes';
 import rutasUsuarios from './routes/usuarios.routes';
 import rutasInventario from './routes/inventario.routes';
 import rutasCatalogos from './routes/catalogos.routes';
 import rutasMonitoreo from './routes/monitoreo.routes';
 import rutasIncidencias from './routes/incidencias.routes';
 import rutasEstadisticas from './routes/estadisticas.routes';
+import rutasLlamadas from './routes/llamadas.routes';
 
 export function crearAplicacion(): Application {
   const aplicacion = express();
@@ -21,6 +23,9 @@ export function crearAplicacion(): Application {
   });
 
   // Rutas de autenticación
+  // Configuracion inicial: publica y solo operativa mientras no exista ningun usuario
+  aplicacion.use('/api/setup', rutasSetup);
+
   aplicacion.use('/api/auth', rutasAuth);
 
   // Rutas de gestión de usuarios
@@ -40,6 +45,9 @@ export function crearAplicacion(): Application {
 
   // Rutas de estadisticas (tendencia, resumen, foto actual de la red)
   aplicacion.use('/api/estadisticas', rutasEstadisticas);
+
+  // Rutas de llamadas (marcar, hacer timbrar, panel de dispositivos)
+  aplicacion.use('/api/llamadas', rutasLlamadas);
 
   return aplicacion;
 }

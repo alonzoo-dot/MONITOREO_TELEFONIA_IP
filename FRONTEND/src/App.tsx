@@ -7,6 +7,7 @@ import Incidencias from './pages/Incidencias';
 import Catalogos from './pages/Catalogos';
 import Estadisticas from './pages/Estadisticas';
 import Usuarios from './pages/Usuarios';
+import Setup from './pages/Setup';
 import RutaProtegida from './components/RutaProtegida';
 import ContenedorToasts from './components/ContenedorToasts';
 import ContenedorConfirmacion from './components/ContenedorConfirmacion';
@@ -19,6 +20,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/setup" element={<Setup />} />
         <Route
           path="/cambiar-password"
           element={
