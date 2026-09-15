@@ -237,6 +237,7 @@
 .acts {
   display: flex;
   gap: 5px;
+  justify-content: flex-end;
 }
 
 .ib {

@@ -148,19 +148,7 @@ function DrawerUsuario({ usuario, onCerrar, onGuardado }: Props) {
             </select>
           </div>
 
-          {editando ? (
-            <div className={estilos.switch}>
-              <span>Usuario activo</span>
-              <label className={estilos.sw}>
-                <input
-                  type="checkbox"
-                  checked={form.activo}
-                  onChange={(e) => setForm((prev) => ({ ...prev, activo: e.target.checked }))}
-                />
-                <span className={estilos.swTrack} />
-              </label>
-            </div>
-          ) : (
+          {!editando && (
             <div className={estilos.hint}>
               El sistema generará una contraseña temporal al crear el usuario.
             </div>

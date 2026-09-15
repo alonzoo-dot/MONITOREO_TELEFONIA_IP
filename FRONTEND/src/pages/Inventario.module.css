@@ -59,6 +59,10 @@
   background: var(--accent-dk);
 }
 
+.btnNuevo {
+  margin-left: auto;
+}
+
 .btnSec:disabled,
 .btnPri:disabled {
   opacity: 0.5;
@@ -372,6 +376,18 @@
 
 /* ===== Responsive: tabla como tarjetas ===== */
 @media (max-width: 760px) {
+  .actionbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .btnSec,
+  .btnPri {
+    justify-content: center;
+    width: 100%;
+  }
+  .btnNuevo {
+    margin-left: 0;
+  }
   .tcard thead {
     display: none;
   }
