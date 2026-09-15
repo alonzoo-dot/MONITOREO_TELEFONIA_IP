@@ -161,7 +161,7 @@ function TablaMonitoreo({ dispositivos, cargando }: Props) {
                     </button>
                     {d.estado === 'EN_MANTENIMIENTO' ? (
                       <button
-                        className={`${estilos.actionBtn} ${estilos.actionBtnOk}`}
+                        className={`${estilos.actionBtn} ${estilos.actionBtnAttn}`}
                         onClick={() => setObjetivo(d)}
                       >
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

@@ -34,7 +34,7 @@
 }
 
 .mantenimiento .num {
-  color: var(--desc);
+  color: var(--attn);
 }
 
 .offline .num {
