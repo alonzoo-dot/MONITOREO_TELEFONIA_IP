@@ -133,7 +133,7 @@ function Dashboard() {
   return (
     <Layout>
       <div className={estilos.head}>
-        <h1 className={estilos.titulo}>Dashboard de monitoreo</h1>
+        <h1 className={estilos.titulo}>Monitoreo</h1>
         <IndicadorSSE estado={estadoConexion} />
       </div>
 

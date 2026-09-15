@@ -2,10 +2,11 @@ import { useEffect, useMemo, useState } from 'react';
 import Layout from '../components/Layout';
 import DrawerUsuario from '../components/DrawerUsuario';
 import ModalPasswordTemporal from '../components/ModalPasswordTemporal';
-import { listarUsuarios, resetearPassword } from '../services/usuarios.service';
+import { listarUsuarios, resetearPassword, editarUsuario } from '../services/usuarios.service';
 import { ErrorApi } from '../services/api';
 import { obtenerUsuario } from '../services/sesion';
 import { confirmar } from '../store/confirmaciones';
+import { mostrarToast } from '../store/toasts';
 import type { Usuario, FiltrosUsuario } from '../types/usuario';
 import estilos from './Usuarios.module.css';
 
@@ -104,6 +105,40 @@ function Usuarios() {
       });
     } catch (err) {
       setError(err instanceof ErrorApi ? err.message : 'No se pudo resetear la contraseña');
+    }
+  }
+
+  /**
+   * Pide confirmacion y activa/desactiva un usuario reutilizando editarUsuario (PUT).
+   * No hay endpoint dedicado en el backend: el PUT exige nombre, rol y activo, asi que
+   * se reenvian los actuales invirtiendo solo activo. El backend valida las reglas de
+   * negocio (AUTO_DESACTIVACION, ULTIMO_ADMIN); aqui solo mostramos su mensaje si falla.
+   */
+  async function manejarDesactivar(u: Usuario) {
+    const desactivando = u.activo;
+    const confirmado = await confirmar({
+      titulo: desactivando ? 'Desactivar usuario' : 'Reactivar usuario',
+      mensaje: desactivando
+        ? '¿Desactivar este usuario? No podrá iniciar sesión hasta que se reactive. Podrás reactivarlo después.'
+        : '¿Reactivar este usuario? Volverá a poder iniciar sesión.',
+      variante: 'neutra',
+    });
+    if (!confirmado) return;
+
+    try {
+      await editarUsuario(u.id_usuario, {
+        nombre_completo: u.nombre_completo,
+        rol: u.tipo_rol === 'ADMINISTRADOR' ? 'ADMINISTRADOR' : 'TECNICO',
+        activo: !u.activo,
+      });
+      recargar();
+    } catch (err) {
+      mostrarToast({
+        tipo: 'error',
+        titulo: 'No se pudo completar la acción',
+        mensaje:
+          err instanceof ErrorApi ? err.message : 'No se pudo cambiar el estado del usuario',
+      });
     }
   }
 
@@ -275,7 +310,7 @@ function Usuarios() {
                           <button
                             className={`${estilos.ib} ${u.activo ? estilos.ibDanger : estilos.ibOk}`}
                             title={u.activo ? 'Desactivar' : 'Reactivar'}
-                            onClick={() => setDrawer(u)}
+                            onClick={() => manejarDesactivar(u)}
                           >
                             {u.activo ? (
                               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

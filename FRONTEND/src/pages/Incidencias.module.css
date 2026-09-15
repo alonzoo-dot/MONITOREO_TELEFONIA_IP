@@ -10,6 +10,7 @@
   font-weight: 600;
   color: var(--ink);
   margin: 0;
+  text-transform: uppercase;
 }
 
 .btnReporte {

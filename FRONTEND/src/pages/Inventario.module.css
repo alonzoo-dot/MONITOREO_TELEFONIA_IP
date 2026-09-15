@@ -11,6 +11,7 @@
   font-weight: 600;
   letter-spacing: -0.01em;
   margin: 0;
+  text-transform: uppercase;
 }
 
 /* ===== Barra de acciones ===== */
@@ -56,6 +57,10 @@
 
 .btnPri:hover:not(:disabled) {
   background: var(--accent-dk);
+}
+
+.btnNuevo {
+  margin-left: auto;
 }
 
 .btnSec:disabled,
@@ -157,7 +162,7 @@
 }
 
 .tcard thead th {
-  text-align: left;
+  text-align: center;
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -284,6 +289,21 @@
   height: 15px;
 }
 
+.ibVer {
+  color: var(--ink-soft);
+}
+
+.ibEdit {
+  color: var(--accent);
+  border-color: var(--accent-line);
+}
+
+.ibEdit:hover:not(:disabled) {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+}
+
 .ib:hover:not(:disabled) {
   background: var(--bg);
   color: var(--ink);
@@ -295,15 +315,36 @@
   cursor: not-allowed;
 }
 
-.ibDanger:hover {
+.ibDanger {
+  color: var(--attn);
+  border-color: var(--attn-line);
+}
+
+.ibDanger:hover:not(:disabled) {
+  color: var(--attn);
+  border-color: var(--attn-line);
+  background: var(--attn-bg);
+}
+
+.ibDelete {
   color: var(--offline);
-  border-color: var(--offline);
+  border-color: var(--offline-line);
+}
+
+.ibDelete:hover:not(:disabled) {
+  color: var(--offline);
+  border-color: var(--offline-line);
   background: var(--offline-bg);
 }
 
-.ibOk:hover {
+.ibOk {
   color: var(--online);
-  border-color: var(--online);
+  border-color: var(--online-line);
+}
+
+.ibOk:hover:not(:disabled) {
+  color: var(--online);
+  border-color: var(--online-line);
   background: var(--online-bg);
 }
 
@@ -335,6 +376,18 @@
 
 /* ===== Responsive: tabla como tarjetas ===== */
 @media (max-width: 760px) {
+  .actionbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .btnSec,
+  .btnPri {
+    justify-content: center;
+    width: 100%;
+  }
+  .btnNuevo {
+    margin-left: 0;
+  }
   .tcard thead {
     display: none;
   }

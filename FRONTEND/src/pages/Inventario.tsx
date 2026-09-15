@@ -237,8 +237,7 @@ function Inventario() {
             Importar desde Excel
           </button>
           <button
-            className={estilos.btnPri}
-            style={{ marginLeft: 'auto' }}
+            className={`${estilos.btnPri} ${estilos.btnNuevo}`}
             onClick={() => setDrawer(null)}
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -386,7 +385,7 @@ function Inventario() {
                   <td>
                     <div className={estilos.acts}>
                       <button
-                        className={estilos.ib}
+                        className={`${estilos.ib} ${estilos.ibVer}`}
                         title="Ver detalle"
                         onClick={() => setIdDetalle(d.id_telefono)}
                       >
@@ -398,7 +397,7 @@ function Inventario() {
                       {puedeEscribir && (
                         <>
                           <button
-                            className={estilos.ib}
+                            className={`${estilos.ib} ${estilos.ibEdit}`}
                             title="Editar"
                             onClick={() => setDrawer(d)}
                           >
@@ -422,7 +421,7 @@ function Inventario() {
                             )}
                           </button>
                           <button
-                            className={`${estilos.ib} ${estilos.ibDanger}`}
+                            className={`${estilos.ib} ${estilos.ibDelete}`}
                             title="Eliminar"
                             onClick={() => eliminar(d)}
                           >
