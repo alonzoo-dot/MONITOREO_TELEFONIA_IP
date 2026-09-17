@@ -280,10 +280,19 @@ export class MotorMonitoreo {
    * Devuelve true si corrigio (y por lo tanto no hay que pasar a OFFLINE todavia).
    */
   private async intentarDrift(dispositivo: EstadoDispositivo): Promise<boolean> {
-    const etiqueta = await this.repositorioTelefonos.obtenerEtiqueta(dispositivo.id_telefono);
-    const descripcion = etiqueta
-      ? `teléfono con extensión ${etiqueta.extension} (${etiqueta.tipo_ubicacion} ${etiqueta.ubicacion_nombre})`
-      : `teléfono ${dispositivo.id_telefono}`; // fallback defensivo si no se encontró la etiqueta
+    let descripcion: string;
+    try {
+      const etiqueta = await this.repositorioTelefonos.obtenerEtiqueta(dispositivo.id_telefono);
+      descripcion = etiqueta
+        ? `teléfono con extensión ${etiqueta.extension} (${etiqueta.tipo_ubicacion} ${etiqueta.ubicacion_nombre})`
+        : `teléfono ${dispositivo.id_telefono}`; // fallback defensivo si no se encontró la etiqueta
+    } catch (error) {
+      console.error(
+        `[MOTOR] Drift: error al obtener la etiqueta del teléfono ${dispositivo.id_telefono}:`,
+        error,
+      );
+      descripcion = `teléfono ${dispositivo.id_telefono}`;
+    }
 
     if (!dispositivo.mac) {
       console.warn(`[MOTOR] Drift omitido: ${descripcion} sin MAC registrada.`);
@@ -334,7 +343,15 @@ export class MotorMonitoreo {
       }
 
       // Reintenta la resolución con el ARP actualizado.
-      ipReal = await this.resolvedor.resolverIp(dispositivo.mac);
+      try {
+        ipReal = await this.resolvedor.resolverIp(dispositivo.mac);
+      } catch (error) {
+        console.error(
+          `[MOTOR] Drift: error al reconsultar ARP para MAC ${dispositivo.mac} (${descripcion}):`,
+          error,
+        );
+        return false;
+      }
 
       if (ipReal === null) {
         console.warn(
@@ -359,11 +376,16 @@ export class MotorMonitoreo {
       return false;
     }
 
-    const dueño = await this.repositorioTelefonos.buscarPorIp(
-      ipReal,
-      dispositivo.id_telefono,
-      null,
-    );
+    let dueño: { extension: string; tipo_ubicacion: string; ubicacion_nombre: string } | null;
+    try {
+      dueño = await this.repositorioTelefonos.buscarPorIp(ipReal, dispositivo.id_telefono, null);
+    } catch (error) {
+      console.error(
+        `[MOTOR] Drift: error al verificar si la IP ${ipReal} ya está en uso (${descripcion}):`,
+        error,
+      );
+      return false;
+    }
     if (dueño !== null) {
       console.warn(
         `[MOTOR] Drift: CONFLICTO — no se pudo aplicar drift para ${descripcion} ` +

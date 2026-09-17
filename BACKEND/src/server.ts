@@ -17,6 +17,17 @@ import * as monitoreoRepo from './repositories/monitoreo.repository';
 import * as telefonosRepo from './repositories/telefonos.repository';
 import * as monitoreoService from './services/monitoreo.service';
 
+// Redes de seguridad de último recurso: registran fallos asíncronos que se
+// escapen de los try/catch, en vez de dejar que Node mate el proceso por su
+// comportamiento por defecto. El backend (API + motor) debe seguir vivo; node-windows
+// reinicia el proceso solo si aun así llegara a caer.
+process.on('unhandledRejection', (motivo: unknown) => {
+  console.error('[PROCESO] Promesa rechazada sin manejar:', motivo);
+});
+process.on('uncaughtException', (error: unknown) => {
+  console.error('[PROCESO] Excepción no capturada:', error);
+});
+
 function obtenerIpsLan(): string[] {
   const interfaces = os.networkInterfaces();
   const ips: string[] = [];

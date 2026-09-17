@@ -69,5 +69,29 @@ export function crearAplicacion(): Application {
     });
   }
 
+  // --- Manejador de errores global (siempre el ultimo) ---
+  // Red de seguridad para cualquier error que no se atrape en un controlador
+  // (JSON malformado, throw sincrono, promesa rechazada). Registra el detalle
+  // completo del lado del servidor y responde al cliente con un mensaje generico,
+  // SIN filtrar stack traces ni detalles internos, sin depender de NODE_ENV.
+  aplicacion.use(
+    (error: unknown, _peticion: Request, respuesta: Response, _siguiente: NextFunction) => {
+      // Cuerpo JSON malformado (lo lanza express.json()).
+      if (error instanceof SyntaxError && 'body' in error) {
+        respuesta.status(400).json({
+          mensaje: 'El cuerpo de la peticion no es un JSON valido.',
+          codigo: 'JSON_INVALIDO',
+        });
+        return;
+      }
+
+      console.error('[ERROR NO CONTROLADO]', error);
+      respuesta.status(500).json({
+        mensaje: 'Ocurrio un error interno en el servidor.',
+        codigo: 'ERROR_INTERNO',
+      });
+    },
+  );
+
   return aplicacion;
 }
