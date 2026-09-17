@@ -1,4 +1,7 @@
 node_modules/
+frontend-dist/
+servicio-windows/daemon/
+
 
 .env
 .env.local

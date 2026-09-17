@@ -1,4 +1,6 @@
-import express, { type Application, type Request, type Response } from 'express';
+import path from 'path';
+import fs from 'fs';
+import express, { type Application, type Request, type Response, type NextFunction } from 'express';
 import cors from 'cors';
 import rutasAuth from './routes/auth.routes';
 import rutasSetup from './routes/setup.routes';
@@ -48,6 +50,24 @@ export function crearAplicacion(): Application {
 
   // Rutas de llamadas (marcar, hacer timbrar, panel de dispositivos)
   aplicacion.use('/api/llamadas', rutasLlamadas);
+
+  // --- Servido del frontend compilado (despliegue en una sola PC) ---
+  // Si existe la carpeta con el build del frontend, Express la sirve en el MISMO
+  // origen que el API. Frontend y backend comparten host y puerto: no hay CORS que
+  // configurar y la IP del host no queda 'horneada' en el frontend (usa rutas /api
+  // relativas). En desarrollo esta carpeta no existe (se usa Vite) y el bloque se omite.
+  const rutaFrontend = path.resolve(__dirname, '..', 'frontend-dist');
+  if (fs.existsSync(rutaFrontend)) {
+    aplicacion.use(express.static(rutaFrontend));
+
+    // Fallback SPA: todo GET que NO sea del API devuelve index.html, para que el
+    // enrutamiento de React (rutas profundas y recargar la pagina) funcione.
+    aplicacion.use((peticion: Request, respuesta: Response, siguiente: NextFunction) => {
+      if (peticion.method !== 'GET') return siguiente();
+      if (peticion.path.startsWith('/api')) return siguiente();
+      respuesta.sendFile(path.join(rutaFrontend, 'index.html'));
+    });
+  }
 
   return aplicacion;
 }

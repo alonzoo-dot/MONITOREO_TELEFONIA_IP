@@ -1,7 +1,12 @@
 
+import path from 'path';
 import dotenv from 'dotenv';
 
-dotenv.config();
+// Carga el .env por RUTA ABSOLUTA, no por directorio de trabajo del proceso.
+// Como servicio de Windows, process.cwd() NO es la carpeta del backend; sin esta
+// ruta explicita dotenv no hallaria el .env y faltarian las variables obligatorias.
+// __dirname resuelve a src/config (dev) o dist/config (prod); el .env vive en la raiz.
+dotenv.config({ path: path.resolve(__dirname, '..', '..', '.env') });
 
 function variableObligatoria(nombre: string): string {
   const valor = process.env[nombre];
