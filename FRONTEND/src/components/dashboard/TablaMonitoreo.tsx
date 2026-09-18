@@ -84,6 +84,7 @@ function TablaMonitoreo({ dispositivos, cargando }: Props) {
 
   return (
     <div className={estilos.tcard}>
+      <div className={estilos.scrollTabla}>
       <table>
         <thead>
           <tr>
@@ -184,6 +185,7 @@ function TablaMonitoreo({ dispositivos, cargando }: Props) {
           )}
         </tbody>
       </table>
+      </div>
 
       <ModalConfirmacion
         abierto={objetivo !== null}

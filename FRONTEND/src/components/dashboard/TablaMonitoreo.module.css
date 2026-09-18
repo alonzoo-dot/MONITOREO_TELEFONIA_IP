@@ -6,6 +6,12 @@
   box-shadow: var(--shadow);
 }
 
+.scrollTabla {
+  /* Permite desplazamiento horizontal cuando la tabla no cabe (p. ej. 1024x768),
+     en vez de recortar columnas: la tabla sigue completa y usable en pantallas chicas. */
+  overflow-x: auto;
+}
+
 .tcard table {
   width: 100%;
   border-collapse: collapse;

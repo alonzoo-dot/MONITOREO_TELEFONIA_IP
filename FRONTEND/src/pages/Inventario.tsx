@@ -294,6 +294,7 @@ function Inventario() {
       {error && <div className={estilos.error}>{error}</div>}
 
       <div className={estilos.tcard}>
+        <div className={estilos.scrollTabla}>
         <table>
           <thead>
             <tr>
@@ -438,6 +439,7 @@ function Inventario() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       <DrawerDispositivo
