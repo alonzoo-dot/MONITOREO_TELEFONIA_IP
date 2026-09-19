@@ -116,16 +116,14 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
   border: 1px solid var(--online-line);
   background: var(--online-bg);
   color: var(--online);
-  height: 27px;
-  padding: 0 13px;
-  border-radius: 20px;
-  font-size: 11.5px;
-  font-weight: 500;
-  white-space: nowrap;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 8px;
+  cursor: pointer;
 }
 
 .actionBtnAttn {
@@ -135,8 +133,8 @@
 }
 
 .actionBtn svg {
-  width: 12px;
-  height: 12px;
+  width: 15px;
+  height: 15px;
 }
 
 .actionBtn:hover:not(:disabled) {
@@ -165,6 +163,15 @@
 
 .cardLabel {
   display: none;
+}
+
+@media (max-width: 1200px) {
+  .tcard thead th {
+    padding: 12px 10px;
+  }
+  .tcard tbody td {
+    padding: 12px 10px;
+  }
 }
 
 /* ===== Responsive: tabla como tarjetas, columnas secundarias ocultas ===== */

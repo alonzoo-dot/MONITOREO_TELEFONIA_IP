@@ -222,6 +222,7 @@
 }
 
 .modeltag {
+  white-space: nowrap;
   font-size: 12px;
   color: var(--ink-soft);
   background: var(--bg);
@@ -378,6 +379,15 @@
 
 .cardLabel {
   display: none;
+}
+
+@media (max-width: 1200px) {
+  .tcard thead th {
+    padding: 12px 10px;
+  }
+  .tcard tbody td {
+    padding: 12px 10px;
+  }
 }
 
 /* ===== Responsive: tabla como tarjetas ===== */

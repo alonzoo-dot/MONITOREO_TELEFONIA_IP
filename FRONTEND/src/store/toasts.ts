@@ -1,4 +1,5 @@
 import type { DatosToast, ToastItem } from '../types/toast';
+import { generarId } from '../utils/id';
 
 type Escucha = (toasts: ToastItem[]) => void;
 
@@ -20,7 +21,7 @@ export function suscribirToasts(fn: Escucha): () => void {
 
 /** Agrega un nuevo toast a la pila. */
 export function mostrarToast(datos: DatosToast): void {
-  const toast: ToastItem = { id: crypto.randomUUID(), autoCloseMs: 5000, ...datos };
+  const toast: ToastItem = { id: generarId(), autoCloseMs: 5000, ...datos };
   toasts = [...toasts, toast];
   notificar();
 }
