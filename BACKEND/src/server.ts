@@ -6,6 +6,7 @@ if (process.stdout.isTTY === false || process.stdout.isTTY === undefined) {
   process.stderr._handle?.setBlocking?.(true);
 }
 
+import os from 'os';
 import { crearAplicacion } from './app';
 import { configuracion } from './config/env';
 import { probarConexion } from './config/database';
@@ -16,14 +17,41 @@ import * as monitoreoRepo from './repositories/monitoreo.repository';
 import * as telefonosRepo from './repositories/telefonos.repository';
 import * as monitoreoService from './services/monitoreo.service';
 
+// Redes de seguridad de último recurso: registran fallos asíncronos que se
+// escapen de los try/catch, en vez de dejar que Node mate el proceso por su
+// comportamiento por defecto. El backend (API + motor) debe seguir vivo; node-windows
+// reinicia el proceso solo si aun así llegara a caer.
+process.on('unhandledRejection', (motivo: unknown) => {
+  console.error('[PROCESO] Promesa rechazada sin manejar:', motivo);
+});
+process.on('uncaughtException', (error: unknown) => {
+  console.error('[PROCESO] Excepción no capturada:', error);
+});
+
+function obtenerIpsLan(): string[] {
+  const interfaces = os.networkInterfaces();
+  const ips: string[] = [];
+  for (const nombre of Object.keys(interfaces)) {
+    for (const info of interfaces[nombre] ?? []) {
+      if (info.family === 'IPv4' && !info.internal) {
+        ips.push(info.address);
+      }
+    }
+  }
+  return ips;
+}
+
 async function iniciarServidor(): Promise<void> {
   await probarConexion();
 
   const aplicacion = crearAplicacion();
-  aplicacion.listen(configuracion.puerto, () => {
-    console.log(
-      `Monitoreo backend en http://localhost:${configuracion.puerto} (${configuracion.entorno})`,
-    );
+  const puerto = configuracion.puerto;
+  aplicacion.listen(puerto, '0.0.0.0', () => {
+    console.log(`Monitoreo backend escuchando en el puerto ${puerto} (${configuracion.entorno})`);
+    console.log(`  Local:   http://localhost:${puerto}/health`);
+    for (const ip of obtenerIpsLan()) {
+      console.log(`  Red LAN: http://${ip}:${puerto}/health`);
+    }
   });
 
   if (configuracion.motorActivo) {

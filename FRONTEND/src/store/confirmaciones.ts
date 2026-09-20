@@ -1,4 +1,5 @@
 import type { ConfirmacionPendiente, OpcionesConfirmacion } from '../types/confirmacion';
+import { generarId } from '../utils/id';
 
 type Escucha = (confirmacion: ConfirmacionPendiente | null) => void;
 
@@ -22,7 +23,7 @@ export function suscribirConfirmacion(fn: Escucha): () => void {
 /** Pide confirmacion al usuario y resuelve true si acepta o false si cancela */
 export function confirmar(opciones: OpcionesConfirmacion): Promise<boolean> {
   return new Promise((resolve) => {
-    confirmacionActual = { id: crypto.randomUUID(), ...opciones };
+    confirmacionActual = { id: generarId(), ...opciones };
     resolverActual = resolve;
     notificar();
   });

@@ -156,8 +156,47 @@
   box-shadow: var(--shadow);
 }
 
+.scrollTabla {
+  /* Permite desplazamiento horizontal cuando la tabla no cabe (p. ej. 1024x768),
+     en vez de recortar columnas: la tabla sigue completa y usable en pantallas chicas. */
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* En pantallas medianas/chicas (p. ej. 1024x768) se compacta la tabla (menos espaciado
+   y letra) para que TODAS las columnas quepan completas sin ocultar nada. El contenedor
+   con scroll queda como respaldo por si aun asi no alcanzara. */
+@media (max-width: 1200px) {
+  .tcard thead th {
+    padding: 9px 8px;
+    font-size: 10px;
+  }
+  .tcard tbody td {
+    padding: 8px 8px;
+    font-size: 12px;
+  }
+  .stpill {
+    padding: 2px 7px;
+    font-size: 11px;
+  }
+  .ttag {
+    padding: 2px 7px;
+    font-size: 10.5px;
+  }
+  .modeltag {
+    padding: 2px 6px;
+    font-size: 11px;
+  }
+  .acts {
+    gap: 3px;
+  }
+}
+
 .tcard table {
   width: 100%;
+  min-width: 1000px;
   border-collapse: collapse;
 }
 
@@ -216,6 +255,7 @@
 }
 
 .modeltag {
+  white-space: nowrap;
   font-size: 12px;
   color: var(--ink-soft);
   background: var(--bg);
@@ -372,6 +412,15 @@
 
 .cardLabel {
   display: none;
+}
+
+@media (max-width: 1200px) {
+  .tcard thead th {
+    padding: 12px 10px;
+  }
+  .tcard tbody td {
+    padding: 12px 10px;
+  }
 }
 
 /* ===== Responsive: tabla como tarjetas ===== */

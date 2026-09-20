@@ -84,6 +84,7 @@ function TablaMonitoreo({ dispositivos, cargando }: Props) {
 
   return (
     <div className={estilos.tcard}>
+      <div className={estilos.scrollTabla}>
       <table>
         <thead>
           <tr>
@@ -153,28 +154,34 @@ function TablaMonitoreo({ dispositivos, cargando }: Props) {
                     <button
                       className={estilos.actionBtn}
                       onClick={() => setLlamadaObjetivo(d)}
+                      title="Marcar"
+                      aria-label="Marcar"
                     >
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z" />
                       </svg>
-                      Marcar
                     </button>
                     {d.estado === 'EN_MANTENIMIENTO' ? (
                       <button
                         className={`${estilos.actionBtn} ${estilos.actionBtnAttn}`}
                         onClick={() => setObjetivo(d)}
+                        title="Reactivar"
+                        aria-label="Reactivar"
                       >
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M18.36 6.64a9 9 0 1 1-12.73 0M12 2v10" />
                         </svg>
-                        Reactivar
                       </button>
                     ) : (
-                      <button className={`${estilos.actionBtn} ${estilos.actionBtnAttn}`} onClick={() => setObjetivo(d)}>
+                      <button
+                        className={`${estilos.actionBtn} ${estilos.actionBtnAttn}`}
+                        onClick={() => setObjetivo(d)}
+                        title="Mantenimiento"
+                        aria-label="Mantenimiento"
+                      >
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
                         </svg>
-                        Mantenimiento
                       </button>
                     )}
                   </div>
@@ -184,6 +191,7 @@ function TablaMonitoreo({ dispositivos, cargando }: Props) {
           )}
         </tbody>
       </table>
+      </div>
 
       <ModalConfirmacion
         abierto={objetivo !== null}
