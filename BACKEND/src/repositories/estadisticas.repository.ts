@@ -106,17 +106,18 @@ export async function obtenerDistribucionPiso(desde?: string, hasta?: string): P
   return resultado.rows
 }
 
-// Distribucion de caidas por modelo de ATA. Los IP nativos sin ATA se agrupan aparte
+// Distribucion de caidas por modelo real: modelo de ATA si el equipo lo tiene, si no el modelo del telefono IP nativo
 export async function obtenerDistribucionModelo(desde?: string, hasta?: string): Promise<FilaConteo[]> {
   const rango = filtroRango(desde, hasta, 1)
   const sql = `
-    SELECT COALESCE(ma.modelo, 'IP nativo (sin ATA)') AS clave, COUNT(*)::int AS caidas
+    SELECT COALESCE(ma.modelo, mt.modelo) AS clave, COUNT(*)::int AS caidas
     FROM incidencias i
     JOIN telefonos t ON t.id_telefono = i.id_telefono
+    JOIN modelos_telefono mt ON mt.id_modelo_telefono = t.id_modelo_telefono
     LEFT JOIN atas a ON a.id_telefono = t.id_telefono
     LEFT JOIN modelos_ata ma ON ma.id_modelo_ata = a.id_modelo_ata
     WHERE i.tipo_evento = 'CAIDA' ${rango.sql}
-    GROUP BY COALESCE(ma.modelo, 'IP nativo (sin ATA)')
+    GROUP BY COALESCE(ma.modelo, mt.modelo)
     ORDER BY caidas DESC
   `
   const resultado = await ejecutarConsulta<FilaConteo>(sql, rango.valores)
