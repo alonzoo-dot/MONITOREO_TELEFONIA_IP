@@ -27,6 +27,9 @@ export const configuracion = {
   /** Credenciales de administrador de los telefonos Snom, usadas en HTTP Basic. */
   snomUsuario: process.env.SNOM_USUARIO ?? '',
   snomPassword: process.env.SNOM_PASSWORD ?? '',
+  /** Credenciales de administrador de los telefonos Yealink, usadas en HTTP Basic. */
+  yealinkUsuario: process.env.YEALINK_USUARIO ?? '',
+  yealinkPassword: process.env.YEALINK_PASSWORD ?? '',
   /** IP y puerto SIP fijos de la central Mitel, usados por SoftphoneGateway. */
   mitelIp: process.env.MITEL_IP ?? '',
   mitelPuertoSip: Number(process.env.MITEL_PUERTO_SIP ?? 5060),
