@@ -1,10 +1,28 @@
 import * as llamadasRepo from '../repositories/llamadas.repository';
 import type { DispositivoMarcable } from '../repositories/llamadas.repository';
 import { SnomGateway } from '../gateways/snom.gateway';
+import { YealinkGateway } from '../gateways/yealink.gateway';
 import * as softphoneGateway from '../gateways/softphone.gateway';
 import type { ResultadoTimbrado } from '../gateways/softphone.gateway';
 import { ErrorLlamadas } from '../gateways/errores';
-import type { ResultadoLlamada } from '../gateways/llamada.gateway';
+import type { LlamadaGateway, ResultadoLlamada } from '../gateways/llamada.gateway';
+
+// Marcas que admiten marcado remoto por HTTP, con el gateway que lo ejecuta.
+// Claves en forma normalizada (ver normalizarMarca). Cualquier marca que no
+// este aqui (grandstream, mitel, cetis, desconocidas) se trata como "solo timbra".
+const GATEWAYS_MARCADO: Record<string, () => LlamadaGateway> = {
+  snom: () => new SnomGateway(),
+  yealink: () => new YealinkGateway(),
+};
+
+// Normaliza la marca del catalogo (texto libre) para compararla: minusculas y sin espacios.
+function normalizarMarca(marca: string): string {
+  return marca.toLowerCase().replace(/\s+/g, '');
+}
+
+function puedeMarcar(marcaNormalizada: string): boolean {
+  return Object.prototype.hasOwnProperty.call(GATEWAYS_MARCADO, marcaNormalizada);
+}
 
 /** Dispositivo tal como lo necesita el panel de llamadas del frontend. */
 export interface DispositivoParaPanel {
@@ -28,22 +46,26 @@ function calcularAccion(dispositivo: DispositivoMarcable): DispositivoParaPanel 
     tipo: dispositivo.tipo,
   };
 
-  if (dispositivo.tipo === 'IP_NATIVO') {
+  // Marcas con marcado remoto (snom/yealink): el boton principal es MARCAR.
+  if (puedeMarcar(normalizarMarca(dispositivo.marca))) {
     if (dispositivo.ip_efectiva) {
       return { ...base, accion: 'MARCAR' };
     }
     return { ...base, accion: 'NO_DISPONIBLE', motivo: 'Sin conexión' };
   }
 
-  if (dispositivo.tipo === 'IP_ATA') {
+  // Resto de marcas: solo timbran. El timbrado va por el Mitel a la extension,
+  // asi que basta con que el dispositivo tenga extension.
+  if (dispositivo.extension.trim() !== '') {
     return { ...base, accion: 'HACER_TIMBRAR' };
   }
 
-  // ANALOGICO y cualquier otro tipo sin telefonia IP: no hay forma de operarlo.
+  // Sin extension no hay forma de operarlo.
   return { ...base, accion: 'NO_DISPONIBLE', motivo: 'Sin IP' };
 }
 
-// Marca desde un telefono IP nativo hacia una extension destino, via SnomGateway.
+// Marca desde un telefono hacia una extension destino, eligiendo el gateway
+// segun la marca del telefono (snom -> SnomGateway, yealink -> YealinkGateway).
 // Si el resultado del gateway es exito:false, se devuelve tal cual (no es un error).
 export async function marcar(
   idOrigen: number,
@@ -53,8 +75,9 @@ export async function marcar(
   if (origen === null) {
     throw new ErrorLlamadas('ORIGEN_NO_ENCONTRADO', 'El telefono de origen no existe o esta inactivo.');
   }
-  if (origen.tipo !== 'IP_NATIVO') {
-    throw new ErrorLlamadas('TIPO_NO_COMPATIBLE', 'Solo los telefonos IP nativos pueden marcar');
+  const marca = normalizarMarca(origen.marca);
+  if (!puedeMarcar(marca)) {
+    throw new ErrorLlamadas('MARCA_NO_MARCABLE', 'Este telefono no admite marcado remoto');
   }
   if (!origen.ip_efectiva) {
     throw new ErrorLlamadas('SIN_IP', 'El telefono no tiene conexión, no se puede marcar');
@@ -63,24 +86,33 @@ export async function marcar(
     throw new ErrorLlamadas('EXTENSION_DESTINO_REQUERIDA', 'Debe indicar una extension de destino.');
   }
 
-  const gateway = new SnomGateway();
+  const gateway = GATEWAYS_MARCADO[marca]();
   return gateway.ejecutar({ ip: origen.ip_efectiva, extensionDestino: extensionDestino.trim() });
 }
 
-// Cuelga (RELEASE_ALL_CALLS) el telefono IP nativo que marco, identificado por
-// el mismo idTelefono que se uso como idOrigen al marcar.
+// Cuelga el telefono que marco, identificado por el mismo idTelefono que se
+// uso como idOrigen al marcar. El colgado tambien se elige por marca.
 export async function colgarMarcado(idTelefono: number): Promise<ResultadoLlamada> {
   const origen = await llamadasRepo.buscarDispositivoParaLlamada(idTelefono);
   if (origen === null) {
     throw new ErrorLlamadas('ORIGEN_NO_ENCONTRADO', 'El telefono de origen no existe o esta inactivo.');
   }
-  if (origen.tipo !== 'IP_NATIVO') {
-    throw new ErrorLlamadas('TIPO_NO_COMPATIBLE', 'Solo los telefonos IP nativos pueden colgarse desde el sistema');
+  const marca = normalizarMarca(origen.marca);
+  if (!puedeMarcar(marca)) {
+    throw new ErrorLlamadas('MARCA_NO_MARCABLE', 'Este telefono no admite marcado remoto');
   }
   if (!origen.ip_efectiva) {
     throw new ErrorLlamadas('SIN_IP', 'El telefono no tiene conexión, no se puede colgar');
   }
 
+  if (marca === 'yealink') {
+    // TODO: implementar el colgado remoto Yealink por HTTP en YealinkGateway
+    // una vez probado contra el firmware del hotel. Hasta entonces no se envia
+    // ningun comando al telefono.
+    return { exito: false, detalle: 'El colgado remoto no esta disponible para este telefono' };
+  }
+
+  // snom: RELEASE_ALL_CALLS via command.htm.
   const gateway = new SnomGateway();
   return gateway.colgar({ ip: origen.ip_efectiva });
 }
