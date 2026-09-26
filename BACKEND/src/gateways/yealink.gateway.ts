@@ -4,6 +4,11 @@ import { ErrorLlamadas } from './errores';
 
 const TIMEOUT_MS = 3000;
 
+/** Parametros para colgar (CALLEND) en un telefono Yealink. */
+export interface ParametrosColgarYealink {
+  ip: string;
+}
+
 // Marca por HTTP contra la Action URI del telefono Yealink (servlet).
 // IMPORTANTE: NO usar outgoing_uri; en el firmware de los telefonos del hotel
 // ese parametro rompe el marcado. Comprobado manualmente: solo funciona
@@ -16,6 +21,15 @@ export class YealinkGateway implements LlamadaGateway {
 
     const numeroSanitizado = encodeURIComponent(extensionDestino);
     return comandoHttp(ip, `number=${numeroSanitizado}`, 'Marcado ejecutado correctamente.');
+  }
+
+  // Cuelga la llamada activa en el telefono, via key=CALLEND.
+  async colgar({ ip }: ParametrosColgarYealink): Promise<ResultadoLlamada> {
+    if (!ip) {
+      throw new ErrorLlamadas('PARAMETROS_INVALIDOS', 'Se requiere ip.');
+    }
+
+    return comandoHttp(ip, 'key=CALLEND', 'Llamada colgada.');
   }
 }
 

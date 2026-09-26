@@ -7,10 +7,16 @@ import type { ResultadoTimbrado } from '../gateways/softphone.gateway';
 import { ErrorLlamadas } from '../gateways/errores';
 import type { LlamadaGateway, ResultadoLlamada } from '../gateways/llamada.gateway';
 
+// Gateway de marcado que ademas sabe colgar la llamada que origino, por HTTP,
+// dado solo la ip del telefono. Snom y Yealink implementan ambos metodos.
+interface GatewayMarcado extends LlamadaGateway {
+  colgar(parametros: { ip: string }): Promise<ResultadoLlamada>;
+}
+
 // Marcas que admiten marcado remoto por HTTP, con el gateway que lo ejecuta.
 // Claves en forma normalizada (ver normalizarMarca). Cualquier marca que no
 // este aqui (grandstream, mitel, cetis, desconocidas) se trata como "solo timbra".
-const GATEWAYS_MARCADO: Record<string, () => LlamadaGateway> = {
+const GATEWAYS_MARCADO: Record<string, () => GatewayMarcado> = {
   snom: () => new SnomGateway(),
   yealink: () => new YealinkGateway(),
 };
@@ -105,15 +111,7 @@ export async function colgarMarcado(idTelefono: number): Promise<ResultadoLlamad
     throw new ErrorLlamadas('SIN_IP', 'El telefono no tiene conexión, no se puede colgar');
   }
 
-  if (marca === 'yealink') {
-    // TODO: implementar el colgado remoto Yealink por HTTP en YealinkGateway
-    // una vez probado contra el firmware del hotel. Hasta entonces no se envia
-    // ningun comando al telefono.
-    return { exito: false, detalle: 'El colgado remoto no esta disponible para este telefono' };
-  }
-
-  // snom: RELEASE_ALL_CALLS via command.htm.
-  const gateway = new SnomGateway();
+  const gateway = GATEWAYS_MARCADO[marca]();
   return gateway.colgar({ ip: origen.ip_efectiva });
 }
 

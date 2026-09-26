@@ -154,7 +154,12 @@ function TablaMonitoreo({ dispositivos, cargando }: Props) {
                     <button
                       className={estilos.actionBtn}
                       onClick={() => setLlamadaObjetivo(d)}
-                      title="Marcar"
+                      disabled={d.accion !== 'MARCAR' && d.accion !== 'HACER_TIMBRAR'}
+                      title={
+                        d.accion === 'MARCAR' || d.accion === 'HACER_TIMBRAR'
+                          ? 'Marcar'
+                          : d.motivo ?? 'No disponible'
+                      }
                       aria-label="Marcar"
                     >
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -209,14 +214,14 @@ function TablaMonitoreo({ dispositivos, cargando }: Props) {
         onCancelar={() => setObjetivo(null)}
       />
 
-      {llamadaObjetivo && llamadaObjetivo.tipo === 'IP_NATIVO' && (
+      {llamadaObjetivo && llamadaObjetivo.accion === 'MARCAR' && (
         <ModalMarcar
           idOrigen={llamadaObjetivo.id_telefono}
           extensionOrigen={llamadaObjetivo.extension}
           alCerrar={() => setLlamadaObjetivo(null)}
         />
       )}
-      {llamadaObjetivo && llamadaObjetivo.tipo === 'IP_ATA' && (
+      {llamadaObjetivo && llamadaObjetivo.accion === 'HACER_TIMBRAR' && (
         <ModalTimbrar
           extensionOrigen={llamadaObjetivo.extension}
           alCerrar={() => setLlamadaObjetivo(null)}
