@@ -44,11 +44,11 @@ export interface ConfigMotor {
 }
 
 const CONFIG_DEFECTO: Required<ConfigMotor> = {
-  intervaloRondaMs: 60_000,
+  intervaloRondaMs: 30_000,
   umbralFallos: 3,
   tamanoLote: 20,
   timeoutPingMs: 1000,
-  rondasEntreRefrescos: 5,
+  rondasEntreRefrescos: 4,
 };
 
 /** Payload del evento 'cambio-estado'. */
