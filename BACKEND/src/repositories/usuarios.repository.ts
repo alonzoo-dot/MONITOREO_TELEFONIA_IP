@@ -126,3 +126,88 @@ export async function resetearPasswordUsuario(
     [nuevoPasswordHash, idUsuario],
   );
 }
+
+/** Cuenta cuantos administradores activos existen en el sistema. */
+export async function contarAdministradoresActivos(): Promise<number> {
+  const resultado = await ejecutarConsulta<{ total: string }>(
+    `SELECT COUNT(*) AS total
+       FROM usuarios u
+       JOIN roles r ON r.id_rol = u.id_rol
+      WHERE r.tipo_rol = 'ADMINISTRADOR' AND u.activo = true`,
+  );
+  return Number(resultado.rows[0]!.total);
+}
+
+/** Devuelve el tipo_rol de un rol por su id o null si no existe. */
+export async function obtenerRolPorId(idRol: number): Promise<string | null> {
+  const resultado = await ejecutarConsulta<{ tipo_rol: string }>(
+    'SELECT tipo_rol FROM roles WHERE id_rol = $1',
+    [idRol],
+  );
+  return resultado.rows[0]?.tipo_rol ?? null;
+}
+
+/** Cuenta cuantos usuarios existen en el sistema sin importar su rol o estado. */
+export async function contarUsuarios(): Promise<number> {
+  const resultado = await ejecutarConsulta<{ total: string }>(
+    'SELECT COUNT(*) AS total FROM usuarios',
+  );
+  return Number(resultado.rows[0]!.total);
+}
+
+/**
+ * Crea el primer administrador del sistema durante la configuracion inicial.
+ * A diferencia de crearUsuario no obliga a cambiar la contrasena porque el
+ * instalador la eligio el mismo. El rol se resuelve por nombre para no depender
+ * de un id numerico fijo.
+ */
+export async function crearPrimerAdministrador(
+  usuario: string,
+  nombreCompleto: string,
+  passwordHash: string,
+): Promise<number> {
+  const resultado = await ejecutarConsulta<{ id_usuario: number }>(
+    `INSERT INTO usuarios (id_rol, usuario, nombre_completo, password_hash, debe_cambiar_password, activo)
+     VALUES ((SELECT id_rol FROM roles WHERE tipo_rol = 'ADMINISTRADOR'), $1, $2, $3, false, true)
+     RETURNING id_usuario`,
+    [usuario, nombreCompleto, passwordHash],
+  );
+  return resultado.rows[0]!.id_usuario;
+}
+
+/**
+ * Crea o rescata una cuenta de administrador. Si el usuario no existe lo crea con
+ * rol ADMINISTRADOR. Si ya existe le asigna la contrasena indicada y se asegura de
+ * dejarlo activo y con rol ADMINISTRADOR. Siempre obliga a cambiar la contrasena
+ * porque la genero el sistema y viajo por consola.
+ * Devuelve true si creo un usuario nuevo y false si rescato uno existente.
+ */
+export async function crearORescatarAdministrador(
+  usuario: string,
+  passwordHash: string,
+): Promise<boolean> {
+  const existente = await ejecutarConsulta<{ id_usuario: number }>(
+    'SELECT id_usuario FROM usuarios WHERE usuario = $1',
+    [usuario],
+  );
+
+  if (existente.rows.length > 0) {
+    await ejecutarConsulta(
+      `UPDATE usuarios
+          SET password_hash = $1,
+              debe_cambiar_password = true,
+              activo = true,
+              id_rol = (SELECT id_rol FROM roles WHERE tipo_rol = 'ADMINISTRADOR')
+        WHERE usuario = $2`,
+      [passwordHash, usuario],
+    );
+    return false;
+  }
+
+  await ejecutarConsulta(
+    `INSERT INTO usuarios (id_rol, usuario, nombre_completo, password_hash, debe_cambiar_password, activo)
+     VALUES ((SELECT id_rol FROM roles WHERE tipo_rol = 'ADMINISTRADOR'), $1, $2, $3, true, true)`,
+    [usuario, 'Administrador de rescate', passwordHash],
+  );
+  return true;
+}

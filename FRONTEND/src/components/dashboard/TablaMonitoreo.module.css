@@ -6,13 +6,49 @@
   box-shadow: var(--shadow);
 }
 
+.scrollTabla {
+  /* Permite desplazamiento horizontal cuando la tabla no cabe (p. ej. 1024x768),
+     en vez de recortar columnas: la tabla sigue completa y usable en pantallas chicas. */
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* En pantallas medianas/chicas (p. ej. 1024x768) se compacta la tabla (menos espaciado
+   y letra) para que TODAS las columnas quepan completas sin ocultar nada. El contenedor
+   con scroll queda como respaldo por si aun asi no alcanzara. */
+@media (max-width: 1200px) {
+  .tcard thead th {
+    padding: 9px 8px;
+    font-size: 10px;
+  }
+  .tcard tbody td {
+    padding: 8px 8px;
+    font-size: 12px;
+  }
+  .stpill {
+    padding: 2px 7px;
+    font-size: 11px;
+  }
+  .actionBtn {
+    height: 24px;
+    padding: 0 8px;
+    font-size: 10.5px;
+  }
+  .acciones {
+    gap: 5px;
+  }
+}
+
 .tcard table {
   width: 100%;
+  min-width: 1000px;
   border-collapse: collapse;
 }
 
 .tcard thead th {
-  text-align: left;
+  text-align: center;
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -101,36 +137,46 @@
   color: var(--ink-faint);
 }
 
+.acciones {
+  display: inline-flex;
+  gap: 8px;
+}
+
 .actionBtn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  border: 1px solid var(--line);
-  background: var(--card);
-  color: var(--ink-soft);
-  height: 30px;
-  padding: 0 11px;
-  border-radius: 7px;
-  font-size: 12px;
-  font-weight: 500;
-  white-space: nowrap;
+  justify-content: center;
+  border: 1px solid var(--online-line);
+  background: var(--online-bg);
+  color: var(--online);
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.actionBtnAttn {
+  border-color: var(--attn-line);
+  background: var(--attn-bg);
+  color: var(--attn);
 }
 
 .actionBtn svg {
-  width: 13px;
-  height: 13px;
+  width: 15px;
+  height: 15px;
 }
 
 .actionBtn:hover:not(:disabled) {
-  background: var(--attn-bg);
-  color: var(--attn);
-  border-color: var(--attn-line);
-}
-
-.actionBtnOk:hover:not(:disabled) {
-  background: var(--online-bg);
+  background: #dff0e6;
   color: var(--online);
   border-color: var(--online);
+}
+
+.actionBtnAttn:hover:not(:disabled) {
+  background: #f5e6c8;
+  color: var(--attn);
+  border-color: var(--attn);
 }
 
 .empty {
@@ -147,6 +193,15 @@
 
 .cardLabel {
   display: none;
+}
+
+@media (max-width: 1200px) {
+  .tcard thead th {
+    padding: 12px 10px;
+  }
+  .tcard tbody td {
+    padding: 12px 10px;
+  }
 }
 
 /* ===== Responsive: tabla como tarjetas, columnas secundarias ocultas ===== */

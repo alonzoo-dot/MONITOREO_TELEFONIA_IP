@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   crearDispositivo,
   editarDispositivo,
@@ -6,6 +6,7 @@ import {
   listarModelosAta,
   obtenerDetalle,
 } from '../services/inventario.service';
+import { ErrorApi } from '../services/api';
 import type {
   Dispositivo,
   DatosDispositivo,
@@ -21,7 +22,7 @@ import ModalEliminacionPermanente from './ModalEliminacionPermanente';
 import estilos from './DrawerDispositivo.module.css';
 
 interface Props {
-  /** Si viene un dispositivo, el drawer edita; si es null, crea. Si es undefined, está cerrado. */
+  /** Si viene un dispositivo el drawer edita; si es null crea. Si es undefined está cerrado. */
   dispositivo: Dispositivo | null | undefined;
   /** Id del dispositivo a mostrar en modo detalle (solo lectura); null = ese modo está cerrado. */
   idDetalle: number | null;
@@ -64,6 +65,21 @@ const FORM_VACIO = {
   ata_numero_serie: '',
 };
 
+/** Orden visual de los campos del formulario usado para elegir el primer error a enfocar. */
+const ORDEN_CAMPOS = [
+  'ubicacion_nombre',
+  'piso',
+  'tipo_ubicacion',
+  'extension',
+  'tipo',
+  'id_modelo_telefono',
+  'id_modelo_ata',
+  'mac',
+  'ip',
+  'ata_numero_serie',
+  'numero_serie',
+];
+
 function DrawerDispositivo({ dispositivo, idDetalle, onCerrar, onGuardado }: Props) {
   const modoDetalle = idDetalle !== null;
   const abierto = modoDetalle || dispositivo !== undefined;
@@ -73,7 +89,9 @@ function DrawerDispositivo({ dispositivo, idDetalle, onCerrar, onGuardado }: Pro
   const [modelosTel, setModelosTel] = useState<ModeloTelefono[]>([]);
   const [modelosAta, setModelosAta] = useState<ModeloAta[]>([]);
   const [error, setError] = useState('');
+  const [erroresPorCampo, setErroresPorCampo] = useState<Record<string, string>>({});
   const [guardando, setGuardando] = useState(false);
+  const refFormulario = useRef<HTMLDivElement>(null);
 
   const [detalle, setDetalle] = useState<DetalleDispositivo | null>(null);
   const [cargandoDetalle, setCargandoDetalle] = useState(false);
@@ -118,9 +136,10 @@ function DrawerDispositivo({ dispositivo, idDetalle, onCerrar, onGuardado }: Pro
     listarModelosAta().then(setModelosAta).catch(() => setModelosAta([]));
   }, []);
 
-  // Cuando cambia el dispositivo, precarga (edición) o limpia (alta)
+  // Cuando cambia el dispositivo precarga (edición) o limpia (alta)
   useEffect(() => {
     setError('');
+    setErroresPorCampo({});
     if (dispositivo) {
       setForm({
         ubicacion_nombre: dispositivo.ubicacion_nombre,
@@ -142,52 +161,22 @@ function DrawerDispositivo({ dispositivo, idDetalle, onCerrar, onGuardado }: Pro
 
   function actualizar(campo: string, valor: string) {
     setForm((prev) => ({ ...prev, [campo]: valor }));
+    if (erroresPorCampo[campo]) {
+      setErroresPorCampo((prev) => {
+        const siguiente = { ...prev };
+        delete siguiente[campo];
+        return siguiente;
+      });
+    }
   }
 
   async function guardar() {
     setError('');
-
-    // Validaciones mínimas de forma (el backend valida el resto)
-    if (!form.ubicacion_nombre.trim() || !form.piso || !form.extension.trim()) {
-      setError('Ubicación, piso y extensión son obligatorios.');
-      return;
-    }
-    const piso = Number(form.piso);
-    if (!Number.isInteger(piso)) {
-      setError('El piso debe ser un número entero');
-      return;
-    }
-    if (piso < 1) {
-      setError('El piso debe ser mayor o igual a 1');
-      return;
-    }
-    if (piso > 50) {
-      setError('El piso no puede superar 50');
-      return;
-    }
-    if (!form.id_modelo_telefono) {
-      setError('Selecciona un modelo de teléfono.');
-      return;
-    }
-    if (!form.numero_serie.trim()) {
-      setError('El número de serie del teléfono es obligatorio.');
-      return;
-    }
-    if (
-      form.tipo === 'IP_ATA' &&
-      (!form.mac.trim() || !form.ip.trim() || !form.id_modelo_ata || !form.ata_numero_serie.trim())
-    ) {
-      setError('Un dispositivo Ata requiere MAC, IP, modelo de ATA y número de serie de ATA.');
-      return;
-    }
-    if (form.tipo === 'IP_NATIVO' && (!form.mac.trim() || !form.ip.trim())) {
-      setError('Un dispositivo Ip requiere MAC e IP.');
-      return;
-    }
+    setErroresPorCampo({});
 
     const datos: DatosDispositivo = {
       ubicacion_nombre: form.ubicacion_nombre.trim(),
-      piso,
+      piso: Number(form.piso),
       tipo_ubicacion: form.tipo_ubicacion,
       id_modelo_telefono: Number(form.id_modelo_telefono),
       extension: form.extension.trim(),
@@ -208,7 +197,20 @@ function DrawerDispositivo({ dispositivo, idDetalle, onCerrar, onGuardado }: Pro
       }
       onGuardado();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo guardar el dispositivo');
+      if (err instanceof ErrorApi && err.errores && err.errores.length > 0) {
+        const mapa: Record<string, string> = {};
+        for (const errorCampo of err.errores) {
+          mapa[errorCampo.campo] = errorCampo.mensaje;
+        }
+        setErroresPorCampo(mapa);
+        const primerCampo = ORDEN_CAMPOS.find((campo) => mapa[campo]);
+        const elemento = primerCampo
+          ? refFormulario.current?.querySelector<HTMLElement>(`[name="${primerCampo}"]`)
+          : null;
+        elemento?.focus();
+      } else {
+        setError(err instanceof Error ? err.message : 'No se pudo guardar el dispositivo');
+      }
     } finally {
       setGuardando(false);
     }
@@ -372,7 +374,7 @@ function DrawerDispositivo({ dispositivo, idDetalle, onCerrar, onGuardado }: Pro
               </>
             )
           ) : (
-            <>
+            <div ref={refFormulario}>
           {error && <div className={estilos.error}>{error}</div>}
 
           <div className={estilos.field}>
@@ -380,10 +382,15 @@ function DrawerDispositivo({ dispositivo, idDetalle, onCerrar, onGuardado }: Pro
               Ubicación <span className={estilos.req}>*</span>
             </label>
             <input
+              name="ubicacion_nombre"
+              className={erroresPorCampo.ubicacion_nombre ? estilos.inputError : undefined}
               style={{ textTransform: 'uppercase' }}
               value={form.ubicacion_nombre}
               onChange={(e) => actualizar('ubicacion_nombre', e.target.value)}
             />
+            {erroresPorCampo.ubicacion_nombre && (
+              <div className={estilos.errorCampo}>{erroresPorCampo.ubicacion_nombre}</div>
+            )}
           </div>
 
           <div className={estilos.fila}>
@@ -392,6 +399,8 @@ function DrawerDispositivo({ dispositivo, idDetalle, onCerrar, onGuardado }: Pro
                 Piso <span className={estilos.req}>*</span>
               </label>
               <input
+                name="piso"
+                className={erroresPorCampo.piso ? estilos.inputError : undefined}
                 type="number"
                 min={1}
                 max={50}
@@ -399,18 +408,24 @@ function DrawerDispositivo({ dispositivo, idDetalle, onCerrar, onGuardado }: Pro
                 value={form.piso}
                 onChange={(e) => actualizar('piso', e.target.value)}
               />
+              {erroresPorCampo.piso && <div className={estilos.errorCampo}>{erroresPorCampo.piso}</div>}
             </div>
             <div className={estilos.field}>
               <label>
                 Tipo de ubicación <span className={estilos.req}>*</span>
               </label>
               <select
+                name="tipo_ubicacion"
+                className={erroresPorCampo.tipo_ubicacion ? estilos.inputError : undefined}
                 value={form.tipo_ubicacion}
                 onChange={(e) => actualizar('tipo_ubicacion', e.target.value)}
               >
                 <option value="HABITACION">Habitación</option>
                 <option value="DEPARTAMENTO">Departamento</option>
               </select>
+              {erroresPorCampo.tipo_ubicacion && (
+                <div className={estilos.errorCampo}>{erroresPorCampo.tipo_ubicacion}</div>
+              )}
             </div>
           </div>
 
@@ -419,9 +434,14 @@ function DrawerDispositivo({ dispositivo, idDetalle, onCerrar, onGuardado }: Pro
               Extensión <span className={estilos.req}>*</span>
             </label>
             <input
+              name="extension"
+              className={erroresPorCampo.extension ? estilos.inputError : undefined}
               value={form.extension}
               onChange={(e) => actualizar('extension', e.target.value)}
             />
+            {erroresPorCampo.extension && (
+              <div className={estilos.errorCampo}>{erroresPorCampo.extension}</div>
+            )}
           </div>
 
           <div className={estilos.field}>
@@ -429,6 +449,8 @@ function DrawerDispositivo({ dispositivo, idDetalle, onCerrar, onGuardado }: Pro
               Tipo <span className={estilos.req}>*</span>
             </label>
             <select
+              name="tipo"
+              className={erroresPorCampo.tipo ? estilos.inputError : undefined}
               value={form.tipo}
               onChange={(e) => actualizar('tipo', e.target.value)}
               disabled={editando}
@@ -437,6 +459,7 @@ function DrawerDispositivo({ dispositivo, idDetalle, onCerrar, onGuardado }: Pro
               <option value="IP_NATIVO">Ip</option>
               <option value="ANALOGICO">Análogo</option>
             </select>
+            {erroresPorCampo.tipo && <div className={estilos.errorCampo}>{erroresPorCampo.tipo}</div>}
             {editando && (
               <div className={estilos.hint}>El tipo no se puede cambiar. Dé de baja y cree uno nuevo.</div>
             )}
@@ -447,6 +470,8 @@ function DrawerDispositivo({ dispositivo, idDetalle, onCerrar, onGuardado }: Pro
               Modelo de teléfono <span className={estilos.req}>*</span>
             </label>
             <select
+              name="id_modelo_telefono"
+              className={erroresPorCampo.id_modelo_telefono ? estilos.inputError : undefined}
               value={form.id_modelo_telefono}
               onChange={(e) => actualizar('id_modelo_telefono', e.target.value)}
             >
@@ -457,6 +482,9 @@ function DrawerDispositivo({ dispositivo, idDetalle, onCerrar, onGuardado }: Pro
                 </option>
               ))}
             </select>
+            {erroresPorCampo.id_modelo_telefono && (
+              <div className={estilos.errorCampo}>{erroresPorCampo.id_modelo_telefono}</div>
+            )}
           </div>
 
           {/* Bloque de red: solo IP_ATA e IP_NATIVO */}
@@ -470,6 +498,8 @@ function DrawerDispositivo({ dispositivo, idDetalle, onCerrar, onGuardado }: Pro
                     Modelo de ATA <span className={estilos.req}>*</span>
                   </label>
                   <select
+                    name="id_modelo_ata"
+                    className={erroresPorCampo.id_modelo_ata ? estilos.inputError : undefined}
                     value={form.id_modelo_ata}
                     onChange={(e) => actualizar('id_modelo_ata', e.target.value)}
                   >
@@ -480,6 +510,9 @@ function DrawerDispositivo({ dispositivo, idDetalle, onCerrar, onGuardado }: Pro
                       </option>
                     ))}
                   </select>
+                  {erroresPorCampo.id_modelo_ata && (
+                    <div className={estilos.errorCampo}>{erroresPorCampo.id_modelo_ata}</div>
+                  )}
                 </div>
               )}
 
@@ -488,11 +521,13 @@ function DrawerDispositivo({ dispositivo, idDetalle, onCerrar, onGuardado }: Pro
                   MAC <span className={estilos.req}>*</span>
                 </label>
                 <input
-                  className="mono"
+                  name="mac"
+                  className={`mono ${erroresPorCampo.mac ? estilos.inputError : ''}`}
                   style={{ textTransform: 'uppercase' }}
                   value={form.mac}
-                  onChange={(e) => actualizar('mac', e.target.value)}
+                  onChange={(e) => actualizar('mac', e.target.value.toUpperCase())}
                 />
+                {erroresPorCampo.mac && <div className={estilos.errorCampo}>{erroresPorCampo.mac}</div>}
                 <div className={estilos.hint}>Identificador permanente del dispositivo. Lo escribes tú.</div>
               </div>
 
@@ -501,10 +536,12 @@ function DrawerDispositivo({ dispositivo, idDetalle, onCerrar, onGuardado }: Pro
                   IP <span className={estilos.req}>*</span>
                 </label>
                 <input
-                  className="mono"
+                  name="ip"
+                  className={`mono ${erroresPorCampo.ip ? estilos.inputError : ''}`}
                   value={form.ip}
                   onChange={(e) => actualizar('ip', e.target.value)}
                 />
+                {erroresPorCampo.ip && <div className={estilos.errorCampo}>{erroresPorCampo.ip}</div>}
                 <div className={estilos.hint}>Debe pertenecer a los rangos del hotel (10.81.20.x o 10.81.21.x). Es el objetivo del ping de monitoreo.</div>
               </div>
 
@@ -514,9 +551,14 @@ function DrawerDispositivo({ dispositivo, idDetalle, onCerrar, onGuardado }: Pro
                     Número de serie del ATA <span className={estilos.req}>*</span>
                   </label>
                   <input
+                    name="ata_numero_serie"
+                    className={erroresPorCampo.ata_numero_serie ? estilos.inputError : undefined}
                     value={form.ata_numero_serie}
-                    onChange={(e) => actualizar('ata_numero_serie', e.target.value)}
+                    onChange={(e) => actualizar('ata_numero_serie', e.target.value.toUpperCase())}
                   />
+                  {erroresPorCampo.ata_numero_serie && (
+                    <div className={estilos.errorCampo}>{erroresPorCampo.ata_numero_serie}</div>
+                  )}
                 </div>
               )}
             </div>
@@ -527,11 +569,16 @@ function DrawerDispositivo({ dispositivo, idDetalle, onCerrar, onGuardado }: Pro
               Número de serie del teléfono <span className={estilos.req}>*</span>
             </label>
             <input
+              name="numero_serie"
+              className={erroresPorCampo.numero_serie ? estilos.inputError : undefined}
               value={form.numero_serie}
-              onChange={(e) => actualizar('numero_serie', e.target.value)}
+              onChange={(e) => actualizar('numero_serie', e.target.value.toUpperCase())}
             />
+            {erroresPorCampo.numero_serie && (
+              <div className={estilos.errorCampo}>{erroresPorCampo.numero_serie}</div>
+            )}
           </div>
-            </>
+            </div>
           )}
         </div>
 

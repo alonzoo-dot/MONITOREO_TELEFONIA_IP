@@ -280,6 +280,30 @@ export async function buscarPorIp(
   return resultado.rows[0] ?? null;
 }
 
+/** Extensión y ubicación de un dispositivo, para mensajes de log legibles. */
+export interface EtiquetaDispositivo {
+  extension: string;
+  ubicacion_nombre: string;
+  tipo_ubicacion: string;
+}
+
+/** Devuelve la extensión y ubicación de un teléfono por su id, o null si no existe. */
+export async function obtenerEtiqueta(
+  idTelefono: number,
+  cliente?: PoolClient,
+): Promise<EtiquetaDispositivo | null> {
+  const resultado = await consultarCon<EtiquetaDispositivo>(
+    cliente,
+    `SELECT t.extension, u.nombre AS ubicacion_nombre, u.tipo_ubicacion
+       FROM telefonos t
+       JOIN ubicaciones u ON u.id_ubicacion = t.id_ubicacion
+      WHERE t.id_telefono = $1
+      LIMIT 1`,
+    [idTelefono],
+  );
+  return resultado.rows[0] ?? null;
+}
+
 /** Inserta un teléfono y devuelve su id generado. */
 export async function crearTelefono(
   datos: DatosTelefono,

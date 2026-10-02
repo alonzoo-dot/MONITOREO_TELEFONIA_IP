@@ -53,7 +53,7 @@ const SECCIONES = [
   {
     texto: 'Incidencias',
     ruta: '/incidencias',
-    activa: false,
+    activa: true,
     icono: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M12 8v4l3 2" />
@@ -64,7 +64,7 @@ const SECCIONES = [
   {
     texto: 'Estadísticas',
     ruta: '/estadisticas',
-    activa: false,
+    activa: true,
     icono: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M3 3v18h18" />
@@ -75,7 +75,7 @@ const SECCIONES = [
   {
     texto: 'Usuarios',
     ruta: '/usuarios',
-    activa: false,
+    activa: true,
     icono: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -94,6 +94,12 @@ interface Props {
 function Layout({ children }: Props) {
   const navegar = useNavigate();
   const usuario = obtenerUsuario();
+  const esAdmin = usuario?.tipo_rol === 'ADMINISTRADOR';
+
+  // El modulo de gestion de usuarios es solo para administradores. El resto no lo ve en el rail.
+  const seccionesVisibles = SECCIONES.filter(
+    (seccion) => seccion.ruta !== '/usuarios' || esAdmin,
+  );
   const [menuAbierto, setMenuAbierto] = useState(false);
   const pendientes = usePendientes();
 
@@ -123,11 +129,11 @@ function Layout({ children }: Props) {
         aria-label="Navegación"
       >
         <div className={estilos.grupo}>
-          {SECCIONES.map((seccion) =>
+          {seccionesVisibles.map((seccion) =>
             seccion.activa ? (
               <NavLink
                 key={seccion.ruta}
-                to={seccion.ruta}
+                to={seccion.ruta === '/incidencias' && pendientes > 0 ? '/incidencias?pendientes=1' : seccion.ruta}
                 className={({ isActive }) =>
                   isActive ? `${estilos.item} ${estilos.itemActivo}` : estilos.item
                 }
@@ -135,7 +141,7 @@ function Layout({ children }: Props) {
               >
                 <span className={estilos.icWrap}>
                   <span className={estilos.ic}>{seccion.icono}</span>
-                  {seccion.ruta === '/dashboard' && pendientes > 0 && (
+                  {seccion.ruta === '/incidencias' && pendientes > 0 && (
                     <span className={estilos.badgeNum}>{pendientes > 9 ? '9+' : pendientes}</span>
                   )}
                 </span>
@@ -162,7 +168,23 @@ function Layout({ children }: Props) {
               <span>{usuario?.tipo_rol ?? ''}</span>
             </span>
           </div>
-          <button className={estilos.cerrar} onClick={manejarCerrarSesion} title="Cerrar sesión">
+          <button
+        className={estilos.item}
+        onClick={() => {
+          navegar('/cambiar-password', { state: { forzado: false } });
+          setMenuAbierto(false);
+        }}
+        title="Cambiar contraseña"
+      >
+        <span className={estilos.ic}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2" />
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+          </svg>
+        </span>
+        <span className={estilos.lbl}>Cambiar contraseña</span>
+      </button>
+      <button className={estilos.cerrar} onClick={manejarCerrarSesion} title="Cerrar sesión">
             <span className={estilos.ic}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />

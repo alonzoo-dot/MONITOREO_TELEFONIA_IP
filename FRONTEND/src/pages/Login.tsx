@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { iniciarSesion } from '../services/auth.service';
+import { consultarEstadoSetup } from '../services/setup.service';
 import { guardarSesion } from '../services/sesion';
 import Marca from '../components/Marca';
 import estilos from './Login.module.css';
@@ -11,8 +12,32 @@ function Login() {
   const [verPassword, setVerPassword] = useState(false);
   const [error, setError] = useState('');
   const [cargando, setCargando] = useState(false);
+  // Mientras se verifica si el sistema requiere configuracion inicial no se pinta el formulario
+  const [verificando, setVerificando] = useState(true);
 
   const navegar = useNavigate();
+
+  // Si el sistema no tiene ningun usuario todavia se envia al flujo de configuracion inicial
+  useEffect(() => {
+    let cancelado = false;
+    consultarEstadoSetup()
+      .then((estado) => {
+        if (cancelado) return;
+        if (estado.requiere_configuracion) {
+          navegar('/setup', { replace: true });
+          return;
+        }
+        setVerificando(false);
+      })
+      .catch(() => {
+        // Si la verificacion falla se muestra el login igual para no bloquear el acceso
+        if (!cancelado) setVerificando(false);
+      });
+    return () => {
+      cancelado = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function manejarLogin() {
     setError('');
@@ -37,6 +62,16 @@ function Login() {
     } finally {
       setCargando(false);
     }
+  }
+
+  if (verificando) {
+    return (
+      <div className={estilos.pantalla}>
+        <div className={estilos.tarjeta}>
+          <p className={estilos.lead}>Verificando…</p>
+        </div>
+      </div>
+    );
   }
 
   return (

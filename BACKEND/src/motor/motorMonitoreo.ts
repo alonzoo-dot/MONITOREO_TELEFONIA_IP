@@ -5,7 +5,10 @@ import type {
   DispositivoMonitoreable,
   EstadoMonitoreo as TipoEstadoMonitoreo,
 } from '../repositories/monitoreo.repository';
-import type { DispositivoConIp } from '../repositories/telefonos.repository';
+import type {
+  DispositivoConIp,
+  EtiquetaDispositivo,
+} from '../repositories/telefonos.repository';
 import { RegistroEstadoMonitoreo, type EstadoDispositivo } from './estadoMonitoreo';
 import { PlanificadorRondas } from './planificadorRondas';
 import { ejecutarPing } from './ejecutorPing';
@@ -28,6 +31,7 @@ export interface RepositorioTelefonos {
     excluirId: number | null,
     cliente?: PoolClient | null,
   ): Promise<DispositivoConIp | null>;
+  obtenerEtiqueta(idTelefono: number, cliente?: PoolClient): Promise<EtiquetaDispositivo | null>;
 }
 
 /** Parámetros configurables del motor; todos tienen default. */
@@ -40,11 +44,11 @@ export interface ConfigMotor {
 }
 
 const CONFIG_DEFECTO: Required<ConfigMotor> = {
-  intervaloRondaMs: 60_000,
+  intervaloRondaMs: 30_000,
   umbralFallos: 3,
   tamanoLote: 20,
   timeoutPingMs: 1000,
-  rondasEntreRefrescos: 5,
+  rondasEntreRefrescos: 4,
 };
 
 /** Payload del evento 'cambio-estado'. */
@@ -276,10 +280,22 @@ export class MotorMonitoreo {
    * Devuelve true si corrigio (y por lo tanto no hay que pasar a OFFLINE todavia).
    */
   private async intentarDrift(dispositivo: EstadoDispositivo): Promise<boolean> {
-    if (!dispositivo.mac) {
-      console.warn(
-        `[MOTOR] Drift omitido: teléfono ${dispositivo.id_telefono} sin MAC registrada.`,
+    let descripcion: string;
+    try {
+      const etiqueta = await this.repositorioTelefonos.obtenerEtiqueta(dispositivo.id_telefono);
+      descripcion = etiqueta
+        ? `teléfono con extensión ${etiqueta.extension} (${etiqueta.tipo_ubicacion} ${etiqueta.ubicacion_nombre})`
+        : `teléfono ${dispositivo.id_telefono}`; // fallback defensivo si no se encontró la etiqueta
+    } catch (error) {
+      console.error(
+        `[MOTOR] Drift: error al obtener la etiqueta del teléfono ${dispositivo.id_telefono}:`,
+        error,
       );
+      descripcion = `teléfono ${dispositivo.id_telefono}`;
+    }
+
+    if (!dispositivo.mac) {
+      console.warn(`[MOTOR] Drift omitido: ${descripcion} sin MAC registrada.`);
       return false;
     }
 
@@ -288,8 +304,7 @@ export class MotorMonitoreo {
       ipReal = await this.resolvedor.resolverIp(dispositivo.mac);
     } catch (error) {
       console.error(
-        `[MOTOR] Drift: error al consultar ARP para MAC ${dispositivo.mac} ` +
-          `(teléfono ${dispositivo.id_telefono}):`,
+        `[MOTOR] Drift: error al consultar ARP para MAC ${dispositivo.mac} (${descripcion}):`,
         error,
       );
       return false;
@@ -307,7 +322,7 @@ export class MotorMonitoreo {
         );
         console.warn(
           `[MOTOR] Drift: MAC ${dispositivo.mac} no encontrada en ARP ` +
-            `(teléfono ${dispositivo.id_telefono}). Barrido en cooldown, ` +
+            `(${descripcion}). Barrido en cooldown, ` +
             `${minutosRestantes} min hasta el próximo intento.`,
         );
         return false;
@@ -316,27 +331,32 @@ export class MotorMonitoreo {
       // Dispara barrido reactivo de la VLAN del dispositivo.
       console.log(
         `[MOTOR] Drift: MAC ${dispositivo.mac} no encontrada. ` +
-          `Disparando barrido reactivo para teléfono ${dispositivo.id_telefono}.`,
+          `Disparando barrido reactivo para ${descripcion}.`,
       );
       this.ultimoBarridoPorDispositivo.set(dispositivo.id_telefono, ahora);
 
       try {
         await this.resolvedor.barrerVlan(dispositivo.ip);
       } catch (error) {
+        console.error(`[MOTOR] Error durante el barrido reactivo para ${descripcion}:`, error);
+        return false;
+      }
+
+      // Reintenta la resolución con el ARP actualizado.
+      try {
+        ipReal = await this.resolvedor.resolverIp(dispositivo.mac);
+      } catch (error) {
         console.error(
-          `[MOTOR] Error durante el barrido reactivo para teléfono ${dispositivo.id_telefono}:`,
+          `[MOTOR] Drift: error al reconsultar ARP para MAC ${dispositivo.mac} (${descripcion}):`,
           error,
         );
         return false;
       }
 
-      // Reintenta la resolución con el ARP actualizado.
-      ipReal = await this.resolvedor.resolverIp(dispositivo.mac);
-
       if (ipReal === null) {
         console.warn(
           `[MOTOR] Drift: MAC ${dispositivo.mac} sigue sin aparecer en ARP ` +
-            `tras el barrido (teléfono ${dispositivo.id_telefono}). ` +
+            `tras el barrido (${descripcion}). ` +
             `El dispositivo probablemente está apagado o desconectado.`,
         );
         return false;
@@ -351,19 +371,24 @@ export class MotorMonitoreo {
     if (ipReal === dispositivo.ip) {
       console.warn(
         `[MOTOR] Drift: MAC ${dispositivo.mac} sigue en la misma IP ${dispositivo.ip} ` +
-          `(teléfono ${dispositivo.id_telefono}). No hay drift real que aplicar.`,
+          `(${descripcion}). No hay drift real que aplicar.`,
       );
       return false;
     }
 
-    const dueño = await this.repositorioTelefonos.buscarPorIp(
-      ipReal,
-      dispositivo.id_telefono,
-      null,
-    );
+    let dueño: { extension: string; tipo_ubicacion: string; ubicacion_nombre: string } | null;
+    try {
+      dueño = await this.repositorioTelefonos.buscarPorIp(ipReal, dispositivo.id_telefono, null);
+    } catch (error) {
+      console.error(
+        `[MOTOR] Drift: error al verificar si la IP ${ipReal} ya está en uso (${descripcion}):`,
+        error,
+      );
+      return false;
+    }
     if (dueño !== null) {
       console.warn(
-        `[MOTOR] Drift: CONFLICTO — no se pudo aplicar drift para teléfono ${dispositivo.id_telefono} ` +
+        `[MOTOR] Drift: CONFLICTO — no se pudo aplicar drift para ${descripcion} ` +
           `(MAC ${dispositivo.mac}). La nueva IP ${ipReal} ya está registrada en el dispositivo ` +
           `con extensión ${dueño.extension} (${dueño.tipo_ubicacion} ${dueño.ubicacion_nombre}). ` +
           `Se requiere revisión manual.`,
@@ -380,7 +405,7 @@ export class MotorMonitoreo {
       );
     } catch (error) {
       console.error(
-        `[MOTOR] Drift: error al persistir nueva IP ${ipReal} para teléfono ${dispositivo.id_telefono}:`,
+        `[MOTOR] Drift: error al persistir nueva IP ${ipReal} para ${descripcion}:`,
         error,
       );
       return false;
@@ -396,10 +421,7 @@ export class MotorMonitoreo {
       ip_nueva: ipReal,
     } satisfies PayloadDriftCorregido);
 
-    console.log(
-      `[MOTOR] Drift aplicado: teléfono ${dispositivo.id_telefono} ` +
-        `cambió de ${ipAnterior} → ${ipReal}.`,
-    );
+    console.log(`[MOTOR] Drift aplicado: ${descripcion} cambió de ${ipAnterior} → ${ipReal}.`);
 
     return true;
   }

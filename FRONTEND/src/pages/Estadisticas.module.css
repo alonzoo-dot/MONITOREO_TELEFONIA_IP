@@ -1,0 +1,218 @@
+.encabezado {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.encabezado h1 {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: var(--ink);
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.filtros {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--card-radius);
+  box-shadow: var(--shadow);
+  padding: 14px 18px;
+}
+
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  text-align: center;
+}
+
+.campo input,
+.campo select {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  font-size: 13px;
+  font-family: inherit;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--ink);
+  background: var(--card);
+  text-align: left;
+}
+
+.campo input:focus,
+.campo select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.btnReporte {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #E24444;
+  background: rgba(226, 68, 68, 0.12);
+  color: #E24444;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  margin-left: auto;
+}
+
+.btnReporte svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+.btnReporte:hover:not(:disabled) {
+  background: rgba(226, 68, 68, 0.20);
+}
+
+.btnReporte:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.avisoReporte {
+  margin: -10px 0 20px;
+  font-size: 12.5px;
+  color: var(--offline);
+}
+
+.seccion {
+  margin-bottom: 28px;
+}
+
+.tituloSeccion {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0 0 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.tituloTiempoAtencion {
+  text-align: center;
+}
+
+.subtitulo {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin: 0 0 10px;
+}
+
+.tarjeta {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--card-radius);
+  box-shadow: var(--shadow);
+  padding: 18px 20px;
+}
+
+.filaSuperior {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 16px;
+  margin-bottom: 28px;
+  align-items: start;
+}
+
+.tendencia {
+  margin-bottom: 28px;
+}
+
+.cuadricula {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.cuadriculaAncha {
+  grid-column: 1 / -1;
+}
+
+.aviso {
+  padding: 32px 20px;
+  text-align: center;
+  color: var(--ink-faint);
+  font-size: 13px;
+}
+
+.btnReintentar {
+  display: block;
+  margin: 10px auto 0;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--ink);
+  padding: 7px 16px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.tabla thead th {
+  text-align: left;
+  padding: 10px 12px;
+  color: var(--ink-faint);
+  font-weight: 500;
+  font-size: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.tabla tbody td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line-soft);
+  color: var(--ink);
+}
+
+.tabla tbody tr:last-child td {
+  border-bottom: none;
+}
+
+@media (max-width: 768px) {
+  .filtros {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .btnReporte {
+    margin-left: 0;
+    justify-content: center;
+  }
+
+  .filaSuperior {
+    grid-template-columns: 1fr;
+  }
+
+  .cuadricula {
+    grid-template-columns: 1fr;
+  }
+}

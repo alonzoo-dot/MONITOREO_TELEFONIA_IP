@@ -11,6 +11,7 @@
   font-weight: 600;
   letter-spacing: -0.01em;
   margin: 0;
+  text-transform: uppercase;
 }
 
 /* ===== Barra de acciones ===== */
@@ -56,6 +57,10 @@
 
 .btnPri:hover:not(:disabled) {
   background: var(--accent-dk);
+}
+
+.btnNuevo {
+  margin-left: auto;
 }
 
 .btnSec:disabled,
@@ -151,13 +156,52 @@
   box-shadow: var(--shadow);
 }
 
+.scrollTabla {
+  /* Permite desplazamiento horizontal cuando la tabla no cabe (p. ej. 1024x768),
+     en vez de recortar columnas: la tabla sigue completa y usable en pantallas chicas. */
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* En pantallas medianas/chicas (p. ej. 1024x768) se compacta la tabla (menos espaciado
+   y letra) para que TODAS las columnas quepan completas sin ocultar nada. El contenedor
+   con scroll queda como respaldo por si aun asi no alcanzara. */
+@media (max-width: 1200px) {
+  .tcard thead th {
+    padding: 9px 8px;
+    font-size: 10px;
+  }
+  .tcard tbody td {
+    padding: 8px 8px;
+    font-size: 12px;
+  }
+  .stpill {
+    padding: 2px 7px;
+    font-size: 11px;
+  }
+  .ttag {
+    padding: 2px 7px;
+    font-size: 10.5px;
+  }
+  .modeltag {
+    padding: 2px 6px;
+    font-size: 11px;
+  }
+  .acts {
+    gap: 3px;
+  }
+}
+
 .tcard table {
   width: 100%;
+  min-width: 1000px;
   border-collapse: collapse;
 }
 
 .tcard thead th {
-  text-align: left;
+  text-align: center;
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -211,6 +255,7 @@
 }
 
 .modeltag {
+  white-space: nowrap;
   font-size: 12px;
   color: var(--ink-soft);
   background: var(--bg);
@@ -284,6 +329,21 @@
   height: 15px;
 }
 
+.ibVer {
+  color: var(--ink-soft);
+}
+
+.ibEdit {
+  color: var(--accent);
+  border-color: var(--accent-line);
+}
+
+.ibEdit:hover:not(:disabled) {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+}
+
 .ib:hover:not(:disabled) {
   background: var(--bg);
   color: var(--ink);
@@ -295,15 +355,36 @@
   cursor: not-allowed;
 }
 
-.ibDanger:hover {
+.ibDanger {
+  color: var(--attn);
+  border-color: var(--attn-line);
+}
+
+.ibDanger:hover:not(:disabled) {
+  color: var(--attn);
+  border-color: var(--attn-line);
+  background: var(--attn-bg);
+}
+
+.ibDelete {
   color: var(--offline);
-  border-color: var(--offline);
+  border-color: var(--offline-line);
+}
+
+.ibDelete:hover:not(:disabled) {
+  color: var(--offline);
+  border-color: var(--offline-line);
   background: var(--offline-bg);
 }
 
-.ibOk:hover {
+.ibOk {
   color: var(--online);
-  border-color: var(--online);
+  border-color: var(--online-line);
+}
+
+.ibOk:hover:not(:disabled) {
+  color: var(--online);
+  border-color: var(--online-line);
   background: var(--online-bg);
 }
 
@@ -333,8 +414,29 @@
   display: none;
 }
 
+@media (max-width: 1200px) {
+  .tcard thead th {
+    padding: 12px 10px;
+  }
+  .tcard tbody td {
+    padding: 12px 10px;
+  }
+}
+
 /* ===== Responsive: tabla como tarjetas ===== */
 @media (max-width: 760px) {
+  .actionbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .btnSec,
+  .btnPri {
+    justify-content: center;
+    width: 100%;
+  }
+  .btnNuevo {
+    margin-left: 0;
+  }
   .tcard thead {
     display: none;
   }

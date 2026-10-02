@@ -1,0 +1,244 @@
+.scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(16, 24, 40, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 16px;
+}
+
+.modal {
+  background: var(--card);
+  border-radius: var(--card-radius);
+  width: 100%;
+  max-width: 430px;
+  padding: 22px 24px;
+  box-shadow: var(--shadow-pop);
+}
+
+.cabecera {
+  position: relative;
+  margin-bottom: 18px;
+}
+
+.tituloFila {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.iconoWrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.icono {
+  width: 18px;
+  height: 18px;
+}
+
+.cabecera h2 {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0;
+}
+
+.sub {
+  display: block;
+  font-size: 12.5px;
+  color: var(--ink-faint);
+  margin-top: 4px;
+  margin-left: 44px;
+}
+
+.cerrar {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  border: none;
+  background: none;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--ink-faint);
+  cursor: pointer;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+}
+
+.cerrar:hover {
+  background: var(--bg);
+  color: var(--ink);
+}
+
+.etiqueta {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--ink-soft);
+  margin-bottom: 6px;
+}
+
+.textarea {
+  width: 100%;
+  height: 42px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0 12px;
+  font-size: 14px;
+  font-family: inherit;
+  background: var(--card);
+  color: var(--ink);
+  box-sizing: border-box;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+  outline: none;
+}
+
+.textarea:disabled {
+  background: var(--card-2);
+  color: var(--ink-faint);
+  cursor: not-allowed;
+}
+
+.textarea + .etiqueta {
+  margin-top: 16px;
+}
+
+.aviso {
+  margin-top: 14px;
+  padding: 10px 12px;
+  background: var(--offline-bg);
+  border: 1px solid #f3c9c2;
+  color: var(--offline);
+  border-radius: var(--radius);
+  font-size: 13px;
+}
+
+.acciones {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.btnCancelar {
+  height: 40px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--ink-soft);
+  padding: 0 16px;
+  border-radius: var(--radius);
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.btnCancelar:hover:not(:disabled) {
+  background: var(--bg);
+}
+
+.btnGuardar {
+  height: 40px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #fff;
+  padding: 0 16px;
+  border-radius: var(--radius);
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.btnGuardar:hover:not(:disabled) {
+  background: var(--accent-dk);
+  border-color: var(--accent-dk);
+}
+
+.btnGuardar:disabled,
+.btnCancelar:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btnColgar {
+  height: 40px;
+  border: 1px solid var(--offline);
+  background: var(--offline);
+  color: #fff;
+  padding: 0 16px;
+  border-radius: var(--radius);
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.btnColgar:hover:not(:disabled) {
+  filter: brightness(0.92);
+}
+
+.btnColgar:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.timbrando {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 30px 12px;
+  text-align: center;
+}
+
+.timbrandoIcono {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  animation: pulsoTimbrando 1.2s ease-in-out infinite;
+}
+
+.timbrandoIcono svg {
+  width: 26px;
+  height: 26px;
+}
+
+.timbrandoTexto {
+  margin: 0;
+  font-size: 14.5px;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+@keyframes pulsoTimbrando {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.08);
+  }
+}

@@ -34,6 +34,11 @@ export class PlanificadorRondas {
     this.enEjecucion = true;
     try {
       await this.alTickearRonda();
+    } catch (error) {
+      // Red de seguridad: una ronda nunca debe tumbar el proceso. Si algo falla
+      // (p. ej. la BD no responde), se registra y el planificador sigue con el
+      // siguiente tick, en vez de dejar una promesa rechazada sin manejar.
+      console.error('[MOTOR] Error no controlado durante la ronda de monitoreo:', error);
     } finally {
       this.enEjecucion = false;
     }

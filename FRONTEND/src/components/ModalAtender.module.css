@@ -1,0 +1,136 @@
+.scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(16, 24, 40, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 16px;
+}
+
+.modal {
+  background: var(--card);
+  border-radius: 14px;
+  width: 100%;
+  max-width: 440px;
+  padding: 22px 24px;
+  box-shadow: 0 12px 32px rgba(16, 24, 40, 0.18);
+}
+
+.cabecera {
+  position: relative;
+  margin-bottom: 18px;
+}
+
+.cabecera h2 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0;
+}
+
+.sub {
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.cerrar {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  border: none;
+  background: none;
+  font-size: 24px;
+  line-height: 1;
+  color: var(--ink-faint);
+  cursor: pointer;
+}
+
+.datos {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 16px;
+  margin: 0 0 18px;
+  padding: 14px 16px;
+  background: var(--card-2);
+  border-radius: 10px;
+}
+
+.datos dt {
+  color: var(--ink-faint);
+  font-size: 12px;
+}
+
+.datos dd {
+  margin: 0;
+  color: var(--ink);
+  font-size: 13px;
+  text-align: right;
+}
+
+.mono {
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.etiqueta {
+  display: block;
+  font-size: 13px;
+  color: var(--ink-soft);
+  margin-bottom: 6px;
+}
+
+.textarea {
+  width: 100%;
+  min-height: 90px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-family: inherit;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.aviso {
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: var(--offline-bg);
+  color: var(--offline);
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.acciones {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.btnCancelar {
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--ink);
+  padding: 9px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.btnGuardar {
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #fff;
+  padding: 9px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.btnGuardar:disabled,
+.btnCancelar:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
