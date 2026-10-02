@@ -1,3 +1,5 @@
+import type { AccionLlamada } from './llamada';
+
 export type TipoDispositivoMonitoreo = 'IP_ATA' | 'IP_NATIVO';
 
 export type EstadoDispositivoMonitoreo = 'ONLINE' | 'OFFLINE' | 'DESCONOCIDO' | 'EN_MANTENIMIENTO';
@@ -17,6 +19,8 @@ export interface EstadoDispositivo {
 export interface DispositivoConEstado extends EstadoDispositivo {
   extension: string;
   ubicacion_nombre: string;
+  accion?: AccionLlamada;
+  motivo?: string;
 }
 
 export interface PayloadCambioEstado {
