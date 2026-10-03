@@ -349,6 +349,12 @@ export async function eliminarDispositivo(idTelefono: number): Promise<void> {
       );
     }
 
+    // Limpia el estado operativo del propio telefono antes de borrarlo, para no
+    // chocar con las FK RESTRICT de monitoreo / mantenimiento_log (el telefono
+    // puede tener fila en monitoreo aunque no tenga incidencias).
+    await monitoreoRepo.eliminarPorTelefono(idTelefono, cliente);
+    await mantenimientoLogRepo.eliminarPorTelefono(idTelefono, cliente);
+
     if (actual.tipo === 'IP_ATA') {
       await atasRepo.eliminarAta(idTelefono, cliente);
     }
