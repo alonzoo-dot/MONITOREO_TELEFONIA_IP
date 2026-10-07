@@ -280,6 +280,11 @@ export class MotorMonitoreo {
    * Devuelve true si corrigio (y por lo tanto no hay que pasar a OFFLINE todavia).
    */
   private async intentarDrift(dispositivo: EstadoDispositivo): Promise<boolean> {
+    
+    if (dispositivo.estado === 'OFFLINE') {
+      return false;
+    }
+
     let descripcion: string;
     try {
       const etiqueta = await this.repositorioTelefonos.obtenerEtiqueta(dispositivo.id_telefono);

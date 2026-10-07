@@ -4,6 +4,7 @@ import type { EstadoMonitoreo } from '../repositories/monitoreo.repository';
 import * as incidenciasRepo from '../repositories/incidencias.repository';
 import type { TipoEvento } from '../repositories/incidencias.repository';
 import * as mantenimientoLogRepo from '../repositories/mantenimiento_log.repository';
+import * as telefonosRepo from '../repositories/telefonos.repository';
 import type {
   MotorMonitoreo,
   PayloadCambioEstado,
@@ -48,6 +49,27 @@ function determinarTipoEvento(
   return null;
 }
 
+/** Registra en el log cada cambio de estado, sin importar su origen (ping o mantenimiento). */
+function registrarCambioEstadoEnLog(
+  descripcion: string,
+  estadoAnterior: EstadoMonitoreo,
+  estadoNuevo: EstadoMonitoreo,
+): void {
+  console.log(`[MONITOREO] Cambio de estado: ${descripcion} ${estadoAnterior} → ${estadoNuevo}.`);
+}
+
+/** Obtiene una descripción legible del teléfono (extensión + ubicación) para el log. */
+async function describirTelefono(idTelefono: number): Promise<string> {
+  try {
+    const etiqueta = await telefonosRepo.obtenerEtiqueta(idTelefono);
+    return etiqueta
+      ? `teléfono con extensión ${etiqueta.extension} (${etiqueta.tipo_ubicacion} ${etiqueta.ubicacion_nombre})`
+      : `teléfono ${idTelefono}`;
+  } catch {
+    return `teléfono ${idTelefono}`;
+  }
+}
+
 /** Persiste un cambio de estado (fila de monitoreo + incidencia, si aplica) y notifica por SSE. */
 async function manejarCambioEstado(payload: PayloadCambioEstado): Promise<void> {
   const { id_telefono, estado_anterior, estado_nuevo, ip_registrada, fecha_ultima_conexion } =
@@ -71,6 +93,8 @@ async function manejarCambioEstado(payload: PayloadCambioEstado): Promise<void> 
     return; // no se notifica por SSE si no quedó registrado
   }
 
+  const descripcion = await describirTelefono(id_telefono);
+  registrarCambioEstadoEnLog(descripcion, estado_anterior, estado_nuevo);
   eventosSse.difundir('cambio-estado', payload);
 }
 
@@ -112,6 +136,8 @@ export async function activarMantenimiento(idTelefono: number, idUsuario: number
 
   motorSuscrito?.actualizarEstadoDispositivo(idTelefono, 'EN_MANTENIMIENTO');
 
+  const descripcion = await describirTelefono(idTelefono);
+  registrarCambioEstadoEnLog(descripcion, estadoAnterior, 'EN_MANTENIMIENTO');
   eventosSse.difundir('cambio-estado', {
     id_telefono: idTelefono,
     estado_anterior: estadoAnterior,
@@ -144,6 +170,8 @@ export async function desactivarMantenimiento(
 
   motorSuscrito?.actualizarEstadoDispositivo(idTelefono, 'DESCONOCIDO');
 
+  const descripcion = await describirTelefono(idTelefono);
+  registrarCambioEstadoEnLog(descripcion, 'EN_MANTENIMIENTO', 'DESCONOCIDO');
   eventosSse.difundir('cambio-estado', {
     id_telefono: idTelefono,
     estado_anterior: 'EN_MANTENIMIENTO',
