@@ -15,6 +15,7 @@ export interface EstadoDispositivo {
   fallos_consecutivos: number;
   fecha_ultima_conexion: Date | null;
   drift_intentado_en_este_ciclo: boolean;
+  ha_estado_online: boolean; // true si respondio como vivo al menos una vez
 }
 
 /**
@@ -50,6 +51,7 @@ export class RegistroEstadoMonitoreo {
           fallos_consecutivos: 0,
           fecha_ultima_conexion: null,
           drift_intentado_en_este_ciclo: false,
+          ha_estado_online: false,
         });
       }
     }

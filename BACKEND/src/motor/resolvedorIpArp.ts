@@ -1,5 +1,6 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { ejecutarPing } from './ejecutorPing';
 import type { ResolvedorIp } from './resolvedorIp';
 import { normalizarMac } from './utilidadesMac';
 
@@ -24,6 +25,11 @@ interface CacheArp {
 export class ResolvedorIpArp implements ResolvedorIp {
   private cache: CacheArp = { macAIp: new Map(), ipAMac: new Map() };
   private cacheExpiraEn = 0;
+  // Barridos activos por prefijo /24, para compartir la promesa entre llamadas concurrentes
+  private barridosEnCurso = new Map<string, Promise<void>>();
+  // Momento (ms) en que termino el ultimo barrido de cada prefijo /24
+  private ultimoBarridoPorSubred = new Map<string, number>();
+  private readonly COOLDOWN_BARRIDO_SUBRED_MS = 30 * 60 * 1000;
 
   async resolverIp(mac: string): Promise<string | null> {
     await this.asegurarCache();
@@ -43,25 +49,41 @@ export class ResolvedorIpArp implements ResolvedorIp {
     }
 
     const prefijo = `${octetos[0]}.${octetos[1]}.${octetos[2]}`;
-    console.log(`[MOTOR] Barrido reactivo iniciado en ${prefijo}.0/24...`);
 
-    // Lanza los 254 pings en paralelo, timeout corto por ping (200 ms).
-    // Windows: -n 1 (un paquete), -w 200 (200 ms). Redirigir stdout a nul.
-    const promesas: Promise<unknown>[] = [];
-    for (let i = 1; i <= 254; i++) {
-      const ip = `${prefijo}.${i}`;
-      promesas.push(
-        ejecutarExec(`ping -n 1 -w 200 ${ip}`).catch(() => {
-          // Ignora errores: los pings que fallan son esperados.
-        }),
-      );
+    // Si ya hay un barrido en curso para esta subred, se comparte la misma promesa
+    const enCurso = this.barridosEnCurso.get(prefijo);
+    if (enCurso) {
+      return enCurso;
     }
-    await Promise.all(promesas);
 
-    // Invalida el cache para que la próxima consulta lea la tabla ARP fresca.
-    this.cacheExpiraEn = 0;
+    // Respeta el cooldown por subred para no saturar la red con barridos repetidos
+    const ultimoBarrido = this.ultimoBarridoPorSubred.get(prefijo);
+    if (ultimoBarrido !== undefined && Date.now() - ultimoBarrido < this.COOLDOWN_BARRIDO_SUBRED_MS) {
+      console.log(`[MOTOR] Barrido en ${prefijo}.0/24 omitido: subred en cooldown.`);
+      return;
+    }
 
-    console.log(`[MOTOR] Barrido reactivo completado en ${prefijo}.0/24.`);
+    const barrido = (async () => {
+      console.log(`[MOTOR] Barrido reactivo iniciado en ${prefijo}.0/24...`);
+
+      // Encola los 254 pings con timeout corto (200 ms); el limitador global
+      // controla cuantos corren a la vez. ejecutarPing nunca lanza.
+      const promesas: Promise<boolean>[] = [];
+      for (let i = 1; i <= 254; i++) {
+        promesas.push(ejecutarPing(`${prefijo}.${i}`, 200));
+      }
+      await Promise.all(promesas);
+
+      console.log(`[MOTOR] Barrido reactivo completado en ${prefijo}.0/24.`);
+    })().finally(() => {
+      this.ultimoBarridoPorSubred.set(prefijo, Date.now());
+      this.barridosEnCurso.delete(prefijo);
+      // Invalida el cache para que la proxima consulta lea la tabla ARP fresca
+      this.cacheExpiraEn = 0;
+    });
+
+    this.barridosEnCurso.set(prefijo, barrido);
+    return barrido;
   }
 
   private async asegurarCache(): Promise<void> {
