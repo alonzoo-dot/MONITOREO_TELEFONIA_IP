@@ -194,6 +194,30 @@ export function editarDepartamento(
   });
 }
 
+/** Elimina un modelo de telefono. Falla con EN_USO si algun telefono lo usa. */
+export function eliminarModeloTelefono(id: number): Promise<{ mensaje: string }> {
+  return peticionApi(`/catalogos/modelos-telefono/${id}`, {
+    metodo: 'DELETE',
+    token: obtenerToken() ?? undefined,
+  });
+}
+
+/** Elimina un modelo de ATA. Falla con EN_USO si algun ATA lo usa. */
+export function eliminarModeloAta(id: number): Promise<{ mensaje: string }> {
+  return peticionApi(`/catalogos/modelos-ata/${id}`, {
+    metodo: 'DELETE',
+    token: obtenerToken() ?? undefined,
+  });
+}
+
+/** Elimina un departamento. Falla con EN_USO si tiene incidencias asociadas. */
+export function eliminarDepartamento(id: number): Promise<{ mensaje: string }> {
+  return peticionApi(`/catalogos/departamentos/${id}`, {
+    metodo: 'DELETE',
+    token: obtenerToken() ?? undefined,
+  });
+}
+
 /* ===================== Importación ===================== */
 
 /** Descarga la plantilla .xlsx del backend y dispara la descarga en el navegador. */

@@ -173,3 +173,83 @@ export async function actualizarDepartamento(
     [datos.nombre, idDepartamento],
   );
 }
+
+/* ===================== Borrado ===================== */
+
+/** Cuenta los telefonos que usan un modelo de telefono. */
+export async function contarTelefonosPorModelo(
+  idModeloTelefono: number,
+  cliente?: PoolClient,
+): Promise<number> {
+  const resultado = await consultarCon<{ total: number }>(
+    cliente,
+    `SELECT COUNT(*)::int AS total FROM telefonos WHERE id_modelo_telefono = $1`,
+    [idModeloTelefono],
+  );
+  return resultado.rows[0]?.total ?? 0;
+}
+
+/** Elimina un modelo de telefono. Devuelve true si existia. */
+export async function eliminarModeloTelefono(
+  idModeloTelefono: number,
+  cliente?: PoolClient,
+): Promise<boolean> {
+  const resultado = await consultarCon(
+    cliente,
+    `DELETE FROM modelos_telefono WHERE id_modelo_telefono = $1`,
+    [idModeloTelefono],
+  );
+  return (resultado.rowCount ?? 0) > 0;
+}
+
+/** Cuenta los ATAs que usan un modelo de ATA. */
+export async function contarAtasPorModelo(
+  idModeloAta: number,
+  cliente?: PoolClient,
+): Promise<number> {
+  const resultado = await consultarCon<{ total: number }>(
+    cliente,
+    `SELECT COUNT(*)::int AS total FROM atas WHERE id_modelo_ata = $1`,
+    [idModeloAta],
+  );
+  return resultado.rows[0]?.total ?? 0;
+}
+
+/** Elimina un modelo de ATA. Devuelve true si existia. */
+export async function eliminarModeloAta(
+  idModeloAta: number,
+  cliente?: PoolClient,
+): Promise<boolean> {
+  const resultado = await consultarCon(
+    cliente,
+    `DELETE FROM modelos_ata WHERE id_modelo_ata = $1`,
+    [idModeloAta],
+  );
+  return (resultado.rowCount ?? 0) > 0;
+}
+
+/** Cuenta las incidencias reportadas por un departamento. */
+export async function contarIncidenciasPorDepartamento(
+  idDepartamento: number,
+  cliente?: PoolClient,
+): Promise<number> {
+  const resultado = await consultarCon<{ total: number }>(
+    cliente,
+    `SELECT COUNT(*)::int AS total FROM incidencias WHERE id_departamento_reporto = $1`,
+    [idDepartamento],
+  );
+  return resultado.rows[0]?.total ?? 0;
+}
+
+/** Elimina un departamento. Devuelve true si existia. */
+export async function eliminarDepartamento(
+  idDepartamento: number,
+  cliente?: PoolClient,
+): Promise<boolean> {
+  const resultado = await consultarCon(
+    cliente,
+    `DELETE FROM departamentos WHERE id_departamento = $1`,
+    [idDepartamento],
+  );
+  return (resultado.rowCount ?? 0) > 0;
+}

@@ -11,6 +11,8 @@ function manejarErrorCatalogos(error: unknown, respuesta: Response): boolean {
   }
   const estados: Record<string, number> = {
     MODELO_DUPLICADO: 409,
+    EN_USO: 409,
+    NO_ENCONTRADO: 404,
   };
   const estado = estados[error.codigo] ?? 400;
   respuesta.status(estado).json({ mensaje: error.message, codigo: error.codigo });
@@ -157,6 +159,62 @@ export async function editarDepartamento(peticion: Request, respuesta: Response)
   } catch (error: unknown) {
     if (manejarErrorCatalogos(error, respuesta)) return;
     console.error('Error inesperado al editar departamento:', error);
+    respuesta.status(500).json({ mensaje: 'Error interno del servidor' });
+  }
+}
+
+/* ===================== Borrado ===================== */
+
+/** DELETE /api/catalogos/modelos-ata/:id */
+export async function eliminarModeloAta(peticion: Request, respuesta: Response): Promise<void> {
+  const id = idValido(peticion.params.id);
+  if (id === null) {
+    respuesta.status(400).json({ mensaje: 'Id inválido' });
+    return;
+  }
+  try {
+    await catalogosService.eliminarModeloAta(id);
+    respuesta.status(200).json({ mensaje: 'Modelo de ATA eliminado correctamente' });
+  } catch (error: unknown) {
+    if (manejarErrorCatalogos(error, respuesta)) return;
+    console.error('Error inesperado al eliminar modelo de ATA:', error);
+    respuesta.status(500).json({ mensaje: 'Error interno del servidor' });
+  }
+}
+
+/** DELETE /api/catalogos/modelos-telefono/:id */
+export async function eliminarModeloTelefono(
+  peticion: Request,
+  respuesta: Response,
+): Promise<void> {
+  const id = idValido(peticion.params.id);
+  if (id === null) {
+    respuesta.status(400).json({ mensaje: 'Id inválido' });
+    return;
+  }
+  try {
+    await catalogosService.eliminarModeloTelefono(id);
+    respuesta.status(200).json({ mensaje: 'Modelo de teléfono eliminado correctamente' });
+  } catch (error: unknown) {
+    if (manejarErrorCatalogos(error, respuesta)) return;
+    console.error('Error inesperado al eliminar modelo de teléfono:', error);
+    respuesta.status(500).json({ mensaje: 'Error interno del servidor' });
+  }
+}
+
+/** DELETE /api/catalogos/departamentos/:id */
+export async function eliminarDepartamento(peticion: Request, respuesta: Response): Promise<void> {
+  const id = idValido(peticion.params.id);
+  if (id === null) {
+    respuesta.status(400).json({ mensaje: 'Id inválido' });
+    return;
+  }
+  try {
+    await catalogosService.eliminarDepartamento(id);
+    respuesta.status(200).json({ mensaje: 'Departamento eliminado correctamente' });
+  } catch (error: unknown) {
+    if (manejarErrorCatalogos(error, respuesta)) return;
+    console.error('Error inesperado al eliminar departamento:', error);
     respuesta.status(500).json({ mensaje: 'Error interno del servidor' });
   }
 }

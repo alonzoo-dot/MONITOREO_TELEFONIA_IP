@@ -1,3 +1,4 @@
+import { ejecutarEnTransaccion } from '../config/database';
 import * as catalogosRepo from '../repositories/catalogos.repository';
 import type {
   ModeloAta,
@@ -101,4 +102,96 @@ export async function actualizarDepartamento(
   datos: DatosDepartamento,
 ): Promise<void> {
   await catalogosRepo.actualizarDepartamento(idDepartamento, datos);
+}
+
+/* ===================== Borrado ===================== */
+
+/** Indica si el error es una violacion de llave foranea de PostgreSQL (23503). */
+function esErrorLlaveForanea(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    (error as { code?: unknown }).code === '23503'
+  );
+}
+
+/** Elimina un modelo de telefono si ningun telefono lo usa. */
+export async function eliminarModeloTelefono(idModeloTelefono: number): Promise<void> {
+  try {
+    await ejecutarEnTransaccion(async (cliente) => {
+      const enUso = await catalogosRepo.contarTelefonosPorModelo(idModeloTelefono, cliente);
+      if (enUso > 0) {
+        throw new ErrorCatalogos(
+          'EN_USO',
+          `No se puede eliminar el modelo de teléfono: lo usan ${enUso} teléfono(s).`,
+        );
+      }
+      const eliminado = await catalogosRepo.eliminarModeloTelefono(idModeloTelefono, cliente);
+      if (!eliminado) {
+        throw new ErrorCatalogos('NO_ENCONTRADO', 'El modelo de teléfono no existe.');
+      }
+    });
+  } catch (error: unknown) {
+    if (esErrorLlaveForanea(error)) {
+      throw new ErrorCatalogos(
+        'EN_USO',
+        'No se puede eliminar el modelo de teléfono: tiene registros asociados.',
+      );
+    }
+    throw error;
+  }
+}
+
+/** Elimina un modelo de ATA si ningun ATA lo usa. */
+export async function eliminarModeloAta(idModeloAta: number): Promise<void> {
+  try {
+    await ejecutarEnTransaccion(async (cliente) => {
+      const enUso = await catalogosRepo.contarAtasPorModelo(idModeloAta, cliente);
+      if (enUso > 0) {
+        throw new ErrorCatalogos(
+          'EN_USO',
+          `No se puede eliminar el modelo de ATA: lo usan ${enUso} ATA(s).`,
+        );
+      }
+      const eliminado = await catalogosRepo.eliminarModeloAta(idModeloAta, cliente);
+      if (!eliminado) {
+        throw new ErrorCatalogos('NO_ENCONTRADO', 'El modelo de ATA no existe.');
+      }
+    });
+  } catch (error: unknown) {
+    if (esErrorLlaveForanea(error)) {
+      throw new ErrorCatalogos(
+        'EN_USO',
+        'No se puede eliminar el modelo de ATA: tiene registros asociados.',
+      );
+    }
+    throw error;
+  }
+}
+
+/** Elimina un departamento si ninguna incidencia lo referencia. */
+export async function eliminarDepartamento(idDepartamento: number): Promise<void> {
+  try {
+    await ejecutarEnTransaccion(async (cliente) => {
+      const enUso = await catalogosRepo.contarIncidenciasPorDepartamento(idDepartamento, cliente);
+      if (enUso > 0) {
+        throw new ErrorCatalogos(
+          'EN_USO',
+          `No se puede eliminar el departamento: tiene ${enUso} incidencia(s) asociada(s).`,
+        );
+      }
+      const eliminado = await catalogosRepo.eliminarDepartamento(idDepartamento, cliente);
+      if (!eliminado) {
+        throw new ErrorCatalogos('NO_ENCONTRADO', 'El departamento no existe.');
+      }
+    });
+  } catch (error: unknown) {
+    if (esErrorLlaveForanea(error)) {
+      throw new ErrorCatalogos(
+        'EN_USO',
+        'No se puede eliminar el departamento: tiene registros asociados.',
+      );
+    }
+    throw error;
+  }
 }
