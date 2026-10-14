@@ -16,6 +16,12 @@ function variableObligatoria(nombre: string): string {
   return valor;
 }
 
+// Lee un entero positivo del entorno; si falta o no es valido usa el valor por defecto
+function enteroPositivo(nombre: string, porDefecto: number): number {
+  const valor = Number(process.env[nombre] ?? porDefecto);
+  return Number.isFinite(valor) && valor > 0 ? valor : porDefecto;
+}
+
 export const configuracion = {
   urlBaseDatos: variableObligatoria('DATABASE_URL'),
   puerto: Number(process.env.PORT ?? 4000),
@@ -33,5 +39,7 @@ export const configuracion = {
   /** IP y puerto SIP fijos de la central Mitel, usados por SoftphoneGateway. */
   mitelIp: process.env.MITEL_IP ?? '',
   mitelPuertoSip: Number(process.env.MITEL_PUERTO_SIP ?? 5060),
+  /** Maximo de pings simultaneos en todo el motor (rondas + barridos). */
+  maxPingsConcurrentes: enteroPositivo('MOTOR_MAX_PINGS_CONCURRENTES', 50),
 } as const;
 

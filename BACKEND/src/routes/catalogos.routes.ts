@@ -3,12 +3,15 @@ import {
   listarModelosAta,
   crearModeloAta,
   editarModeloAta,
+  eliminarModeloAta,
   listarModelosTelefono,
   crearModeloTelefono,
   editarModeloTelefono,
+  eliminarModeloTelefono,
   listarDepartamentos,
   crearDepartamento,
   editarDepartamento,
+  eliminarDepartamento,
 } from '../controllers/catalogos.controller';
 import { requiereAutenticacion } from '../middlewares/auth.middleware';
 import { requiereRol } from '../middlewares/autorizacion.middleware';
@@ -32,15 +35,18 @@ const permiteEscritura = requiereRol('ADMINISTRADOR');
 rutasCatalogos.get('/modelos-ata', permiteLectura, listarModelosAta);
 rutasCatalogos.post('/modelos-ata', permiteEscritura, validar(esquemaModeloAta), crearModeloAta);
 rutasCatalogos.put('/modelos-ata/:id', permiteEscritura, validar(esquemaModeloAta), editarModeloAta);
+rutasCatalogos.delete('/modelos-ata/:id', permiteEscritura, eliminarModeloAta);
 
 // Modelos de telefono
 rutasCatalogos.get('/modelos-telefono', permiteLectura, listarModelosTelefono);
 rutasCatalogos.post('/modelos-telefono', permiteEscritura, validar(esquemaModeloTelefono), crearModeloTelefono);
 rutasCatalogos.put('/modelos-telefono/:id', permiteEscritura, validar(esquemaModeloTelefono), editarModeloTelefono);
+rutasCatalogos.delete('/modelos-telefono/:id', permiteEscritura, eliminarModeloTelefono);
 
 // Departamentos
 rutasCatalogos.get('/departamentos', permiteLectura, listarDepartamentos);
 rutasCatalogos.post('/departamentos', permiteEscritura, validar(esquemaDepartamento), crearDepartamento);
 rutasCatalogos.put('/departamentos/:id', permiteEscritura, validar(esquemaDepartamento), editarDepartamento);
+rutasCatalogos.delete('/departamentos/:id', permiteEscritura, eliminarDepartamento);
 
 export default rutasCatalogos;

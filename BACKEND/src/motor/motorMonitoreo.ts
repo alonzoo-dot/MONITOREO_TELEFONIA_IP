@@ -46,7 +46,7 @@ export interface ConfigMotor {
 const CONFIG_DEFECTO: Required<ConfigMotor> = {
   intervaloRondaMs: 30_000,
   umbralFallos: 3,
-  tamanoLote: 20,
+  tamanoLote: 50,
   timeoutPingMs: 1000,
   rondasEntreRefrescos: 4,
 };
@@ -187,20 +187,18 @@ export class MotorMonitoreo {
               `Intentando drift para teléfono ${dispositivo.id_telefono}.`,
           );
 
-          if (dispositivo.drift_intentado_en_este_ciclo) {
-            // Ya intentamos drift en este ciclo. No reintentar.
-            // Solo acumular fallos (el ping OK con MAC ajena no cuenta como vivo).
-            dispositivo.fallos_consecutivos += 1;
-            return;
+          // Drift se intenta una sola vez por ciclo
+          if (!dispositivo.drift_intentado_en_este_ciclo) {
+            const driftAplicado = await this.intentarDrift(dispositivo);
+            dispositivo.drift_intentado_en_este_ciclo = true;
+
+            if (driftAplicado) {
+              return;
+            }
           }
 
-          const driftAplicado = await this.intentarDrift(dispositivo);
-          dispositivo.drift_intentado_en_este_ciclo = true;
-
-          if (driftAplicado) {
-            return;
-          }
-
+          // Drift ya intentado o fallido: el ping OK con MAC ajena no cuenta como vivo,
+          // se acumula el fallo y se evalua el umbral en toda ronda
           dispositivo.fallos_consecutivos += 1;
           if (
             dispositivo.fallos_consecutivos >= this.config.umbralFallos &&
@@ -226,6 +224,7 @@ export class MotorMonitoreo {
       dispositivo.fallos_consecutivos = 0;
       dispositivo.fecha_ultima_conexion = fecha;
       dispositivo.drift_intentado_en_este_ciclo = false;
+      dispositivo.ha_estado_online = true;
 
       if (estadoAnterior === 'OFFLINE' || estadoAnterior === 'DESCONOCIDO') {
         dispositivo.estado = 'ONLINE';
@@ -316,6 +315,15 @@ export class MotorMonitoreo {
     }
 
     if (ipReal === null) {
+      // Un equipo que nunca respondio no justifica un barrido de 254 pings
+      if (!dispositivo.ha_estado_online) {
+        console.warn(
+          `[MOTOR] Drift: MAC ${dispositivo.mac} no encontrada en ARP (${descripcion}). ` +
+            `No se barre la VLAN porque el dispositivo nunca estuvo ONLINE.`,
+        );
+        return false;
+      }
+
       // Verifica cooldown antes de barrer.
       const ahora = Date.now();
       const ultimoBarrido = this.ultimoBarridoPorDispositivo.get(dispositivo.id_telefono) ?? 0;

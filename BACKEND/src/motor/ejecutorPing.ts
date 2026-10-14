@@ -1,4 +1,5 @@
 import { exec } from 'child_process';
+import { limitadorPings } from './limitadorPings';
 
 /** IPv4 simple, solo para descartar entradas que no tiene sentido pasarle a ping.exe. */
 const REGEX_IPV4 = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/;
@@ -12,9 +13,13 @@ export async function ejecutarPing(ip: string, timeoutMs: number = 1000): Promis
     return false;
   }
 
-  return new Promise((resolve) => {
-    exec(`ping.exe -n 1 -w ${timeoutMs} ${ip}`, (error) => {
-      resolve(error === null);
-    });
-  });
+  // Pasa por el limitador global para no superar el maximo de pings simultaneos
+  return limitadorPings.ejecutar(
+    () =>
+      new Promise<boolean>((resolve) => {
+        exec(`ping.exe -n 1 -w ${timeoutMs} ${ip}`, (error) => {
+          resolve(error === null);
+        });
+      }),
+  );
 }
