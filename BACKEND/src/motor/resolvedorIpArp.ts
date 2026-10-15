@@ -41,7 +41,7 @@ export class ResolvedorIpArp implements ResolvedorIp {
     return this.cache.ipAMac.get(ip) ?? null;
   }
 
-  async barrerVlan(ipDeRango: string): Promise<void> {
+  async barrerVlan(ipDeRango: string, esWarmUp: boolean = false): Promise<void> {
     const octetos = ipDeRango.split('.');
     if (octetos.length !== 4) {
       console.warn(`[MOTOR] barrerVlan: IP inválida ${ipDeRango}, se omite.`);
@@ -56,15 +56,24 @@ export class ResolvedorIpArp implements ResolvedorIp {
       return enCurso;
     }
 
-    // Respeta el cooldown por subred para no saturar la red con barridos repetidos
+    // Respeta el cooldown por subred para no saturar la red con barridos repetidos.
+    // El warm-up de arranque lo ignora: no debe saltarse ni bloquear el reactivo.
     const ultimoBarrido = this.ultimoBarridoPorSubred.get(prefijo);
-    if (ultimoBarrido !== undefined && Date.now() - ultimoBarrido < this.COOLDOWN_BARRIDO_SUBRED_MS) {
+    if (
+      !esWarmUp &&
+      ultimoBarrido !== undefined &&
+      Date.now() - ultimoBarrido < this.COOLDOWN_BARRIDO_SUBRED_MS
+    ) {
       console.log(`[MOTOR] Barrido en ${prefijo}.0/24 omitido: subred en cooldown.`);
       return;
     }
 
     const barrido = (async () => {
-      console.log(`[MOTOR] Barrido reactivo iniciado en ${prefijo}.0/24...`);
+      if (esWarmUp) {
+        console.log(`[MOTOR] Warm-up de ARP: barriendo ${prefijo}.0/24...`);
+      } else {
+        console.log(`[MOTOR] Barrido reactivo iniciado en ${prefijo}.0/24...`);
+      }
 
       // Encola los 254 pings con timeout corto (200 ms); el limitador global
       // controla cuantos corren a la vez. ejecutarPing nunca lanza.
@@ -74,9 +83,16 @@ export class ResolvedorIpArp implements ResolvedorIp {
       }
       await Promise.all(promesas);
 
-      console.log(`[MOTOR] Barrido reactivo completado en ${prefijo}.0/24.`);
+      if (esWarmUp) {
+        console.log(`[MOTOR] Warm-up de ARP completado en ${prefijo}.0/24.`);
+      } else {
+        console.log(`[MOTOR] Barrido reactivo completado en ${prefijo}.0/24.`);
+      }
     })().finally(() => {
-      this.ultimoBarridoPorSubred.set(prefijo, Date.now());
+      // El warm-up no registra cooldown, para no bloquear un barrido reactivo posterior
+      if (!esWarmUp) {
+        this.ultimoBarridoPorSubred.set(prefijo, Date.now());
+      }
       this.barridosEnCurso.delete(prefijo);
       // Invalida el cache para que la proxima consulta lea la tabla ARP fresca
       this.cacheExpiraEn = 0;

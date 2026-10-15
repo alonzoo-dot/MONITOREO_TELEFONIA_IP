@@ -41,5 +41,9 @@ export const configuracion = {
   mitelPuertoSip: Number(process.env.MITEL_PUERTO_SIP ?? 5060),
   /** Maximo de pings simultaneos en todo el motor (rondas + barridos). */
   maxPingsConcurrentes: enteroPositivo('MOTOR_MAX_PINGS_CONCURRENTES', 50),
+  /** Intentos de ping por telefono en cada ronda; basta que uno responda. */
+  intentosPing: enteroPositivo('MOTOR_INTENTOS_PING', 3),
+  /** Si es true, al arrancar el motor barre cada subred de telefonia para calentar el ARP. */
+  barridoArranque: process.env.MOTOR_BARRIDO_ARRANQUE !== 'false',
 } as const;
 

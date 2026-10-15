@@ -20,6 +20,8 @@ export interface ResolvedorIp {
    *
    * @param ipDeRango una IP cualquiera de la VLAN a barrer.
    *                  Ej: `10.81.20.99` → barre `10.81.20.1` a `10.81.20.254`.
+   * @param esWarmUp si es true (barrido de arranque), ignora el cooldown por subred
+   *                 y no lo registra al terminar.
    */
-  barrerVlan(ipDeRango: string): Promise<void>;
+  barrerVlan(ipDeRango: string, esWarmUp?: boolean): Promise<void>;
 }

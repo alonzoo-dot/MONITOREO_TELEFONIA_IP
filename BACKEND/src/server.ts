@@ -56,7 +56,10 @@ async function iniciarServidor(): Promise<void> {
 
   if (configuracion.motorActivo) {
     const resolvedor = new ResolvedorIpArp();
-    const motor = new MotorMonitoreo(resolvedor, monitoreoRepo, telefonosRepo);
+    const motor = new MotorMonitoreo(resolvedor, monitoreoRepo, telefonosRepo, {
+      intentosPing: configuracion.intentosPing,
+      barridoArranque: configuracion.barridoArranque,
+    });
     await motor.iniciar();
     establecerInstanciaMotor(motor);
     console.log('[MOTOR] Iniciado');

@@ -41,6 +41,8 @@ export interface ConfigMotor {
   tamanoLote?: number;
   timeoutPingMs?: number;
   rondasEntreRefrescos?: number;
+  intentosPing?: number;
+  barridoArranque?: boolean;
 }
 
 const CONFIG_DEFECTO: Required<ConfigMotor> = {
@@ -49,6 +51,8 @@ const CONFIG_DEFECTO: Required<ConfigMotor> = {
   tamanoLote: 50,
   timeoutPingMs: 1000,
   rondasEntreRefrescos: 4,
+  intentosPing: 3,
+  barridoArranque: true,
 };
 
 /** Payload del evento 'cambio-estado'. */
@@ -94,10 +98,40 @@ export class MotorMonitoreo {
     );
   }
 
-  /** Carga inicial de dispositivos y arranca el planificador de rondas. */
+  /**
+   * Carga inicial de dispositivos, calienta el ARP (si esta habilitado) y arranca
+   * el planificador de rondas.
+   */
   async iniciar(): Promise<void> {
     await this.refrescarLista();
+    if (this.config.barridoArranque) {
+      await this.calentarArp();
+    }
     this.planificador.iniciar();
+  }
+
+  /**
+   * Warm-up de ARP: barre una vez cada subred /24 distinta de los dispositivos
+   * cargados, para que desde la primera ronda se pueda validar la MAC de cada IP.
+   * Un fallo en una subred no detiene el arranque.
+   */
+  private async calentarArp(): Promise<void> {
+    const prefijos = new Set<string>();
+    for (const dispositivo of this.estado.obtenerTodos()) {
+      const octetos = dispositivo.ip.split('.');
+      if (octetos.length !== 4) continue;
+      prefijos.add(`${octetos[0]}.${octetos[1]}.${octetos[2]}`);
+    }
+
+    console.log(`[MOTOR] Warm-up de ARP: barriendo ${prefijos.size} subred(es)...`);
+    await Promise.all(
+      [...prefijos].map((prefijo) =>
+        this.resolvedor.barrerVlan(`${prefijo}.1`, true).catch((error) => {
+          console.error(`[MOTOR] Warm-up de ARP: fallo el barrido de ${prefijo}.0/24:`, error);
+        }),
+      ),
+    );
+    console.log('[MOTOR] Warm-up de ARP completado.');
   }
 
   /** Detiene el planificador. El estado en memoria queda intacto. */
@@ -163,7 +197,11 @@ export class MotorMonitoreo {
       const lote = dispositivos.slice(inicio, inicio + this.config.tamanoLote);
       await Promise.all(
         lote.map(async (dispositivo) => {
-          const ok = await ejecutarPing(dispositivo.ip, this.config.timeoutPingMs);
+          const ok = await ejecutarPing(
+            dispositivo.ip,
+            this.config.timeoutPingMs,
+            this.config.intentosPing,
+          );
           await this.procesarResultadoPing(dispositivo, ok);
         }),
       );
