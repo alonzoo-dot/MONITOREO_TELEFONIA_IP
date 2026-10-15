@@ -43,6 +43,8 @@ export interface ConfigMotor {
   rondasEntreRefrescos?: number;
   intentosPing?: number;
   barridoArranque?: boolean;
+  /** Minutos entre re-barridos periodicos de ARP; 0 desactiva el re-barrido. */
+  rebarridoMinutos?: number;
 }
 
 const CONFIG_DEFECTO: Required<ConfigMotor> = {
@@ -53,6 +55,7 @@ const CONFIG_DEFECTO: Required<ConfigMotor> = {
   rondasEntreRefrescos: 4,
   intentosPing: 3,
   barridoArranque: true,
+  rebarridoMinutos: 10,
 };
 
 /** Payload del evento 'cambio-estado'. */
@@ -60,7 +63,7 @@ export interface PayloadCambioEstado {
   id_telefono: number;
   estado_anterior: TipoEstadoMonitoreo;
   estado_nuevo: TipoEstadoMonitoreo;
-  ip_registrada: string;
+  ip_registrada: string | null;
   fecha_ultima_conexion: Date | null;
 }
 
@@ -85,6 +88,7 @@ export class MotorMonitoreo {
   private rondasDesdeUltimoRefresco = 0;
   private readonly ultimoBarridoPorDispositivo = new Map<number, number>();
   private readonly COOLDOWN_BARRIDO_MS = 30 * 60 * 1000; // 30 min
+  private ultimoRebarridoMs = 0;
 
   constructor(
     private readonly resolvedor: ResolvedorIp,
@@ -107,6 +111,7 @@ export class MotorMonitoreo {
     if (this.config.barridoArranque) {
       await this.calentarArp();
     }
+    this.ultimoRebarridoMs = Date.now();
     this.planificador.iniciar();
   }
 
@@ -118,6 +123,7 @@ export class MotorMonitoreo {
   private async calentarArp(): Promise<void> {
     const prefijos = new Set<string>();
     for (const dispositivo of this.estado.obtenerTodos()) {
+      if (!dispositivo.ip) continue;
       const octetos = dispositivo.ip.split('.');
       if (octetos.length !== 4) continue;
       prefijos.add(`${octetos[0]}.${octetos[1]}.${octetos[2]}`);
@@ -189,6 +195,15 @@ export class MotorMonitoreo {
       this.rondasDesdeUltimoRefresco = 0;
     }
 
+    if (this.config.rebarridoMinutos > 0) {
+      const ahora = Date.now();
+      const minutosDesdeUltimoRebarrido = (ahora - this.ultimoRebarridoMs) / 60_000;
+      if (minutosDesdeUltimoRebarrido >= this.config.rebarridoMinutos) {
+        await this.calentarArp();
+        this.ultimoRebarridoMs = ahora;
+      }
+    }
+
     const dispositivos = this.estado
       .obtenerTodos()
       .filter((dispositivo) => dispositivo.estado !== 'EN_MANTENIMIENTO');
@@ -197,6 +212,13 @@ export class MotorMonitoreo {
       const lote = dispositivos.slice(inicio, inicio + this.config.tamanoLote);
       await Promise.all(
         lote.map(async (dispositivo) => {
+          if (!dispositivo.ip) {
+            await this.descubrirIp(dispositivo);
+          }
+          if (!dispositivo.ip) {
+            await this.procesarResultadoPing(dispositivo, false);
+            return;
+          }
           const ok = await ejecutarPing(
             dispositivo.ip,
             this.config.timeoutPingMs,
@@ -212,7 +234,8 @@ export class MotorMonitoreo {
   private async procesarResultadoPing(dispositivo: EstadoDispositivo, ok: boolean): Promise<void> {
     if (ok) {
       if (dispositivo.mac !== null) {
-        const macRealEnIp = await this.resolvedor.resolverMacDeIp(dispositivo.ip);
+        // Si ok es true, ejecutarRonda garantiza que dispositivo.ip ya es una IP valida.
+        const macRealEnIp = await this.resolvedor.resolverMacDeIp(dispositivo.ip!);
 
         if (macRealEnIp === null) {
           console.warn(
@@ -313,6 +336,75 @@ export class MotorMonitoreo {
   }
 
   /**
+   * Descubre la IP de un dispositivo que tiene MAC pero aun no tiene IP conocida,
+   * resolviendola por ARP. Si la encuentra y no esta en conflicto con otro dispositivo,
+   * la persiste y actualiza el estado en memoria. No lanza: cualquier fallo se loguea
+   * y se deja el dispositivo sin IP para reintentar en la siguiente ronda.
+   */
+  private async descubrirIp(dispositivo: EstadoDispositivo): Promise<void> {
+    if (!dispositivo.mac) return;
+
+    let ip: string | null;
+    try {
+      ip = await this.resolvedor.resolverIp(dispositivo.mac);
+    } catch (error) {
+      console.error(
+        `[MOTOR] Error al resolver IP por ARP para MAC ${dispositivo.mac} ` +
+          `(telefono ${dispositivo.id_telefono}):`,
+        error,
+      );
+      return;
+    }
+    if (ip === null) return;
+
+    let dueño: { extension: string; tipo_ubicacion: string; ubicacion_nombre: string } | null;
+    try {
+      dueño = await this.repositorioTelefonos.buscarPorIp(ip, dispositivo.id_telefono, null);
+    } catch (error) {
+      console.error(
+        `[MOTOR] Error al verificar conflicto de la IP descubierta ${ip} ` +
+          `(telefono ${dispositivo.id_telefono}):`,
+        error,
+      );
+      return;
+    }
+    if (dueño !== null) {
+      console.warn(
+        `[MOTOR] IP descubierta ${ip} para el telefono ${dispositivo.id_telefono} ya esta ` +
+          `registrada en el dispositivo con extensión ${dueño.extension} ` +
+          `(${dueño.tipo_ubicacion} ${dueño.ubicacion_nombre}). Se descarta.`,
+      );
+      return;
+    }
+
+    try {
+      await this.repositorioMonitoreo.actualizarIpDispositivo(
+        dispositivo.id_telefono,
+        dispositivo.tipo,
+        ip,
+      );
+    } catch (error) {
+      console.error(
+        `[MOTOR] Error al persistir la IP descubierta ${ip} para el telefono ` +
+          `${dispositivo.id_telefono}:`,
+        error,
+      );
+      return;
+    }
+
+    dispositivo.ip = ip;
+    dispositivo.fallos_consecutivos = 0;
+    console.log(`[MOTOR] IP descubierta para telefono ${dispositivo.id_telefono}: ${ip}`);
+
+    this.emisor.emit('drift-corregido', {
+      id_telefono: dispositivo.id_telefono,
+      tipo: dispositivo.tipo,
+      ip_anterior: '',
+      ip_nueva: ip,
+    } satisfies PayloadDriftCorregido);
+  }
+
+  /**
    * Intenta corregir drift de IP vía ARP (el dispositivo esperado se movio a otra IP).
    * Devuelve true si corrigio (y por lo tanto no hay que pasar a OFFLINE todavia).
    */
@@ -385,6 +477,14 @@ export class MotorMonitoreo {
           `Disparando barrido reactivo para ${descripcion}.`,
       );
       this.ultimoBarridoPorDispositivo.set(dispositivo.id_telefono, ahora);
+
+      if (!dispositivo.ip) {
+        console.warn(
+          `[MOTOR] Drift: sin IP previa para referenciar la subred (${descripcion}). ` +
+            `Se omite el barrido reactivo.`,
+        );
+        return false;
+      }
 
       try {
         await this.resolvedor.barrerVlan(dispositivo.ip);
@@ -468,7 +568,7 @@ export class MotorMonitoreo {
     this.emisor.emit('drift-corregido', {
       id_telefono: dispositivo.id_telefono,
       tipo: dispositivo.tipo,
-      ip_anterior: ipAnterior,
+      ip_anterior: ipAnterior ?? '',
       ip_nueva: ipReal,
     } satisfies PayloadDriftCorregido);
 

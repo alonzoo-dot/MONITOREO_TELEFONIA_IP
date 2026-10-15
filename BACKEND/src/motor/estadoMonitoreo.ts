@@ -10,7 +10,7 @@ export interface EstadoDispositivo {
   id_telefono: number;
   mac: string | null; // necesaria para drift; null si no aplica
   tipo: 'IP_ATA' | 'IP_NATIVO';
-  ip: string; // IP actual (puede cambiar por drift)
+  ip: string | null; // IP actual (puede cambiar por drift o descubrirse por ARP); null si aun no se conoce
   estado: EstadoMonitoreo; // estado vigente
   fallos_consecutivos: number;
   fecha_ultima_conexion: Date | null;

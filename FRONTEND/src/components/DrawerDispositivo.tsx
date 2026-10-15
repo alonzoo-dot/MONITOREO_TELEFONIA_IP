@@ -532,9 +532,7 @@ function DrawerDispositivo({ dispositivo, idDetalle, onCerrar, onGuardado }: Pro
               </div>
 
               <div className={estilos.field}>
-                <label>
-                  IP <span className={estilos.req}>*</span>
-                </label>
+                <label>IP (opcional - el sistema la detecta sola)</label>
                 <input
                   name="ip"
                   className={`mono ${erroresPorCampo.ip ? estilos.inputError : ''}`}
@@ -542,7 +540,7 @@ function DrawerDispositivo({ dispositivo, idDetalle, onCerrar, onGuardado }: Pro
                   onChange={(e) => actualizar('ip', e.target.value)}
                 />
                 {erroresPorCampo.ip && <div className={estilos.errorCampo}>{erroresPorCampo.ip}</div>}
-                <div className={estilos.hint}>Debe pertenecer a los rangos del hotel (10.81.20.x o 10.81.21.x). Es el objetivo del ping de monitoreo.</div>
+                <div className={estilos.hint}>Si se captura, debe pertenecer a los rangos del hotel (10.81.20.x o 10.81.21.x). Si se deja vacia, el sistema la descubre por ARP usando la MAC.</div>
               </div>
 
               {form.tipo === 'IP_ATA' && (
