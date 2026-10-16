@@ -53,5 +53,7 @@ export const configuracion = {
   barridoArranque: process.env.MOTOR_BARRIDO_ARRANQUE !== 'false',
   /** Minutos entre re-barridos periodicos de ARP; 0 desactiva el re-barrido. */
   rebarridoMinutos: enteroNoNegativo('MOTOR_REBARRIDO_MINUTOS', 10),
+  /** Cortes mas cortos que estos minutos son ruido: se borra la caida y no se registra la recuperacion. */
+  minutosRuidoIncidencia: enteroNoNegativo('INCIDENCIAS_MINUTOS_RUIDO', 2),
 } as const;
 
