@@ -17,7 +17,7 @@ export interface DatosAta {
   id_telefono: number;
   id_modelo_ata: number;
   mac: string;
-  ip: string;
+  ip: string | null;
   numero_serie: string | null;
 }
 

@@ -22,6 +22,12 @@ function enteroPositivo(nombre: string, porDefecto: number): number {
   return Number.isFinite(valor) && valor > 0 ? valor : porDefecto;
 }
 
+// Lee un entero no negativo del entorno (0 es un valor valido, no solo el fallback)
+function enteroNoNegativo(nombre: string, porDefecto: number): number {
+  const valor = Number(process.env[nombre] ?? porDefecto);
+  return Number.isFinite(valor) && valor >= 0 ? valor : porDefecto;
+}
+
 export const configuracion = {
   urlBaseDatos: variableObligatoria('DATABASE_URL'),
   puerto: Number(process.env.PORT ?? 4000),
@@ -45,5 +51,9 @@ export const configuracion = {
   intentosPing: enteroPositivo('MOTOR_INTENTOS_PING', 3),
   /** Si es true, al arrancar el motor barre cada subred de telefonia para calentar el ARP. */
   barridoArranque: process.env.MOTOR_BARRIDO_ARRANQUE !== 'false',
+  /** Minutos entre re-barridos periodicos de ARP; 0 desactiva el re-barrido. */
+  rebarridoMinutos: enteroNoNegativo('MOTOR_REBARRIDO_MINUTOS', 10),
+  /** Cortes mas cortos que estos minutos son ruido: se borra la caida y no se registra la recuperacion. */
+  minutosRuidoIncidencia: enteroNoNegativo('INCIDENCIAS_MINUTOS_RUIDO', 2),
 } as const;
 

@@ -45,7 +45,7 @@ export async function contarPendientes(): Promise<number> {
   const resultado = await ejecutarConsulta<{ total: number }>(
     `SELECT COUNT(*)::int AS total
        FROM incidencias
-      WHERE tipo_evento = 'CAIDA' AND id_usuario_atendio IS NULL`,
+      WHERE tipo_evento = 'CAIDA' AND id_usuario_atendio IS NULL AND fecha_atendida IS NULL`,
   );
   return resultado.rows[0]!.total;
 }
@@ -78,6 +78,7 @@ export interface IncidenciaDetalle {
   fecha_atendida: Date | null;
   descripcion_falla: string | null;
   pendiente: boolean;
+  resuelta_automaticamente: boolean;
 }
 
 // Filtros opcionales del listado de incidencias.
@@ -105,7 +106,8 @@ const SELECT_INCIDENCIA = `
          us.nombre_completo       AS usuario_atendio,
          i.fecha_atendida,
          i.descripcion_falla,
-         (i.tipo_evento = 'CAIDA' AND i.id_usuario_atendio IS NULL) AS pendiente
+         (i.tipo_evento = 'CAIDA' AND i.id_usuario_atendio IS NULL AND i.fecha_atendida IS NULL) AS pendiente,
+         (i.tipo_evento = 'CAIDA' AND i.id_usuario_atendio IS NULL AND i.fecha_atendida IS NOT NULL) AS resuelta_automaticamente
     FROM incidencias i
     JOIN telefonos t     ON t.id_telefono = i.id_telefono
     JOIN ubicaciones u   ON u.id_ubicacion = t.id_ubicacion
@@ -143,7 +145,9 @@ function construirFiltro(filtros: FiltrosIncidencias): {
     condiciones.push(`(u.nombre ILIKE $${indice} OR COALESCE(a.mac, t.mac) ILIKE $${indice})`);
   }
   if (filtros.soloPendientes) {
-    condiciones.push(`i.tipo_evento = 'CAIDA' AND i.id_usuario_atendio IS NULL`);
+    condiciones.push(
+      `i.tipo_evento = 'CAIDA' AND i.id_usuario_atendio IS NULL AND i.fecha_atendida IS NULL`,
+    );
   }
 
   const clausula = condiciones.length > 0 ? `WHERE ${condiciones.join(' AND ')}` : '';
@@ -186,7 +190,8 @@ export async function listarIncidencias(
 }
 
 // Marca una caida como atendida de forma atomica.
-// El WHERE exige que siga siendo CAIDA y sin atender asi dos usuarios no se pisan.
+// El WHERE exige que siga siendo CAIDA, sin atender y sin resolver automaticamente,
+// asi dos usuarios no se pisan ni se atiende una caida ya recuperada.
 // Devuelve la cantidad de filas afectadas: 1 si atendio, 0 si no cumplia la condicion.
 export async function atenderIncidencia(
   idIncidencia: number,
@@ -202,7 +207,8 @@ export async function atenderIncidencia(
             descripcion_falla = $2
       WHERE id_incidencia = $3
         AND tipo_evento = 'CAIDA'
-        AND id_usuario_atendio IS NULL`,
+        AND id_usuario_atendio IS NULL
+        AND fecha_atendida IS NULL`,
     [idUsuario, descripcionFalla, idIncidencia],
   );
   return resultado.rowCount ?? 0;
@@ -248,4 +254,59 @@ export async function listarIncidenciasSinPaginar(
     parametros,
   );
   return resultado.rows;
+}
+
+// Busca la CAIDA abierta mas reciente de un telefono: sin atender y sin resolver.
+// Devuelve null si el telefono no tiene ninguna caida abierta.
+export async function buscarUltimaCaidaAbierta(
+  idTelefono: number,
+  cliente?: PoolClient,
+): Promise<{ id_incidencia: number; fecha_ocurrido: Date } | null> {
+  const resultado = await consultarCon<{ id_incidencia: number; fecha_ocurrido: Date }>(
+    cliente,
+    `SELECT id_incidencia, fecha_ocurrido
+       FROM incidencias
+      WHERE id_telefono = $1
+        AND tipo_evento = 'CAIDA'
+        AND id_usuario_atendio IS NULL
+        AND fecha_atendida IS NULL
+      ORDER BY fecha_ocurrido DESC
+      LIMIT 1`,
+    [idTelefono],
+  );
+  return resultado.rows[0] ?? null;
+}
+
+// Marca una caida como resuelta automaticamente: fecha_atendida sin usuario.
+// El WHERE evita pisar una caida que un usuario ya atendio en paralelo.
+// Devuelve la cantidad de filas afectadas.
+export async function resolverCaidaAutomatica(
+  idIncidencia: number,
+  cliente?: PoolClient,
+): Promise<number> {
+  const resultado = await consultarCon(
+    cliente,
+    `UPDATE incidencias
+        SET fecha_atendida = now()
+      WHERE id_incidencia = $1
+        AND tipo_evento = 'CAIDA'
+        AND id_usuario_atendio IS NULL
+        AND fecha_atendida IS NULL`,
+    [idIncidencia],
+  );
+  return resultado.rowCount ?? 0;
+}
+
+// Elimina una incidencia por su id. La usa la supresion de cortes cortos (ruido).
+// Devuelve la cantidad de filas borradas.
+export async function eliminarIncidencia(
+  idIncidencia: number,
+  cliente?: PoolClient,
+): Promise<number> {
+  const resultado = await consultarCon(
+    cliente,
+    `DELETE FROM incidencias WHERE id_incidencia = $1`,
+    [idIncidencia],
+  );
+  return resultado.rowCount ?? 0;
 }

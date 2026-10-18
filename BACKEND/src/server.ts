@@ -59,6 +59,7 @@ async function iniciarServidor(): Promise<void> {
     const motor = new MotorMonitoreo(resolvedor, monitoreoRepo, telefonosRepo, {
       intentosPing: configuracion.intentosPing,
       barridoArranque: configuracion.barridoArranque,
+      rebarridoMinutos: configuracion.rebarridoMinutos,
     });
     await motor.iniciar();
     establecerInstanciaMotor(motor);

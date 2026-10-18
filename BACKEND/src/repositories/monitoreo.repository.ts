@@ -8,7 +8,7 @@ export type EstadoMonitoreo = 'ONLINE' | 'OFFLINE' | 'DESCONOCIDO' | 'EN_MANTENI
 export interface DispositivoMonitoreable {
   id_telefono: number;
   tipo: 'IP_ATA' | 'IP_NATIVO';
-  ip: string;
+  ip: string | null;
   mac: string | null;
   estado: EstadoMonitoreo;
 }
@@ -30,7 +30,7 @@ export async function listarDispositivosMonitoreables(): Promise<DispositivoMoni
      LEFT JOIN monitoreo m  ON m.id_telefono = t.id_telefono
      WHERE t.activo = true
        AND t.tipo IN ('IP_ATA', 'IP_NATIVO')
-       AND COALESCE(a.ip, t.ip) IS NOT NULL`,
+       AND (COALESCE(a.ip, t.ip) IS NOT NULL OR COALESCE(a.mac, t.mac) IS NOT NULL)`,
   );
   return resultado.rows;
 }
@@ -57,7 +57,7 @@ export async function buscarMonitoreablePorId(
      WHERE t.id_telefono = $1
        AND t.activo = true
        AND t.tipo IN ('IP_ATA', 'IP_NATIVO')
-       AND COALESCE(a.ip, t.ip) IS NOT NULL`,
+       AND (COALESCE(a.ip, t.ip) IS NOT NULL OR COALESCE(a.mac, t.mac) IS NOT NULL)`,
     [idTelefono],
   );
   return resultado.rows[0] ?? null;
