@@ -2,14 +2,25 @@ import estilos from './FiltrosMonitoreo.module.css';
 
 export type FiltroEstado = 'TODOS' | 'ONLINE' | 'OFFLINE' | 'DESCONOCIDO' | 'EN_MANTENIMIENTO';
 
+export type FiltroTipo = 'TODOS' | 'IP_ATA' | 'IP_NATIVO';
+
 interface Props {
   busqueda: string;
   onBusquedaChange: (valor: string) => void;
   filtroEstado: FiltroEstado;
   onFiltroEstadoChange: (valor: FiltroEstado) => void;
+  filtroTipo: FiltroTipo;
+  onFiltroTipoChange: (valor: FiltroTipo) => void;
 }
 
-function FiltrosMonitoreo({ busqueda, onBusquedaChange, filtroEstado, onFiltroEstadoChange }: Props) {
+function FiltrosMonitoreo({
+  busqueda,
+  onBusquedaChange,
+  filtroEstado,
+  onFiltroEstadoChange,
+  filtroTipo,
+  onFiltroTipoChange,
+}: Props) {
   return (
     <div className={estilos.controls}>
       <div className={estilos.search}>
@@ -34,6 +45,15 @@ function FiltrosMonitoreo({ busqueda, onBusquedaChange, filtroEstado, onFiltroEs
         <option value="OFFLINE">Offline</option>
         <option value="DESCONOCIDO">Desconocido</option>
         <option value="EN_MANTENIMIENTO">Mantenimiento</option>
+      </select>
+      <select
+        value={filtroTipo}
+        onChange={(e) => onFiltroTipoChange(e.target.value as FiltroTipo)}
+        aria-label="Tipo"
+      >
+        <option value="TODOS">Todos</option>
+        <option value="IP_ATA">Ata</option>
+        <option value="IP_NATIVO">Ip</option>
       </select>
     </div>
   );

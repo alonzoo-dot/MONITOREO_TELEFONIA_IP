@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import KpiCards from '../components/dashboard/KpiCards';
 import FiltrosMonitoreo from '../components/dashboard/FiltrosMonitoreo';
-import type { FiltroEstado } from '../components/dashboard/FiltrosMonitoreo';
+import type { FiltroEstado, FiltroTipo } from '../components/dashboard/FiltrosMonitoreo';
 import IndicadorSSE from '../components/dashboard/IndicadorSSE';
 import TablaMonitoreo from '../components/dashboard/TablaMonitoreo';
 import { obtenerDashboard } from '../services/monitoreo.service';
@@ -26,6 +26,7 @@ function Dashboard() {
   const [error, setError] = useState('');
   const [busqueda, setBusqueda] = useState('');
   const [filtroEstado, setFiltroEstado] = useState<FiltroEstado>('TODOS');
+  const [filtroTipo, setFiltroTipo] = useState<FiltroTipo>('TODOS');
   const navegar = useNavigate();
   const irAIncidencias = useCallback(() => navegar('/incidencias'), [navegar]);
 
@@ -123,12 +124,13 @@ function Dashboard() {
     const texto = busqueda.trim().toLowerCase();
     return dispositivos.filter((d) => {
       if (filtroEstado !== 'TODOS' && d.estado !== filtroEstado) return false;
+      if (filtroTipo !== 'TODOS' && d.tipo !== filtroTipo) return false;
       if (!texto) return true;
       return (
         d.extension.toLowerCase().includes(texto) || d.ubicacion_nombre.toLowerCase().includes(texto)
       );
     });
-  }, [dispositivos, busqueda, filtroEstado]);
+  }, [dispositivos, busqueda, filtroEstado, filtroTipo]);
 
   return (
     <Layout>
@@ -144,6 +146,8 @@ function Dashboard() {
         onBusquedaChange={setBusqueda}
         filtroEstado={filtroEstado}
         onFiltroEstadoChange={setFiltroEstado}
+        filtroTipo={filtroTipo}
+        onFiltroTipoChange={setFiltroTipo}
       />
 
       {error && <div className={estilos.error}>{error}</div>}
