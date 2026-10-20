@@ -10,11 +10,12 @@ export interface EstadoDispositivo {
   id_telefono: number;
   mac: string | null; // necesaria para drift; null si no aplica
   tipo: 'IP_ATA' | 'IP_NATIVO';
-  ip: string; // IP actual (puede cambiar por drift)
+  ip: string | null; // IP actual (puede cambiar por drift o descubrirse por ARP); null si aun no se conoce
   estado: EstadoMonitoreo; // estado vigente
   fallos_consecutivos: number;
   fecha_ultima_conexion: Date | null;
   drift_intentado_en_este_ciclo: boolean;
+  ha_estado_online: boolean; // true si respondio como vivo al menos una vez
 }
 
 /**
@@ -50,6 +51,7 @@ export class RegistroEstadoMonitoreo {
           fallos_consecutivos: 0,
           fecha_ultima_conexion: null,
           drift_intentado_en_este_ciclo: false,
+          ha_estado_online: false,
         });
       }
     }

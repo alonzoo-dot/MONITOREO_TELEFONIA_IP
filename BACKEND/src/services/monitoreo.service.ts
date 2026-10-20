@@ -1,9 +1,11 @@
 import { ejecutarEnTransaccion } from '../config/database';
+import { configuracion } from '../config/env';
 import * as monitoreoRepo from '../repositories/monitoreo.repository';
 import type { EstadoMonitoreo } from '../repositories/monitoreo.repository';
 import * as incidenciasRepo from '../repositories/incidencias.repository';
 import type { TipoEvento } from '../repositories/incidencias.repository';
 import * as mantenimientoLogRepo from '../repositories/mantenimiento_log.repository';
+import * as telefonosRepo from '../repositories/telefonos.repository';
 import type {
   MotorMonitoreo,
   PayloadCambioEstado,
@@ -48,6 +50,27 @@ function determinarTipoEvento(
   return null;
 }
 
+/** Registra en el log cada cambio de estado, sin importar su origen (ping o mantenimiento). */
+function registrarCambioEstadoEnLog(
+  descripcion: string,
+  estadoAnterior: EstadoMonitoreo,
+  estadoNuevo: EstadoMonitoreo,
+): void {
+  console.log(`[MONITOREO] Cambio de estado: ${descripcion} ${estadoAnterior} → ${estadoNuevo}.`);
+}
+
+/** Obtiene una descripción legible del teléfono (extensión + ubicación) para el log. */
+async function describirTelefono(idTelefono: number): Promise<string> {
+  try {
+    const etiqueta = await telefonosRepo.obtenerEtiqueta(idTelefono);
+    return etiqueta
+      ? `teléfono con extensión ${etiqueta.extension} (${etiqueta.tipo_ubicacion} ${etiqueta.ubicacion_nombre})`
+      : `teléfono ${idTelefono}`;
+  } catch {
+    return `teléfono ${idTelefono}`;
+  }
+}
+
 /** Persiste un cambio de estado (fila de monitoreo + incidencia, si aplica) y notifica por SSE. */
 async function manejarCambioEstado(payload: PayloadCambioEstado): Promise<void> {
   const { id_telefono, estado_anterior, estado_nuevo, ip_registrada, fecha_ultima_conexion } =
@@ -59,6 +82,20 @@ async function manejarCambioEstado(payload: PayloadCambioEstado): Promise<void> 
       await monitoreoRepo.actualizarEstado(id_telefono, estado_nuevo, fecha_ultima_conexion, cliente);
 
       const tipoEvento = determinarTipoEvento(estado_anterior, estado_nuevo);
+      if (tipoEvento === 'RECUPERACION') {
+        // Si hay una caida abierta: corte corto = ruido (se borra y no se registra nada),
+        // corte largo = se resuelve automaticamente la caida y se registra la recuperacion.
+        const caidaAbierta = await incidenciasRepo.buscarUltimaCaidaAbierta(id_telefono, cliente);
+        if (caidaAbierta) {
+          const minutosCaida =
+            (Date.now() - new Date(caidaAbierta.fecha_ocurrido).getTime()) / 60_000;
+          if (minutosCaida < configuracion.minutosRuidoIncidencia) {
+            await incidenciasRepo.eliminarIncidencia(caidaAbierta.id_incidencia, cliente);
+            return;
+          }
+          await incidenciasRepo.resolverCaidaAutomatica(caidaAbierta.id_incidencia, cliente);
+        }
+      }
       if (tipoEvento) {
         await incidenciasRepo.insertarIncidencia(
           { id_telefono, tipo_evento: tipoEvento, ip_registrada, descripcion_falla: null },
@@ -71,6 +108,8 @@ async function manejarCambioEstado(payload: PayloadCambioEstado): Promise<void> 
     return; // no se notifica por SSE si no quedó registrado
   }
 
+  const descripcion = await describirTelefono(id_telefono);
+  registrarCambioEstadoEnLog(descripcion, estado_anterior, estado_nuevo);
   eventosSse.difundir('cambio-estado', payload);
 }
 
@@ -112,6 +151,8 @@ export async function activarMantenimiento(idTelefono: number, idUsuario: number
 
   motorSuscrito?.actualizarEstadoDispositivo(idTelefono, 'EN_MANTENIMIENTO');
 
+  const descripcion = await describirTelefono(idTelefono);
+  registrarCambioEstadoEnLog(descripcion, estadoAnterior, 'EN_MANTENIMIENTO');
   eventosSse.difundir('cambio-estado', {
     id_telefono: idTelefono,
     estado_anterior: estadoAnterior,
@@ -144,6 +185,8 @@ export async function desactivarMantenimiento(
 
   motorSuscrito?.actualizarEstadoDispositivo(idTelefono, 'DESCONOCIDO');
 
+  const descripcion = await describirTelefono(idTelefono);
+  registrarCambioEstadoEnLog(descripcion, 'EN_MANTENIMIENTO', 'DESCONOCIDO');
   eventosSse.difundir('cambio-estado', {
     id_telefono: idTelefono,
     estado_anterior: 'EN_MANTENIMIENTO',

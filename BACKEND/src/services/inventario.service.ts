@@ -60,9 +60,6 @@ function validarCoherenciaPorTipo(datos: DatosDispositivo): void {
         'Un dispositivo IP_ATA requiere un modelo de ATA.',
       );
     }
-    if (!datos.ip) {
-      throw new ErrorInventario('IP_REQUERIDA', 'Un dispositivo IP_ATA requiere IP.');
-    }
     if (!datos.ata_numero_serie) {
       throw new ErrorInventario(
         'SERIE_ATA_REQUERIDA',
@@ -74,9 +71,6 @@ function validarCoherenciaPorTipo(datos: DatosDispositivo): void {
   if (datos.tipo === 'IP_NATIVO') {
     if (!datos.mac) {
       throw new ErrorInventario('MAC_REQUERIDA', 'Un dispositivo IP_NATIVO requiere MAC.');
-    }
-    if (!datos.ip) {
-      throw new ErrorInventario('IP_REQUERIDA', 'Un dispositivo IP_NATIVO requiere IP.');
     }
   }
 
@@ -201,7 +195,7 @@ export async function crearDispositivo(
           id_telefono: nuevoIdTelefono,
           id_modelo_ata: datos.id_modelo_ata!,
           mac: datos.mac!,
-          ip: datos.ip!,
+          ip: datos.ip,
           numero_serie: datos.ata_numero_serie,
         },
         cliente,
@@ -262,7 +256,7 @@ export async function actualizarDispositivo(
           id_telefono: idTelefono,
           id_modelo_ata: datos.id_modelo_ata!,
           mac: datos.mac!,
-          ip: datos.ip!,
+          ip: datos.ip,
           numero_serie: datos.ata_numero_serie,
         },
         cliente,
@@ -348,6 +342,12 @@ export async function eliminarDispositivo(idTelefono: number): Promise<void> {
         'El dispositivo tiene historial de incidencias. Desactívalo en su lugar.',
       );
     }
+
+    // Limpia el estado operativo del propio telefono antes de borrarlo, para no
+    // chocar con las FK RESTRICT de monitoreo / mantenimiento_log (el telefono
+    // puede tener fila en monitoreo aunque no tenga incidencias).
+    await monitoreoRepo.eliminarPorTelefono(idTelefono, cliente);
+    await mantenimientoLogRepo.eliminarPorTelefono(idTelefono, cliente);
 
     if (actual.tipo === 'IP_ATA') {
       await atasRepo.eliminarAta(idTelefono, cliente);

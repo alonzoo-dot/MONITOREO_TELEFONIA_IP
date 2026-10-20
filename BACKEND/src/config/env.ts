@@ -16,6 +16,18 @@ function variableObligatoria(nombre: string): string {
   return valor;
 }
 
+// Lee un entero positivo del entorno; si falta o no es valido usa el valor por defecto
+function enteroPositivo(nombre: string, porDefecto: number): number {
+  const valor = Number(process.env[nombre] ?? porDefecto);
+  return Number.isFinite(valor) && valor > 0 ? valor : porDefecto;
+}
+
+// Lee un entero no negativo del entorno (0 es un valor valido, no solo el fallback)
+function enteroNoNegativo(nombre: string, porDefecto: number): number {
+  const valor = Number(process.env[nombre] ?? porDefecto);
+  return Number.isFinite(valor) && valor >= 0 ? valor : porDefecto;
+}
+
 export const configuracion = {
   urlBaseDatos: variableObligatoria('DATABASE_URL'),
   puerto: Number(process.env.PORT ?? 4000),
@@ -33,5 +45,15 @@ export const configuracion = {
   /** IP y puerto SIP fijos de la central Mitel, usados por SoftphoneGateway. */
   mitelIp: process.env.MITEL_IP ?? '',
   mitelPuertoSip: Number(process.env.MITEL_PUERTO_SIP ?? 5060),
+  /** Maximo de pings simultaneos en todo el motor (rondas + barridos). */
+  maxPingsConcurrentes: enteroPositivo('MOTOR_MAX_PINGS_CONCURRENTES', 50),
+  /** Intentos de ping por telefono en cada ronda; basta que uno responda. */
+  intentosPing: enteroPositivo('MOTOR_INTENTOS_PING', 3),
+  /** Si es true, al arrancar el motor barre cada subred de telefonia para calentar el ARP. */
+  barridoArranque: process.env.MOTOR_BARRIDO_ARRANQUE !== 'false',
+  /** Minutos entre re-barridos periodicos de ARP; 0 desactiva el re-barrido. */
+  rebarridoMinutos: enteroNoNegativo('MOTOR_REBARRIDO_MINUTOS', 10),
+  /** Cortes mas cortos que estos minutos son ruido: se borra la caida y no se registra la recuperacion. */
+  minutosRuidoIncidencia: enteroNoNegativo('INCIDENCIAS_MINUTOS_RUIDO', 2),
 } as const;
 
