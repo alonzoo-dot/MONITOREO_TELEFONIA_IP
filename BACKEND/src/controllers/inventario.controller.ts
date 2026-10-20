@@ -24,6 +24,7 @@ function manejarErrorInventario(error: unknown, respuesta: Response): boolean {
     IP_NO_PERMITIDA: 400,
     SERIE_ATA_REQUERIDA: 400,
     MODELO_ATA_REQUERIDO: 400,
+    DEPARTAMENTO_REQUERIDO: 400,
     TIPO_NO_EDITABLE: 400,
     TIENE_INCIDENCIAS: 409,
   };

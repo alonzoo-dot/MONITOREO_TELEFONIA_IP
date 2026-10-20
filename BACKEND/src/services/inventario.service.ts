@@ -34,6 +34,7 @@ export interface DatosDispositivo {
   ubicacion_nombre: string;
   piso: number;
   tipo_ubicacion: string;
+  id_departamento: number | null;
   id_modelo_telefono: number;
   extension: string;
   tipo: TipoDispositivo;
@@ -50,6 +51,17 @@ export interface DatosDispositivo {
  * No consulta la base de datos: son reglas puras de forma.
  */
 function validarCoherenciaPorTipo(datos: DatosDispositivo): void {
+  if (datos.tipo_ubicacion === 'DEPARTAMENTO' && datos.id_departamento === null) {
+    throw new ErrorInventario(
+      'DEPARTAMENTO_REQUERIDO',
+      'Un telefono de departamento requiere seleccionar el departamento.',
+    );
+  }
+  if (datos.tipo_ubicacion === 'HABITACION') {
+    // Una habitacion no lleva departamento.
+    datos.id_departamento = null;
+  }
+
   if (datos.tipo === 'IP_ATA') {
     if (!datos.mac) {
       throw new ErrorInventario('MAC_REQUERIDA', 'Un dispositivo IP_ATA requiere MAC.');
@@ -179,6 +191,7 @@ export async function crearDispositivo(
     const nuevoIdTelefono = await telefonosRepo.crearTelefono(
       {
         id_ubicacion: idUbicacion,
+        id_departamento: datos.id_departamento,
         id_modelo_telefono: datos.id_modelo_telefono,
         extension: datos.extension,
         tipo: datos.tipo,
@@ -239,6 +252,7 @@ export async function actualizarDispositivo(
       idTelefono,
       {
         id_ubicacion: idUbicacion,
+        id_departamento: datos.id_departamento,
         id_modelo_telefono: datos.id_modelo_telefono,
         extension: datos.extension,
         tipo: datos.tipo,

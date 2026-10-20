@@ -6,6 +6,7 @@ const COLUMNAS = [
   'ubicacion',
   'piso',
   'tipo_ubicacion',
+  'departamento',
   'tipo',
   'extension',
   'modelo_telefono',
@@ -45,6 +46,7 @@ export async function generarPlantilla(): Promise<Buffer> {
     '305',
     3,
     'HABITACION',
+    '',
     'ATA',
     '3305',
     'GRP2601',
@@ -56,7 +58,7 @@ export async function generarPlantilla(): Promise<Buffer> {
   ]);
 
   // Anchos de columna
-  const anchos = [14, 6, 16, 10, 11, 18, 16, 20, 14, 14, 16];
+  const anchos = [14, 6, 16, 18, 10, 11, 18, 16, 20, 14, 14, 16];
   anchos.forEach((ancho, i) => {
     hoja.getColumn(i + 1).width = ancho;
   });
@@ -85,6 +87,19 @@ export async function generarPlantilla(): Promise<Buffer> {
   titulo('Tipos de ubicación válidos');
   ref.addRow(['HABITACION']);
   ref.addRow(['DEPARTAMENTO']);
+  ref.addRow([]);
+
+  titulo('Columna departamento');
+  ref.addRow([
+    'OBLIGATORIO si tipo_ubicacion es DEPARTAMENTO: debe coincidir con un nombre',
+    'de la lista de departamentos de abajo. Dejar vacío si tipo_ubicacion es HABITACION.',
+  ]);
+  ref.addRow([]);
+
+  // Departamentos válidos (desde el catálogo)
+  const departamentos = await catalogosRepo.listarDepartamentos();
+  titulo('Departamentos válidos (columna departamento)');
+  departamentos.forEach((d) => ref.addRow([d.nombre]));
   ref.addRow([]);
 
   // Modelos de teléfono válidos (desde el catálogo)

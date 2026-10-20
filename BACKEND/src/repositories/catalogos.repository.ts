@@ -241,6 +241,19 @@ export async function contarIncidenciasPorDepartamento(
   return resultado.rows[0]?.total ?? 0;
 }
 
+/** Cuenta los telefonos que usan un departamento. */
+export async function contarTelefonosPorDepartamento(
+  idDepartamento: number,
+  cliente?: PoolClient,
+): Promise<number> {
+  const resultado = await consultarCon<{ total: number }>(
+    cliente,
+    `SELECT COUNT(*)::int AS total FROM telefonos WHERE id_departamento = $1`,
+    [idDepartamento],
+  );
+  return resultado.rows[0]?.total ?? 0;
+}
+
 /** Elimina un departamento. Devuelve true si existia. */
 export async function eliminarDepartamento(
   idDepartamento: number,
