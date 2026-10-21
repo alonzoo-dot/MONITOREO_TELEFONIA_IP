@@ -19,7 +19,7 @@ const COLUMNAS = [
 
 /**
  * Genera la plantilla de importación como un Buffer .xlsx.
- * Incluye la hoja "Inventario" (encabezados + una fila de ejemplo) y la hoja
+ * Incluye la hoja "Inventario" (solo encabezados, sin filas de datos) y la hoja
  * "Referencia" con los valores válidos que el administrador puede usar.
  */
 export async function generarPlantilla(): Promise<Buffer> {
@@ -40,22 +40,6 @@ export async function generarPlantilla(): Promise<Buffer> {
     fgColor: { argb: 'FF2563EB' },
   };
   encabezado.alignment = { horizontal: 'center' };
-
-  // Fila de ejemplo para orientar (el admin la reemplaza)
-  hoja.addRow([
-    '305',
-    3,
-    'HABITACION',
-    '',
-    'ATA',
-    '3305',
-    'GRP2601',
-    'SN-EJEMPLO-TEL',
-    '00:0B:82:00:00:00',
-    '10.81.20.11',
-    'HT802',
-    'SN-EJEMPLO-ATA',
-  ]);
 
   // Anchos de columna
   const anchos = [14, 6, 16, 18, 10, 11, 18, 16, 20, 14, 14, 16];
