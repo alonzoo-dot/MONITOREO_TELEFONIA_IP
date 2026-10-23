@@ -60,6 +60,7 @@ async function iniciarServidor(): Promise<void> {
       intentosPing: configuracion.intentosPing,
       barridoArranque: configuracion.barridoArranque,
       rebarridoMinutos: configuracion.rebarridoMinutos,
+      subredesBarrido: configuracion.subredesBarrido,
     });
     await motor.iniciar();
     establecerInstanciaMotor(motor);
