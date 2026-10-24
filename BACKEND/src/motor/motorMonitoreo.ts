@@ -68,6 +68,10 @@ export interface PayloadCambioEstado {
   estado_nuevo: TipoEstadoMonitoreo;
   ip_registrada: string | null;
   fecha_ultima_conexion: Date | null;
+  /** Usuario que origino el cambio (mantenimiento, etc). Null si lo detecto el motor automatico. */
+  id_usuario_actor: number | null;
+  /** Nombre completo del usuario que origino el cambio. Null si lo detecto el motor automatico. */
+  nombre_usuario_actor: string | null;
 }
 
 /** Payload del evento 'drift-corregido'. */
@@ -295,6 +299,8 @@ export class MotorMonitoreo {
               estado_nuevo: 'OFFLINE',
               ip_registrada: dispositivo.ip,
               fecha_ultima_conexion: dispositivo.fecha_ultima_conexion,
+              id_usuario_actor: null,
+              nombre_usuario_actor: null,
             } satisfies PayloadCambioEstado);
           }
           return;
@@ -317,6 +323,8 @@ export class MotorMonitoreo {
           estado_nuevo: 'ONLINE',
           ip_registrada: dispositivo.ip,
           fecha_ultima_conexion: fecha,
+          id_usuario_actor: null,
+          nombre_usuario_actor: null,
         } satisfies PayloadCambioEstado);
       }
       return;
@@ -354,6 +362,8 @@ export class MotorMonitoreo {
       estado_nuevo: 'OFFLINE',
       ip_registrada: dispositivo.ip,
       fecha_ultima_conexion: dispositivo.fecha_ultima_conexion,
+      id_usuario_actor: null,
+      nombre_usuario_actor: null,
     } satisfies PayloadCambioEstado);
   }
 
