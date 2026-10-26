@@ -29,6 +29,10 @@ export interface PayloadCambioEstado {
   estado_nuevo: EstadoDispositivoMonitoreo;
   ip_registrada: string | null;
   fecha_ultima_conexion: string | null;
+  /** Usuario que origino el cambio (mantenimiento, etc). Null si lo detecto el motor automatico. */
+  id_usuario_actor: number | null;
+  /** Nombre completo del usuario que origino el cambio. Null si lo detecto el motor automatico. */
+  nombre_usuario_actor: string | null;
 }
 
 export interface PayloadDriftCorregido {

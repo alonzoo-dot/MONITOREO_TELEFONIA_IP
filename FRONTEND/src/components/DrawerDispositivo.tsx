@@ -4,6 +4,7 @@ import {
   editarDispositivo,
   listarModelosTelefono,
   listarModelosAta,
+  listarDepartamentos,
   obtenerDetalle,
 } from '../services/inventario.service';
 import { ErrorApi } from '../services/api';
@@ -12,6 +13,7 @@ import type {
   DatosDispositivo,
   ModeloTelefono,
   ModeloAta,
+  Departamento,
   DetalleDispositivo,
 } from '../types/inventario';
 import type { EstadoDispositivoMonitoreo } from '../types/monitoreo';
@@ -55,6 +57,7 @@ const FORM_VACIO = {
   ubicacion_nombre: '',
   piso: '',
   tipo_ubicacion: 'HABITACION',
+  id_departamento: '',
   id_modelo_telefono: '',
   extension: '',
   tipo: 'IP_ATA',
@@ -70,6 +73,7 @@ const ORDEN_CAMPOS = [
   'ubicacion_nombre',
   'piso',
   'tipo_ubicacion',
+  'id_departamento',
   'extension',
   'tipo',
   'id_modelo_telefono',
@@ -88,6 +92,7 @@ function DrawerDispositivo({ dispositivo, idDetalle, onCerrar, onGuardado }: Pro
   const [form, setForm] = useState({ ...FORM_VACIO });
   const [modelosTel, setModelosTel] = useState<ModeloTelefono[]>([]);
   const [modelosAta, setModelosAta] = useState<ModeloAta[]>([]);
+  const [departamentos, setDepartamentos] = useState<Departamento[]>([]);
   const [error, setError] = useState('');
   const [erroresPorCampo, setErroresPorCampo] = useState<Record<string, string>>({});
   const [guardando, setGuardando] = useState(false);
@@ -134,6 +139,7 @@ function DrawerDispositivo({ dispositivo, idDetalle, onCerrar, onGuardado }: Pro
   useEffect(() => {
     listarModelosTelefono().then(setModelosTel).catch(() => setModelosTel([]));
     listarModelosAta().then(setModelosAta).catch(() => setModelosAta([]));
+    listarDepartamentos().then(setDepartamentos).catch(() => setDepartamentos([]));
   }, []);
 
   // Cuando cambia el dispositivo precarga (edición) o limpia (alta)
@@ -145,6 +151,8 @@ function DrawerDispositivo({ dispositivo, idDetalle, onCerrar, onGuardado }: Pro
         ubicacion_nombre: dispositivo.ubicacion_nombre,
         piso: String(dispositivo.piso),
         tipo_ubicacion: dispositivo.tipo_ubicacion,
+        id_departamento:
+          dispositivo.id_departamento != null ? String(dispositivo.id_departamento) : '',
         id_modelo_telefono: String(dispositivo.id_modelo_telefono),
         extension: dispositivo.extension,
         tipo: dispositivo.tipo,
@@ -160,7 +168,12 @@ function DrawerDispositivo({ dispositivo, idDetalle, onCerrar, onGuardado }: Pro
   }, [dispositivo]);
 
   function actualizar(campo: string, valor: string) {
-    setForm((prev) => ({ ...prev, [campo]: valor }));
+    setForm((prev) => ({
+      ...prev,
+      [campo]: valor,
+      // Al pasar a habitacion se limpia el departamento seleccionado
+      ...(campo === 'tipo_ubicacion' && valor === 'HABITACION' ? { id_departamento: '' } : {}),
+    }));
     if (erroresPorCampo[campo]) {
       setErroresPorCampo((prev) => {
         const siguiente = { ...prev };
@@ -174,10 +187,21 @@ function DrawerDispositivo({ dispositivo, idDetalle, onCerrar, onGuardado }: Pro
     setError('');
     setErroresPorCampo({});
 
+    if (form.tipo_ubicacion === 'DEPARTAMENTO' && !form.id_departamento) {
+      setErroresPorCampo({ id_departamento: 'Selecciona el departamento' });
+      const elemento = refFormulario.current?.querySelector<HTMLElement>(
+        '[name="id_departamento"]',
+      );
+      elemento?.focus();
+      return;
+    }
+
     const datos: DatosDispositivo = {
       ubicacion_nombre: form.ubicacion_nombre.trim(),
       piso: Number(form.piso),
       tipo_ubicacion: form.tipo_ubicacion,
+      id_departamento:
+        form.tipo_ubicacion === 'DEPARTAMENTO' ? Number(form.id_departamento) : null,
       id_modelo_telefono: Number(form.id_modelo_telefono),
       extension: form.extension.trim(),
       tipo: form.tipo,
@@ -428,6 +452,30 @@ function DrawerDispositivo({ dispositivo, idDetalle, onCerrar, onGuardado }: Pro
               )}
             </div>
           </div>
+
+          {form.tipo_ubicacion === 'DEPARTAMENTO' && (
+            <div className={estilos.field}>
+              <label>
+                Departamento <span className={estilos.req}>*</span>
+              </label>
+              <select
+                name="id_departamento"
+                className={erroresPorCampo.id_departamento ? estilos.inputError : undefined}
+                value={form.id_departamento}
+                onChange={(e) => actualizar('id_departamento', e.target.value)}
+              >
+                <option value="">Selecciona un departamento</option>
+                {departamentos.map((d) => (
+                  <option key={d.id_departamento} value={d.id_departamento}>
+                    {d.nombre}
+                  </option>
+                ))}
+              </select>
+              {erroresPorCampo.id_departamento && (
+                <div className={estilos.errorCampo}>{erroresPorCampo.id_departamento}</div>
+              )}
+            </div>
+          )}
 
           <div className={estilos.field}>
             <label>

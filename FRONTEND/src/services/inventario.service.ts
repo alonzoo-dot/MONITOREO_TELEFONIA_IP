@@ -18,6 +18,9 @@ function construirQuery(filtros: FiltrosDispositivo): string {
   if (filtros.id_modelo_telefono !== undefined) {
     parametros.set('id_modelo_telefono', String(filtros.id_modelo_telefono));
   }
+  if (filtros.id_departamento !== undefined) {
+    parametros.set('id_departamento', String(filtros.id_departamento));
+  }
   if (filtros.activo !== undefined) parametros.set('activo', String(filtros.activo));
   if (filtros.incluir_inactivos) parametros.set('incluir_inactivos', 'true');
   if (filtros.busqueda) parametros.set('busqueda', filtros.busqueda);

@@ -63,8 +63,8 @@ Cada máquina tiene su propia base de datos local. Crearla una sola vez:
 
 ### 4. Configurar las variables de entorno
 
-Crear un archivo `.env` dentro de `backend/` (copiando el ejemplo) y ajustar los
-datos reales de PostgreSQL:
+Crear un archivo `.env` dentro de `backend/` copiando `backend/.env.example` y
+ajustar los datos reales de PostgreSQL:
 
     DATABASE_URL=postgres://postgres:TU_CONTRASEÑA@localhost:5432/***
     PORT=4000
@@ -72,6 +72,13 @@ datos reales de PostgreSQL:
 
 > El archivo `.env` NO se sube al repositorio (contiene datos sensibles). Cada
 > máquina tiene el suyo.
+
+**Telefonos Yealink (marcado remoto):** el sistema usa `YEALINK_ADMIN_USER` y
+`YEALINK_ADMIN_PASSWORD` del `.env` para autenticar las peticiones de marcado
+remoto en firmwares Yealink v83 o superior. Por defecto son `admin`/`admin`,
+que es la configuración estándar del hotel. Si en el futuro el hotel cambia
+las credenciales de admin de los teléfonos, actualizar estos valores en el
+`.env` y reiniciar el servicio.
 
 ### 5. Arrancar el servidor
 

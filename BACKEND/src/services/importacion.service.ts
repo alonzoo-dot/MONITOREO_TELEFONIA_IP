@@ -23,6 +23,7 @@ const COLUMNAS = [
   'ubicacion',
   'piso',
   'tipo_ubicacion',
+  'departamento',
   'tipo',
   'extension',
   'modelo_telefono',
@@ -61,11 +62,13 @@ export async function importarInventario(
     throw new ErrorInventario('ARCHIVO_INVALIDO', 'El archivo no contiene ninguna hoja.');
   }
 
-  // Cachés de catálogos para resolver modelos por nombre (nombre -> id)
+  // Cachés de catálogos para resolver modelos y departamento por nombre (nombre -> id)
   const modelosTel = await catalogosRepo.listarModelosTelefono();
   const modelosAta = await catalogosRepo.listarModelosAta();
+  const departamentos = await catalogosRepo.listarDepartamentos();
   const mapaTel = new Map(modelosTel.map((m) => [m.modelo.toUpperCase(), m.id_modelo_telefono]));
   const mapaAta = new Map(modelosAta.map((m) => [m.modelo.toUpperCase(), m.id_modelo_ata]));
+  const mapaDep = new Map(departamentos.map((d) => [d.nombre.toUpperCase(), d.id_departamento]));
 
   const errores: ErrorFila[] = [];
   let total = 0;
@@ -117,7 +120,7 @@ export async function importarInventario(
     }
 
     try {
-      const datos = construirDatos(valores, mapaTel, mapaAta);
+      const datos = construirDatos(valores, mapaTel, mapaAta, mapaDep);
 
       const validacionForma = esquemaDispositivo.safeParse(datos);
       if (!validacionForma.success) {
@@ -148,11 +151,13 @@ function construirDatos(
   valores: string[],
   mapaTel: Map<string, number>,
   mapaAta: Map<string, number>,
+  mapaDep: Map<string, number>,
 ): DatosDispositivo {
   const [
     ubicacion,
     pisoTexto,
     tipoUbicacion,
+    departamento,
     tipoTexto,
     extension,
     modeloTelefono,
@@ -187,6 +192,25 @@ function construirDatos(
     );
   }
 
+  // Departamento (resolver por nombre; obligatorio solo si tipo_ubicacion es DEPARTAMENTO)
+  let idDepartamento: number | null = null;
+  if (tipoUbic === 'DEPARTAMENTO') {
+    if (!departamento) {
+      throw new ErrorInventario(
+        'DEPARTAMENTO_REQUERIDO',
+        'El departamento es obligatorio cuando el tipo de ubicación es DEPARTAMENTO.',
+      );
+    }
+    const id = mapaDep.get(departamento.toUpperCase());
+    if (id === undefined) {
+      throw new ErrorInventario(
+        'DEPARTAMENTO_INEXISTENTE',
+        `El departamento "${departamento}" no existe en el catálogo.`,
+      );
+    }
+    idDepartamento = id;
+  }
+
   // Modelo de teléfono (resolver por nombre)
   const idModeloTelefono = mapaTel.get(modeloTelefono.toUpperCase());
   if (idModeloTelefono === undefined) {
@@ -219,6 +243,7 @@ function construirDatos(
     ubicacion_nombre: ubicacion,
     piso,
     tipo_ubicacion: tipoUbic,
+    id_departamento: idDepartamento,
     id_modelo_telefono: idModeloTelefono,
     extension,
     tipo,

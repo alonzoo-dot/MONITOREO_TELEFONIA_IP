@@ -3,13 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import KpiCards from '../components/dashboard/KpiCards';
 import FiltrosMonitoreo from '../components/dashboard/FiltrosMonitoreo';
-import type { FiltroEstado } from '../components/dashboard/FiltrosMonitoreo';
+import type { FiltroEstado, FiltroTipo } from '../components/dashboard/FiltrosMonitoreo';
 import IndicadorSSE from '../components/dashboard/IndicadorSSE';
 import TablaMonitoreo from '../components/dashboard/TablaMonitoreo';
 import { obtenerDashboard } from '../services/monitoreo.service';
 import { useMonitoreoSSE } from '../hooks/useMonitoreoSSE';
 import { mostrarToast } from '../store/toasts';
 import { cargarPendientesInicial, incrementarPendientes } from '../store/pendientes';
+import { obtenerUsuario } from '../services/sesion';
 import type { DispositivoConEstado, EventoMonitoreo } from '../types/monitoreo';
 import estilos from './Dashboard.module.css';
 
@@ -20,12 +21,26 @@ const DURACION_TOAST_CAIDA_MS = 10000;
 const DURACION_TOAST_RECUPERACION_MS = 6000;
 const DURACION_TOAST_MANTENIMIENTO_MS = 5000;
 
+/** Agrega "por <nombre>" cuando el cambio lo hizo otro usuario, y duplica la duracion del toast. */
+function atribuirCambio(
+  idUsuarioActor: number | null,
+  nombreUsuarioActor: string | null,
+  duracionNormalMs: number,
+): { sufijo: string; duracionMs: number } {
+  const usuarioLocal = obtenerUsuario();
+  if (idUsuarioActor !== null && idUsuarioActor !== usuarioLocal?.id_usuario) {
+    return { sufijo: ` por ${nombreUsuarioActor}`, duracionMs: duracionNormalMs * 2 };
+  }
+  return { sufijo: '', duracionMs: duracionNormalMs };
+}
+
 function Dashboard() {
   const [dispositivos, setDispositivos] = useState<DispositivoConEstado[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
   const [busqueda, setBusqueda] = useState('');
   const [filtroEstado, setFiltroEstado] = useState<FiltroEstado>('TODOS');
+  const [filtroTipo, setFiltroTipo] = useState<FiltroTipo>('TODOS');
   const navegar = useNavigate();
   const irAIncidencias = useCallback(() => navegar('/incidencias'), [navegar]);
 
@@ -57,7 +72,14 @@ function Dashboard() {
 
   const manejarEvento = useCallback((evento: EventoMonitoreo) => {
     if (evento.tipo === 'cambio-estado') {
-      const { id_telefono, estado_anterior, estado_nuevo, fecha_ultima_conexion } = evento.payload;
+      const {
+        id_telefono,
+        estado_anterior,
+        estado_nuevo,
+        fecha_ultima_conexion,
+        id_usuario_actor,
+        nombre_usuario_actor,
+      } = evento.payload;
       const dispositivo = dispositivosRef.current.find((d) => d.id_telefono === id_telefono);
 
       if (dispositivo) {
@@ -79,19 +101,29 @@ function Dashboard() {
             onClick: irAIncidencias,
           });
         } else if (estado_nuevo === 'EN_MANTENIMIENTO') {
+          const { sufijo, duracionMs } = atribuirCambio(
+            id_usuario_actor,
+            nombre_usuario_actor,
+            DURACION_TOAST_MANTENIMIENTO_MS,
+          );
           mostrarToast({
             tipo: 'info',
             titulo: 'Dispositivo en mantenimiento',
-            mensaje: `Extensión ${dispositivo.extension} — ${dispositivo.ubicacion_nombre}`,
-            autoCloseMs: DURACION_TOAST_MANTENIMIENTO_MS,
+            mensaje: `Extensión ${dispositivo.extension} — ${dispositivo.ubicacion_nombre}${sufijo}`,
+            autoCloseMs: duracionMs,
             onClick: irAIncidencias,
           });
         } else if (estado_anterior === 'EN_MANTENIMIENTO' && estado_nuevo === 'DESCONOCIDO') {
+          const { sufijo, duracionMs } = atribuirCambio(
+            id_usuario_actor,
+            nombre_usuario_actor,
+            DURACION_TOAST_MANTENIMIENTO_MS,
+          );
           mostrarToast({
             tipo: 'info',
             titulo: 'Dispositivo reactivado',
-            mensaje: `Extensión ${dispositivo.extension} — ${dispositivo.ubicacion_nombre}. En breve volverá a monitorearse.`,
-            autoCloseMs: DURACION_TOAST_MANTENIMIENTO_MS,
+            mensaje: `Extensión ${dispositivo.extension} — ${dispositivo.ubicacion_nombre}. En breve volverá a monitorearse${sufijo}.`,
+            autoCloseMs: duracionMs,
             onClick: irAIncidencias,
           });
         }
@@ -123,12 +155,13 @@ function Dashboard() {
     const texto = busqueda.trim().toLowerCase();
     return dispositivos.filter((d) => {
       if (filtroEstado !== 'TODOS' && d.estado !== filtroEstado) return false;
+      if (filtroTipo !== 'TODOS' && d.tipo !== filtroTipo) return false;
       if (!texto) return true;
       return (
         d.extension.toLowerCase().includes(texto) || d.ubicacion_nombre.toLowerCase().includes(texto)
       );
     });
-  }, [dispositivos, busqueda, filtroEstado]);
+  }, [dispositivos, busqueda, filtroEstado, filtroTipo]);
 
   return (
     <Layout>
@@ -144,6 +177,8 @@ function Dashboard() {
         onBusquedaChange={setBusqueda}
         filtroEstado={filtroEstado}
         onFiltroEstadoChange={setFiltroEstado}
+        filtroTipo={filtroTipo}
+        onFiltroTipoChange={setFiltroTipo}
       />
 
       {error && <div className={estilos.error}>{error}</div>}

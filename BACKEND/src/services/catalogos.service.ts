@@ -173,11 +173,21 @@ export async function eliminarModeloAta(idModeloAta: number): Promise<void> {
 export async function eliminarDepartamento(idDepartamento: number): Promise<void> {
   try {
     await ejecutarEnTransaccion(async (cliente) => {
-      const enUso = await catalogosRepo.contarIncidenciasPorDepartamento(idDepartamento, cliente);
-      if (enUso > 0) {
+      const totalIncidencias = await catalogosRepo.contarIncidenciasPorDepartamento(
+        idDepartamento,
+        cliente,
+      );
+      const totalTelefonos = await catalogosRepo.contarTelefonosPorDepartamento(
+        idDepartamento,
+        cliente,
+      );
+      if (totalTelefonos > 0 || totalIncidencias > 0) {
+        const partes: string[] = [];
+        if (totalTelefonos > 0) partes.push(`${totalTelefonos} telefono(s)`);
+        if (totalIncidencias > 0) partes.push(`${totalIncidencias} incidencia(s)`);
         throw new ErrorCatalogos(
           'EN_USO',
-          `No se puede eliminar el departamento: tiene ${enUso} incidencia(s) asociada(s).`,
+          `No se puede eliminar el departamento: lo usan ${partes.join(' y ')}.`,
         );
       }
       const eliminado = await catalogosRepo.eliminarDepartamento(idDepartamento, cliente);

@@ -36,6 +36,7 @@ export const esquemaDispositivo = z.object({
     .min(1, 'El piso debe ser mayor o igual a 1')
     .max(50, 'El piso no puede superar 50'),
   tipo_ubicacion: z.enum(['HABITACION', 'DEPARTAMENTO']),
+  id_departamento: z.number().int().positive().nullable().default(null),
   id_modelo_telefono: z
     .number()
     .int()

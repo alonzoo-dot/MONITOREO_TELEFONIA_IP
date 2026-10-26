@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { listarIncidencias, descargarReporteIncidencias } from '../services/incidencias.service';
 import type { Incidencia, FiltrosIncidencias } from '../types/incidencia';
@@ -70,8 +69,8 @@ function Incidencias() {
   const [tipo, setTipo] = useState<'' | 'CAIDA' | 'RECUPERACION'>('');
   const [piso, setPiso] = useState<string>('');
   const [busqueda, setBusqueda] = useState('');
-  const [parametrosUrl] = useSearchParams();
-  const [soloPendientes, setSoloPendientes] = useState(parametrosUrl.get('pendientes') === '1');
+  // Valor inicial desactivado: la pagina arranca mostrando todas las incidencias.
+  const [soloPendientes, setSoloPendientes] = useState(false);
   const [aAtender, setAAtender] = useState<Incidencia | null>(null);
   const [generandoReporte, setGenerandoReporte] = useState(false);
 

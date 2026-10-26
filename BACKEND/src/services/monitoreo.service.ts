@@ -6,6 +6,7 @@ import * as incidenciasRepo from '../repositories/incidencias.repository';
 import type { TipoEvento } from '../repositories/incidencias.repository';
 import * as mantenimientoLogRepo from '../repositories/mantenimiento_log.repository';
 import * as telefonosRepo from '../repositories/telefonos.repository';
+import * as usuariosRepo from '../repositories/usuarios.repository';
 import type {
   MotorMonitoreo,
   PayloadCambioEstado,
@@ -57,6 +58,12 @@ function registrarCambioEstadoEnLog(
   estadoNuevo: EstadoMonitoreo,
 ): void {
   console.log(`[MONITOREO] Cambio de estado: ${descripcion} ${estadoAnterior} → ${estadoNuevo}.`);
+}
+
+/** Nombre completo del usuario que origino un cambio manual, para el payload SSE. */
+async function obtenerNombreActor(idUsuario: number): Promise<string | null> {
+  const usuario = await usuariosRepo.buscarPorId(idUsuario);
+  return usuario?.nombre_completo ?? null;
 }
 
 /** Obtiene una descripción legible del teléfono (extensión + ubicación) para el log. */
@@ -159,6 +166,8 @@ export async function activarMantenimiento(idTelefono: number, idUsuario: number
     estado_nuevo: 'EN_MANTENIMIENTO',
     ip_registrada: null,
     fecha_ultima_conexion: null,
+    id_usuario_actor: idUsuario,
+    nombre_usuario_actor: await obtenerNombreActor(idUsuario),
   });
 }
 
@@ -193,5 +202,7 @@ export async function desactivarMantenimiento(
     estado_nuevo: 'DESCONOCIDO',
     ip_registrada: null,
     fecha_ultima_conexion: null,
+    id_usuario_actor: idUsuario,
+    nombre_usuario_actor: await obtenerNombreActor(idUsuario),
   });
 }

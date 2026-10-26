@@ -11,6 +11,8 @@ export interface Dispositivo {
   ubicacion_nombre: string;
   piso: number;
   tipo_ubicacion: string;
+  id_departamento: number | null;
+  departamento_nombre: string | null;
   id_modelo_telefono: number;
   modelo_telefono: string;
   marca_telefono: string;
@@ -31,6 +33,7 @@ export interface FiltrosDispositivo {
   tipo?: string;
   piso?: number;
   id_modelo_telefono?: number;
+  id_departamento?: number;
   activo?: boolean;
   busqueda?: string;
   /** Si es true, incluye también los dispositivos inactivos. Ignorado si `activo` viene definido. */
@@ -42,6 +45,7 @@ export interface DatosDispositivo {
   ubicacion_nombre: string;
   piso: number;
   tipo_ubicacion: string;
+  id_departamento: number | null;
   id_modelo_telefono: number;
   extension: string;
   tipo: string;

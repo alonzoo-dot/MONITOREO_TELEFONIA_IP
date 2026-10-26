@@ -39,9 +39,11 @@ export const configuracion = {
   /** Credenciales de administrador de los telefonos Snom, usadas en HTTP Basic. */
   snomUsuario: process.env.SNOM_USUARIO ?? '',
   snomPassword: process.env.SNOM_PASSWORD ?? '',
-  /** Credenciales de administrador de los telefonos Yealink, usadas en HTTP Basic. */
-  yealinkUsuario: process.env.YEALINK_USUARIO ?? '',
-  yealinkPassword: process.env.YEALINK_PASSWORD ?? '',
+  // Credenciales admin de los telefonos Yealink, usadas en HTTP Basic (Action URI).
+  // Sin estas variables en el .env, cae en admin/admin: la config de fabrica del
+  // hotel. Firmware v83+ exige el header Authorization; v81 lo ignora sin romperse.
+  adminUserYealink: process.env.YEALINK_ADMIN_USER ?? 'admin',
+  adminPasswordYealink: process.env.YEALINK_ADMIN_PASSWORD ?? 'admin',
   /** IP y puerto SIP fijos de la central Mitel, usados por SoftphoneGateway. */
   mitelIp: process.env.MITEL_IP ?? '',
   mitelPuertoSip: Number(process.env.MITEL_PUERTO_SIP ?? 5060),
@@ -51,6 +53,11 @@ export const configuracion = {
   intentosPing: enteroPositivo('MOTOR_INTENTOS_PING', 3),
   /** Si es true, al arrancar el motor barre cada subred de telefonia para calentar el ARP. */
   barridoArranque: process.env.MOTOR_BARRIDO_ARRANQUE !== 'false',
+  /** Prefijos /24 de telefonia a barrer en el warm-up de ARP (ej: "10.81.20,10.81.21"). */
+  subredesBarrido: (process.env.MOTOR_SUBREDES ?? '')
+    .split(',')
+    .map((prefijo) => prefijo.trim())
+    .filter((prefijo) => prefijo.length > 0),
   /** Minutos entre re-barridos periodicos de ARP; 0 desactiva el re-barrido. */
   rebarridoMinutos: enteroNoNegativo('MOTOR_REBARRIDO_MINUTOS', 10),
   /** Cortes mas cortos que estos minutos son ruido: se borra la caida y no se registra la recuperacion. */

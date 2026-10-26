@@ -18,6 +18,8 @@ export interface DispositivoDetalle {
   ubicacion_nombre: string;
   piso: number;
   tipo_ubicacion: string;
+  id_departamento: number | null;
+  departamento_nombre: string | null;
   id_modelo_telefono: number;
   modelo_telefono: string;
   marca_telefono: string;
@@ -42,11 +44,13 @@ export interface FiltrosDispositivo {
   busqueda?: string; // coincide contra nombre de ubicación o MAC efectiva
   /** Si es true, incluye también los dispositivos inactivos. Ignorado si `activo` viene definido. */
   incluir_inactivos?: boolean;
+  id_departamento?: number;
 }
 
 /** Campos escribibles de un teléfono, compartidos por el alta y la edición. */
 export interface DatosTelefono {
   id_ubicacion: number;
+  id_departamento: number | null;
   id_modelo_telefono: number;
   extension: string;
   tipo: string;
@@ -68,6 +72,8 @@ const SELECT_DISPOSITIVO = `
          u.nombre        AS ubicacion_nombre,
          u.piso,
          u.tipo_ubicacion,
+         t.id_departamento,
+         d.nombre        AS departamento_nombre,
          mt.id_modelo_telefono,
          mt.modelo       AS modelo_telefono,
          mt.marca        AS marca_telefono,
@@ -85,7 +91,8 @@ const SELECT_DISPOSITIVO = `
     JOIN ubicaciones u        ON u.id_ubicacion = t.id_ubicacion
     JOIN modelos_telefono mt  ON mt.id_modelo_telefono = t.id_modelo_telefono
     LEFT JOIN atas a          ON a.id_telefono = t.id_telefono
-    LEFT JOIN modelos_ata ma  ON ma.id_modelo_ata = a.id_modelo_ata`;
+    LEFT JOIN modelos_ata ma  ON ma.id_modelo_ata = a.id_modelo_ata
+    LEFT JOIN departamentos d ON d.id_departamento = t.id_departamento`;
 
 /** Lista los dispositivos que cumplan los filtros dados (todos opcionales). */
 export async function listarDispositivos(
@@ -105,6 +112,10 @@ export async function listarDispositivos(
   if (filtros.id_modelo_telefono !== undefined) {
     parametros.push(filtros.id_modelo_telefono);
     condiciones.push(`t.id_modelo_telefono = $${parametros.length}`);
+  }
+  if (filtros.id_departamento !== undefined) {
+    parametros.push(filtros.id_departamento);
+    condiciones.push(`t.id_departamento = $${parametros.length}`);
   }
   if (filtros.activo !== undefined) {
     parametros.push(filtros.activo);
@@ -154,6 +165,8 @@ export interface DetalleDispositivo {
   ubicacion_nombre: string;
   tipo_ubicacion: string;
   piso: number;
+  id_departamento: number | null;
+  departamento_nombre: string | null;
   extension: string;
   tipo: 'IP_ATA' | 'IP_NATIVO' | 'ANALOGICO';
   modelo_telefono: string;
@@ -181,6 +194,8 @@ export async function obtenerDetalle(idTelefono: number): Promise<DetalleDisposi
             u.nombre        AS ubicacion_nombre,
             u.tipo_ubicacion,
             u.piso,
+            t.id_departamento,
+            d.nombre        AS departamento_nombre,
             t.extension,
             t.tipo,
             mt.modelo       AS modelo_telefono,
@@ -202,6 +217,7 @@ export async function obtenerDetalle(idTelefono: number): Promise<DetalleDisposi
        JOIN modelos_telefono mt  ON mt.id_modelo_telefono = t.id_modelo_telefono
        LEFT JOIN atas a          ON a.id_telefono = t.id_telefono
        LEFT JOIN modelos_ata ma  ON ma.id_modelo_ata = a.id_modelo_ata
+       LEFT JOIN departamentos d ON d.id_departamento = t.id_departamento
        LEFT JOIN monitoreo m     ON m.id_telefono = t.id_telefono
        LEFT JOIN (
          SELECT id_telefono, COUNT(*) AS total
@@ -312,11 +328,12 @@ export async function crearTelefono(
   const resultado = await consultarCon<{ id_telefono: number }>(
     cliente,
     `INSERT INTO telefonos
-       (id_ubicacion, id_modelo_telefono, extension, tipo, numero_serie, mac, ip)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
+       (id_ubicacion, id_departamento, id_modelo_telefono, extension, tipo, numero_serie, mac, ip)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      RETURNING id_telefono`,
     [
       datos.id_ubicacion,
+      datos.id_departamento,
       datos.id_modelo_telefono,
       datos.extension,
       datos.tipo,
@@ -338,15 +355,17 @@ export async function actualizarTelefono(
     cliente,
     `UPDATE telefonos
         SET id_ubicacion = $1,
-            id_modelo_telefono = $2,
-            extension = $3,
-            tipo = $4,
-            numero_serie = $5,
-            mac = $6,
-            ip = $7
-      WHERE id_telefono = $8`,
+            id_departamento = $2,
+            id_modelo_telefono = $3,
+            extension = $4,
+            tipo = $5,
+            numero_serie = $6,
+            mac = $7,
+            ip = $8
+      WHERE id_telefono = $9`,
     [
       datos.id_ubicacion,
+      datos.id_departamento,
       datos.id_modelo_telefono,
       datos.extension,
       datos.tipo,

@@ -45,6 +45,8 @@ export interface ConfigMotor {
   barridoArranque?: boolean;
   /** Minutos entre re-barridos periodicos de ARP; 0 desactiva el re-barrido. */
   rebarridoMinutos?: number;
+  /** Prefijos /24 (ej: "10.81.20") a barrer en el warm-up, ademas de los derivados de IPs conocidas. */
+  subredesBarrido?: string[];
 }
 
 const CONFIG_DEFECTO: Required<ConfigMotor> = {
@@ -56,6 +58,7 @@ const CONFIG_DEFECTO: Required<ConfigMotor> = {
   intentosPing: 3,
   barridoArranque: true,
   rebarridoMinutos: 10,
+  subredesBarrido: [],
 };
 
 /** Payload del evento 'cambio-estado'. */
@@ -65,6 +68,10 @@ export interface PayloadCambioEstado {
   estado_nuevo: TipoEstadoMonitoreo;
   ip_registrada: string | null;
   fecha_ultima_conexion: Date | null;
+  /** Usuario que origino el cambio (mantenimiento, etc). Null si lo detecto el motor automatico. */
+  id_usuario_actor: number | null;
+  /** Nombre completo del usuario que origino el cambio. Null si lo detecto el motor automatico. */
+  nombre_usuario_actor: string | null;
 }
 
 /** Payload del evento 'drift-corregido'. */
@@ -116,17 +123,33 @@ export class MotorMonitoreo {
   }
 
   /**
-   * Warm-up de ARP: barre una vez cada subred /24 distinta de los dispositivos
-   * cargados, para que desde la primera ronda se pueda validar la MAC de cada IP.
-   * Un fallo en una subred no detiene el arranque.
+   * Warm-up de ARP: barre una vez cada subred /24, para que desde la primera ronda
+   * se pueda validar la MAC de cada IP. Las subredes vienen de dos fuentes: los
+   * dispositivos que ya tienen IP conocida, y las subredes fijas de configuracion
+   * (necesarias cuando los dispositivos son MAC-only y aun no tienen IP, que es
+   * justo el caso que este warm-up debe resolver). Un fallo en una subred no
+   * detiene el arranque.
    */
   private async calentarArp(): Promise<void> {
-    const prefijos = new Set<string>();
+    const prefijosDispositivos = new Set<string>();
     for (const dispositivo of this.estado.obtenerTodos()) {
       if (!dispositivo.ip) continue;
       const octetos = dispositivo.ip.split('.');
       if (octetos.length !== 4) continue;
-      prefijos.add(`${octetos[0]}.${octetos[1]}.${octetos[2]}`);
+      prefijosDispositivos.add(`${octetos[0]}.${octetos[1]}.${octetos[2]}`);
+    }
+
+    const prefijosConfig = new Set(this.config.subredesBarrido);
+    const prefijos = new Set([...prefijosDispositivos, ...prefijosConfig]);
+
+    if (prefijos.size === 0) {
+      console.warn(
+        '[MOTOR] Warm-up de ARP: sin subredes para barrer (ni dispositivos con IP ni MOTOR_SUBREDES configurado).',
+      );
+      console.log(
+        `[MOTOR] Warm-up: fuentes dispositivos=${prefijosDispositivos.size}, config=${prefijosConfig.size}, union final=${prefijos.size}`,
+      );
+      return;
     }
 
     console.log(`[MOTOR] Warm-up de ARP: barriendo ${prefijos.size} subred(es)...`);
@@ -138,6 +161,9 @@ export class MotorMonitoreo {
       ),
     );
     console.log('[MOTOR] Warm-up de ARP completado.');
+    console.log(
+      `[MOTOR] Warm-up: fuentes dispositivos=${prefijosDispositivos.size}, config=${prefijosConfig.size}, union final=${prefijos.size}`,
+    );
   }
 
   /** Detiene el planificador. El estado en memoria queda intacto. */
@@ -273,6 +299,8 @@ export class MotorMonitoreo {
               estado_nuevo: 'OFFLINE',
               ip_registrada: dispositivo.ip,
               fecha_ultima_conexion: dispositivo.fecha_ultima_conexion,
+              id_usuario_actor: null,
+              nombre_usuario_actor: null,
             } satisfies PayloadCambioEstado);
           }
           return;
@@ -295,6 +323,8 @@ export class MotorMonitoreo {
           estado_nuevo: 'ONLINE',
           ip_registrada: dispositivo.ip,
           fecha_ultima_conexion: fecha,
+          id_usuario_actor: null,
+          nombre_usuario_actor: null,
         } satisfies PayloadCambioEstado);
       }
       return;
@@ -332,6 +362,8 @@ export class MotorMonitoreo {
       estado_nuevo: 'OFFLINE',
       ip_registrada: dispositivo.ip,
       fecha_ultima_conexion: dispositivo.fecha_ultima_conexion,
+      id_usuario_actor: null,
+      nombre_usuario_actor: null,
     } satisfies PayloadCambioEstado);
   }
 

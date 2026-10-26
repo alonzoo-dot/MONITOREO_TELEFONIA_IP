@@ -5,6 +5,7 @@ import DrawerImportar from '../components/DrawerImportar';
 import {
   listarDispositivos,
   listarModelosTelefono,
+  listarDepartamentos,
   desactivarDispositivo,
   reactivarDispositivo,
   eliminarDispositivo,
@@ -12,7 +13,12 @@ import {
 import { ErrorApi } from '../services/api';
 import { confirmar } from '../store/confirmaciones';
 import { esAdministrador } from '../services/sesion';
-import type { Dispositivo, FiltrosDispositivo, ModeloTelefono } from '../types/inventario';
+import type {
+  Dispositivo,
+  FiltrosDispositivo,
+  ModeloTelefono,
+  Departamento,
+} from '../types/inventario';
 import estilos from './Inventario.module.css';
 
 /** Etiqueta legible para cada tipo de dispositivo. */
@@ -28,6 +34,7 @@ function Inventario() {
   const [dispositivos, setDispositivos] = useState<Dispositivo[]>([]);
   const [todos, setTodos] = useState<Dispositivo[]>([]);
   const [modelos, setModelos] = useState<ModeloTelefono[]>([]);
+  const [departamentos, setDepartamentos] = useState<Departamento[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
 
@@ -42,6 +49,7 @@ function Inventario() {
   const [fTipo, setFTipo] = useState('');
   const [fPiso, setFPiso] = useState('');
   const [fModelo, setFModelo] = useState('');
+  const [fDepartamento, setFDepartamento] = useState('');
   const [fEstado, setFEstado] = useState('activos');
 
   /** Carga la lista aplicando los filtros que maneja el backend. */
@@ -52,6 +60,7 @@ function Inventario() {
     if (fTipo) filtros.tipo = fTipo;
     if (fPiso) filtros.piso = Number(fPiso);
     if (fModelo) filtros.id_modelo_telefono = Number(fModelo);
+    if (fDepartamento) filtros.id_departamento = Number(fDepartamento);
     if (fEstado === 'activos') filtros.activo = true;
     if (fEstado === 'inactivos') filtros.activo = false;
     if (fEstado === 'todos') filtros.incluir_inactivos = true;
@@ -71,13 +80,20 @@ function Inventario() {
   useEffect(() => {
     cargar();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fTipo, fPiso, fModelo, fEstado, busqueda]);
+  }, [fTipo, fPiso, fModelo, fDepartamento, fEstado, busqueda]);
 
   // Carga los modelos una vez, para el desplegable de filtro
   useEffect(() => {
     listarModelosTelefono()
       .then(setModelos)
       .catch(() => setModelos([]));
+  }, []);
+
+  // Carga los departamentos una vez, para el desplegable de filtro
+  useEffect(() => {
+    listarDepartamentos()
+      .then(setDepartamentos)
+      .catch(() => setDepartamentos([]));
   }, []);
 
   // Carga TODOS los dispositivos (activos e inactivos) solo para los conteos del resumen
@@ -283,6 +299,18 @@ function Inventario() {
             </option>
           ))}
         </select>
+        <select
+          value={fDepartamento}
+          onChange={(e) => setFDepartamento(e.target.value)}
+          aria-label="Departamento"
+        >
+          <option value="">Todos los departamentos</option>
+          {departamentos.map((dep) => (
+            <option key={dep.id_departamento} value={dep.id_departamento}>
+              {dep.nombre}
+            </option>
+          ))}
+        </select>
         <select value={fEstado} onChange={(e) => setFEstado(e.target.value)} aria-label="Estado">
           <option value="activos">Solo activos</option>
           <option value="inactivos">Solo inactivos</option>
@@ -300,6 +328,7 @@ function Inventario() {
             <tr>
               <th>Ubicación</th>
               <th>Piso</th>
+              <th>Departamento</th>
               <th>Extensión</th>
               <th>Tipo</th>
               <th>Modelo</th>
@@ -312,13 +341,13 @@ function Inventario() {
           <tbody>
             {cargando ? (
               <tr>
-                <td colSpan={9}>
+                <td colSpan={10}>
                   <div className={estilos.empty}>Cargando…</div>
                 </td>
               </tr>
             ) : dispositivos.length === 0 ? (
               <tr>
-                <td colSpan={9}>
+                <td colSpan={10}>
                   <div className={estilos.empty}>
                     <b>Sin dispositivos</b>
                     Ajusta la búsqueda o los filtros.
@@ -335,6 +364,10 @@ function Inventario() {
                   <td>
                     <span className={estilos.cardLabel}>Piso</span>
                     {d.piso}
+                  </td>
+                  <td>
+                    <span className={estilos.cardLabel}>Departamento</span>
+                    {d.departamento_nombre ?? <span className={estilos.muted}>—</span>}
                   </td>
                   <td>
                     <span className={estilos.cardLabel}>Extensión</span>

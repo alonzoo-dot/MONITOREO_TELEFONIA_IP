@@ -139,7 +139,6 @@ function DrawerCatalogo({ edicion, onCerrar, onGuardado }: Props) {
                 Nombre <span className={estilos.req}>*</span>
               </label>
               <input
-                placeholder="Ej. Sistemas"
                 value={nombre}
                 onChange={(e) => setNombre(e.target.value)}
               />
@@ -151,7 +150,6 @@ function DrawerCatalogo({ edicion, onCerrar, onGuardado }: Props) {
                   Modelo <span className={estilos.req}>*</span>
                 </label>
                 <input
-                  placeholder={edicion?.tipo === 'ata' ? 'Ej. HT802' : 'Ej. GRP2601'}
                   value={modelo}
                   onChange={(e) => setModelo(e.target.value)}
                 />
@@ -161,7 +159,6 @@ function DrawerCatalogo({ edicion, onCerrar, onGuardado }: Props) {
                   Marca <span className={estilos.req}>*</span>
                 </label>
                 <input
-                  placeholder="Ej. Grandstream"
                   value={marca}
                   onChange={(e) => setMarca(e.target.value)}
                 />
@@ -174,7 +171,6 @@ function DrawerCatalogo({ edicion, onCerrar, onGuardado }: Props) {
                   <input
                     type="number"
                     min="1"
-                    placeholder="Ej. 2"
                     value={puertos}
                     onChange={(e) => setPuertos(e.target.value)}
                   />
