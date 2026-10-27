@@ -272,7 +272,7 @@ function Inventario() {
           </svg>
           <input
             type="search"
-            placeholder="Buscar por habitación o MAC…"
+            placeholder="Buscar por ubicación o MAC…"
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
           />

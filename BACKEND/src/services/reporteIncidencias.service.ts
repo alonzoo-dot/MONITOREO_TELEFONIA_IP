@@ -77,7 +77,7 @@ function construirDefinicion(filas: IncidenciaDetalle[], filtros: FiltrosInciden
 
   const encabezadoTabla = [
     { text: 'Fecha / hora', style: 'th' },
-    { text: 'Habitacion', style: 'th' },
+    { text: 'Ubicacion', style: 'th' },
     { text: 'Piso', style: 'th' },
     { text: 'Tipo', style: 'th' },
     { text: 'IP registrada', style: 'th' },

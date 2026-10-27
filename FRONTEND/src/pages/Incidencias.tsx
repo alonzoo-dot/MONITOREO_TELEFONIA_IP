@@ -212,7 +212,7 @@ function Incidencias() {
         <input
           className={estilos.busqueda}
           type="search"
-          placeholder="Buscar por habitacion o MAC"
+          placeholder="Buscar por ubicacion o MAC"
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
         />
@@ -259,7 +259,7 @@ function Incidencias() {
             <thead>
               <tr>
                 <th>Fecha / hora</th>
-                <th>Habitacion</th>
+                <th>Ubicacion</th>
                 <th>Piso</th>
                 <th>Tipo</th>
                 <th>IP registrada</th>
