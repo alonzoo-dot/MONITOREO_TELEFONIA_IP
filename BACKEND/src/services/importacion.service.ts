@@ -127,7 +127,9 @@ export async function importarInventario(
         throw new Error(validacionForma.error.issues[0]?.message ?? 'Datos inválidos.');
       }
 
-      await inventarioService.crearDispositivo(datos);
+      // Usa el dato ya normalizado por el esquema (p. ej. ubicacion_nombre y mac en
+      // mayúsculas), no el crudo del Excel, para quedar igual que el alta manual.
+      await inventarioService.crearDispositivo(validacionForma.data);
       creados += 1;
     } catch (error: unknown) {
       const mensaje =

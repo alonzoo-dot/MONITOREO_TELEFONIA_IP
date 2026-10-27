@@ -6,12 +6,14 @@ export const esquemaModeloAta = z.object({
     .string()
     .trim()
     .min(1, 'El modelo es obligatorio')
-    .max(30, 'El modelo no puede superar 30 caracteres'),
+    .max(30, 'El modelo no puede superar 30 caracteres')
+    .transform(v => v.toUpperCase()),
   marca: z
     .string()
     .trim()
     .min(1, 'La marca es obligatoria')
-    .max(40, 'La marca no puede superar 40 caracteres'),
+    .max(40, 'La marca no puede superar 40 caracteres')
+    .transform(v => v.toUpperCase()),
   cantidad_puertos: z
     .number()
     .int('La cantidad de puertos debe ser un número entero')
@@ -24,12 +26,14 @@ export const esquemaModeloTelefono = z.object({
     .string()
     .trim()
     .min(1, 'El modelo es obligatorio')
-    .max(40, 'El modelo no puede superar 40 caracteres'),
+    .max(40, 'El modelo no puede superar 40 caracteres')
+    .transform(v => v.toUpperCase()),
   marca: z
     .string()
     .trim()
     .min(1, 'La marca es obligatoria')
-    .max(40, 'La marca no puede superar 40 caracteres'),
+    .max(40, 'La marca no puede superar 40 caracteres')
+    .transform(v => v.toUpperCase()),
 });
 
 /** Esquema para crear/editar un departamento. */
@@ -38,5 +42,6 @@ export const esquemaDepartamento = z.object({
     .string()
     .trim()
     .min(1, 'El nombre es obligatorio')
-    .max(50, 'El nombre no puede superar 50 caracteres'),
+    .max(50, 'El nombre no puede superar 50 caracteres')
+    .transform(v => v.toUpperCase()),
 });
