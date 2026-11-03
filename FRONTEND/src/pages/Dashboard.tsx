@@ -143,7 +143,7 @@ function Dashboard() {
             : dispositivo,
         ),
       );
-    } else {
+    } else if (evento.tipo === 'dispositivo-eliminado') {
       const { id_telefono } = evento.payload;
       setDispositivos((actuales) => actuales.filter((d) => d.id_telefono !== id_telefono));
     }

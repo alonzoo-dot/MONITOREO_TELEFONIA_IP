@@ -46,9 +46,25 @@ export interface PayloadDispositivoEliminado {
   id_telefono: number;
 }
 
+export interface PayloadDispositivoModificado {
+  id_telefono: number;
+  ip: string | null;
+  mac: string | null;
+  extension: string;
+  estado: EstadoDispositivoMonitoreo;
+}
+
+export interface PayloadIncidenciasCerradasBatch {
+  ids: number[];
+  motivo: string;
+  fecha: string;
+}
+
 export type EventoMonitoreo =
   | { tipo: 'cambio-estado'; payload: PayloadCambioEstado }
   | { tipo: 'drift-corregido'; payload: PayloadDriftCorregido }
-  | { tipo: 'dispositivo-eliminado'; payload: PayloadDispositivoEliminado };
+  | { tipo: 'dispositivo-eliminado'; payload: PayloadDispositivoEliminado }
+  | { tipo: 'dispositivo-modificado'; payload: PayloadDispositivoModificado }
+  | { tipo: 'incidencias-cerradas-batch'; payload: PayloadIncidenciasCerradasBatch };
 
 export type EstadoConexionSSE = 'conectando' | 'conectado' | 'reconectando' | 'expirado';

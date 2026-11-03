@@ -5,8 +5,14 @@ import type { Incidencia, FiltrosIncidencias } from '../types/incidencia';
 import estilos from './Incidencias.module.css';
 import ModalAtender from '../components/ModalAtender';
 import { decrementarPendientes } from '../store/pendientes';
+import { useMonitoreoSSE } from '../hooks/useMonitoreoSSE';
+import { mostrarToast } from '../store/toasts';
+import type { EventoMonitoreo } from '../types/monitoreo';
 
 const TAMANO_PAGINA = 50;
+
+/** Duracion del toast de auto-cierre por antiguedad. */
+const DURACION_TOAST_AUTO_CIERRE_MS = 4000;
 
 type RangoRapido = 'hoy' | 'semana' | 'mes' | 'todo';
 
@@ -78,6 +84,12 @@ function Incidencias() {
   const [busquedaDebounce, setBusquedaDebounce] = useState('');
   const primerRender = useRef(true);
 
+  // Espejo de soloPendientes para consultarlo desde el manejador de eventos SSE sin generar renders extra.
+  const soloPendientesRef = useRef(soloPendientes);
+  useEffect(() => {
+    soloPendientesRef.current = soloPendientes;
+  }, [soloPendientes]);
+
   useEffect(() => {
     const id = setTimeout(() => setBusquedaDebounce(busqueda), 400);
     return () => clearTimeout(id);
@@ -117,6 +129,33 @@ function Incidencias() {
     primerRender.current = false;
     cargar();
   }, [cargar]);
+
+  const manejarEvento = useCallback((evento: EventoMonitoreo) => {
+    if (evento.tipo !== 'incidencias-cerradas-batch') return;
+    const { ids, fecha } = evento.payload;
+    const idsCerrados = new Set(ids);
+
+    if (soloPendientesRef.current) {
+      setIncidencias((prev) => prev.filter((i) => !idsCerrados.has(i.id_incidencia)));
+    } else {
+      setIncidencias((prev) =>
+        prev.map((i) =>
+          idsCerrados.has(i.id_incidencia)
+            ? { ...i, pendiente: false, fecha_atendida: fecha }
+            : i,
+        ),
+      );
+    }
+
+    mostrarToast({
+      tipo: 'info',
+      titulo: 'Cierre automatico',
+      mensaje: `${ids.length} incidencia${ids.length === 1 ? '' : 's'} cerrada${ids.length === 1 ? '' : 's'} automaticamente por antiguedad`,
+      autoCloseMs: DURACION_TOAST_AUTO_CIERRE_MS,
+    });
+  }, []);
+
+  useMonitoreoSSE(manejarEvento);
 
   async function generarReporte() {
     setGenerandoReporte(true);

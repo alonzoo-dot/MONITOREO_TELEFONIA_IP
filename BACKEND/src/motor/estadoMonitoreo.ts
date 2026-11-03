@@ -75,4 +75,40 @@ export class RegistroEstadoMonitoreo {
   eliminar(idTelefono: number): void {
     this.dispositivos.delete(idTelefono);
   }
+
+  /**
+   * Aplica una edición hecha desde la UI (IP/MAC/tipo) sin esperar al próximo
+   * refresco periódico. Resetea fallos_consecutivos y vuelve el estado a
+   * DESCONOCIDO a propósito: es un fresh start para que el motor no arrastre
+   * fallos acumulados con los datos viejos al evaluar los datos corregidos.
+   * Si el dispositivo no está en el Map (caso raro), lo agrega como nuevo.
+   */
+  actualizarDispositivo(datos: {
+    id_telefono: number;
+    ip: string | null;
+    mac: string | null;
+    tipo: 'IP_ATA' | 'IP_NATIVO';
+  }): void {
+    const existente = this.dispositivos.get(datos.id_telefono);
+
+    if (existente) {
+      existente.ip = datos.ip;
+      existente.mac = datos.mac;
+      existente.tipo = datos.tipo;
+      existente.estado = 'DESCONOCIDO';
+      existente.fallos_consecutivos = 0;
+    } else {
+      this.dispositivos.set(datos.id_telefono, {
+        id_telefono: datos.id_telefono,
+        mac: datos.mac,
+        tipo: datos.tipo,
+        ip: datos.ip,
+        estado: 'DESCONOCIDO',
+        fallos_consecutivos: 0,
+        fecha_ultima_conexion: null,
+        drift_intentado_en_este_ciclo: false,
+        ha_estado_online: false,
+      });
+    }
+  }
 }

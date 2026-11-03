@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Layout from '../components/Layout';
 import DrawerDispositivo from '../components/DrawerDispositivo';
 import DrawerImportar from '../components/DrawerImportar';
@@ -13,6 +13,8 @@ import {
 import { ErrorApi } from '../services/api';
 import { confirmar } from '../store/confirmaciones';
 import { esAdministrador } from '../services/sesion';
+import { useMonitoreoSSE } from '../hooks/useMonitoreoSSE';
+import type { EventoMonitoreo, PayloadDispositivoModificado } from '../types/monitoreo';
 import type {
   Dispositivo,
   FiltrosDispositivo,
@@ -20,6 +22,21 @@ import type {
   Departamento,
 } from '../types/inventario';
 import estilos from './Inventario.module.css';
+
+/** Aplica a un dispositivo los campos que trae el evento SSE 'dispositivo-modificado'. */
+function aplicarModificacion(
+  d: Dispositivo,
+  payload: PayloadDispositivoModificado,
+): Dispositivo {
+  if (d.id_telefono !== payload.id_telefono) return d;
+  return {
+    ...d,
+    extension: payload.extension,
+    mac_efectiva: payload.mac,
+    ip: d.tipo === 'IP_ATA' ? d.ip : payload.ip,
+    ata_ip: d.tipo === 'IP_ATA' ? payload.ip : d.ata_ip,
+  };
+}
 
 /** Etiqueta legible para cada tipo de dispositivo. */
 const ETIQUETA_TIPO: Record<string, string> = {
@@ -178,6 +195,17 @@ function Inventario() {
       .then(setTodos)
       .catch(() => setTodos([]));
   }
+
+  // Mantiene la fila al dia cuando otra pestaña/usuario edita un dispositivo:
+  // el motor arranca el monitoreo en DESCONOCIDO con la IP/MAC ya corregidas.
+  const manejarEventoMonitoreo = useCallback((evento: EventoMonitoreo) => {
+    if (evento.tipo !== 'dispositivo-modificado') return;
+    const { payload } = evento;
+    setDispositivos((actuales) => actuales.map((d) => aplicarModificacion(d, payload)));
+    setTodos((actuales) => actuales.map((d) => aplicarModificacion(d, payload)));
+  }, []);
+
+  useMonitoreoSSE(manejarEventoMonitoreo);
 
   /** Tras guardar en el drawer: cierra y recarga la lista y el resumen. */
   function alGuardar() {

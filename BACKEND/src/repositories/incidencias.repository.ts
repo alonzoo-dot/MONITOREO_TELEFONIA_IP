@@ -310,3 +310,23 @@ export async function eliminarIncidencia(
   );
   return resultado.rowCount ?? 0;
 }
+
+// Cierra en lote todas las caidas pendientes mas antiguas que el umbral
+// (en horas). Devuelve los IDs cerrados para difusion por SSE.
+export async function cerrarIncidenciasAntiguas(
+  horasLimite: number,
+): Promise<{ cerradas: number; ids: number[] }> {
+  const resultado = await ejecutarConsulta<{ id_incidencia: number }>(
+    `UPDATE incidencias
+        SET fecha_atendida = NOW(),
+            descripcion_falla = 'Cerrada automaticamente por antiguedad (mas de ' || $1 || ' horas sin atender)'
+      WHERE tipo_evento = 'CAIDA'
+        AND id_usuario_atendio IS NULL
+        AND fecha_atendida IS NULL
+        AND fecha_ocurrido < NOW() - ($1 || ' hours')::INTERVAL
+      RETURNING id_incidencia`,
+    [horasLimite],
+  );
+  const ids = resultado.rows.map(r => r.id_incidencia);
+  return { cerradas: ids.length, ids };
+}

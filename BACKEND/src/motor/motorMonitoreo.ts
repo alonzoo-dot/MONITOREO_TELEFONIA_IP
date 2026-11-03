@@ -201,6 +201,20 @@ export class MotorMonitoreo {
     this.ultimoBarridoPorDispositivo.delete(idTelefono);
   }
 
+  /**
+   * Refleja en el Map interno del motor una edición de IP/MAC/tipo hecha desde
+   * la UI, para no esperar al próximo refresco periódico. Ver
+   * RegistroEstadoMonitoreo.actualizarDispositivo para el detalle del reset.
+   */
+  actualizarDispositivoEnMap(datos: {
+    id_telefono: number;
+    ip: string | null;
+    mac: string | null;
+    tipo: 'IP_ATA' | 'IP_NATIVO';
+  }): void {
+    this.estado.actualizarDispositivo(datos);
+  }
+
   on(evento: 'cambio-estado', callback: (payload: PayloadCambioEstado) => void): void;
   on(evento: 'drift-corregido', callback: (payload: PayloadDriftCorregido) => void): void;
   on(evento: string, callback: (...args: any[]) => void): void {

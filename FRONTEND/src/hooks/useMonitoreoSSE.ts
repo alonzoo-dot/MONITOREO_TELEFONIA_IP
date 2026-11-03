@@ -43,6 +43,16 @@ export function useMonitoreoSSE(onEvento: (evento: EventoMonitoreo) => void): {
       onEventoRef.current({ tipo: 'dispositivo-eliminado', payload });
     });
 
+    fuente.addEventListener('dispositivo-modificado', (evento) => {
+      const payload = JSON.parse((evento as MessageEvent).data);
+      onEventoRef.current({ tipo: 'dispositivo-modificado', payload });
+    });
+
+    fuente.addEventListener('incidencias-cerradas-batch', (evento) => {
+      const payload = JSON.parse((evento as MessageEvent).data);
+      onEventoRef.current({ tipo: 'incidencias-cerradas-batch', payload });
+    });
+
     fuente.onerror = () => {
       const ahora = Date.now();
       erroresRecientes.push(ahora);

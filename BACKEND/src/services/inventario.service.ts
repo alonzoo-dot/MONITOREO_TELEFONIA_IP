@@ -278,7 +278,28 @@ export async function actualizarDispositivo(
     }
   });
 
-  return obtenerDispositivo(idTelefono);
+  const detalleActualizado = await obtenerDispositivo(idTelefono);
+
+  // La notificación al motor y el broadcast SSE van después del commit: si la
+  // transacción falla, no hay que avisarle a nadie de un cambio que no ocurrió.
+  if (detalleActualizado.tipo === 'IP_ATA' || detalleActualizado.tipo === 'IP_NATIVO') {
+    instanciaMotor?.actualizarDispositivoEnMap({
+      id_telefono: idTelefono,
+      ip: detalleActualizado.ip_efectiva,
+      mac: detalleActualizado.mac_efectiva,
+      tipo: detalleActualizado.tipo,
+    });
+
+    eventosSse.difundir('dispositivo-modificado', {
+      id_telefono: idTelefono,
+      ip: detalleActualizado.ip_efectiva,
+      mac: detalleActualizado.mac_efectiva,
+      extension: detalleActualizado.extension,
+      estado: 'DESCONOCIDO',
+    });
+  }
+
+  return detalleActualizado;
 }
 
 /** Obtiene un dispositivo por su id. Lanza error si no existe. */

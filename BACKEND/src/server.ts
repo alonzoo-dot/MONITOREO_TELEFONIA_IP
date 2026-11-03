@@ -16,6 +16,7 @@ import { establecerInstanciaMotor } from './motor/instancia';
 import * as monitoreoRepo from './repositories/monitoreo.repository';
 import * as telefonosRepo from './repositories/telefonos.repository';
 import * as monitoreoService from './services/monitoreo.service';
+import * as incidenciasService from './services/incidencias.service';
 
 // Redes de seguridad de último recurso: registran fallos asíncronos que se
 // escapen de los try/catch, en vez de dejar que Node mate el proceso por su
@@ -68,6 +69,18 @@ async function iniciarServidor(): Promise<void> {
 
     monitoreoService.suscribirAlMotor(motor);
     console.log('[MONITOREO] Servicio suscrito al motor');
+
+    // Job de auto-cierre de incidencias antiguas (Capa 3 del esquema de
+    // cierre automatico). Corre una vez tras el arranque y luego cada hora.
+    setTimeout(() => {
+      void incidenciasService.ejecutarAutoCierreIncidenciasAntiguas();
+    }, incidenciasService.DELAY_INICIAL_MS);
+
+    setInterval(() => {
+      void incidenciasService.ejecutarAutoCierreIncidenciasAntiguas();
+    }, incidenciasService.INTERVALO_JOB_MS);
+
+    console.log(`[INCIDENCIAS] Auto-cierre activo cada 1h (umbral: ${incidenciasService.HORAS_AUTO_CIERRE}h)`);
   } else {
     console.log('[MOTOR] Inactivo (MOTOR_ACTIVO=false)');
   }

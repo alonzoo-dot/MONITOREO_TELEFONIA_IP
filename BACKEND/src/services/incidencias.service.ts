@@ -3,6 +3,17 @@ import type {
   FiltrosIncidencias,
   IncidenciaDetalle,
 } from '../repositories/incidencias.repository';
+import { difundir } from './eventosSse.service';
+
+// Umbral de antiguedad para auto-cierre de caidas pendientes.
+// Si cambia, ajustar aqui y recompilar.
+export const HORAS_AUTO_CIERRE = 48;
+
+// Intervalo entre corridas del job periodico (1 hora).
+export const INTERVALO_JOB_MS = 3_600_000;
+
+// Delay inicial despues del arranque (60s, no interfiere con el warm-up).
+export const DELAY_INICIAL_MS = 60_000;
 
 // Resultado paginado del historial: las filas de la pagina mas los metadatos de paginacion.
 export interface ResultadoIncidencias {
@@ -70,4 +81,28 @@ export async function atenderIncidencia(
     throw new ErrorIncidencias('NO_ENCONTRADO', 'La incidencia no existe.');
   }
   return atendida;
+}
+
+// Cierra en lote las caidas pendientes mas antiguas que HORAS_AUTO_CIERRE.
+// Es invocada por el job periodico que arranca en server.ts.
+export async function ejecutarAutoCierreIncidenciasAntiguas(): Promise<void> {
+  try {
+    const { cerradas, ids } = await incidenciasRepo.cerrarIncidenciasAntiguas(
+      HORAS_AUTO_CIERRE,
+    );
+    if (cerradas === 0) {
+      console.log('[INCIDENCIAS] Auto-cierre: 0 prescritas');
+      return;
+    }
+    console.log(
+      `[INCIDENCIAS] Auto-cierre: ${cerradas} cerradas por antiguedad [IDs: ${ids.join(', ')}]`,
+    );
+    difundir('incidencias-cerradas-batch', {
+      ids,
+      motivo: 'antiguedad',
+      fecha: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('[INCIDENCIAS] Error al ejecutar auto-cierre:', error);
+  }
 }
