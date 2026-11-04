@@ -52,6 +52,17 @@ function finDelDiaISO(fechaInput: string): string | undefined {
   return new Date(`${fechaInput}T23:59:59`).toISOString();
 }
 
+// Resuelve que mostrar en la columna "Atendio": usuario vigente (normal),
+// nombre denormalizado de un usuario eliminado (gris italico), "Sistema" para
+// el cierre automatico, o "-" si esta pendiente o no aplica.
+function celdaAtendioPor(inc: Incidencia, estilos: Record<string, string>) {
+  if (inc.pendiente) return '—';
+  if (!inc.id_usuario_atendio && inc.nombre_usuario_atendio) {
+    return <span className={estilos.usuarioEliminado}>{inc.usuario_atendio}</span>;
+  }
+  return inc.usuario_atendio ?? '—';
+}
+
 // Formatea una fecha ISO a algo legible en espanol.
 function formatearFecha(iso: string): string {
   const d = new Date(iso);
@@ -319,7 +330,7 @@ function Incidencias() {
                     </span>
                   </td>
                   <td className={estilos.mono}>{inc.ip_registrada ?? '-'}</td>
-                  <td>{inc.usuario_atendio ?? (inc.pendiente ? 'Pendiente' : '-')}</td>
+                  <td>{celdaAtendioPor(inc, estilos)}</td>
                   <td>{inc.descripcion_falla ?? '-'}</td>
                   <td>
                     {inc.pendiente && (

@@ -74,6 +74,7 @@ export interface IncidenciaDetalle {
   mac: string | null;
   ip_registrada: string | null;
   id_usuario_atendio: number | null;
+  nombre_usuario_atendio: string | null;
   usuario_atendio: string | null;
   fecha_atendida: Date | null;
   descripcion_falla: string | null;
@@ -93,6 +94,8 @@ export interface FiltrosIncidencias {
 
 // SELECT base del historial enriquecido. host() quita la mascara /32 de la inet.
 // COALESCE(a.mac, t.mac) resuelve la MAC segun el tipo de dispositivo.
+// usuario_atendio se resuelve con prioridad: usuario vigente (JOIN) > nombre
+// denormalizado (usuario eliminado) > 'Sistema' (cierre automatico sin usuario).
 const SELECT_INCIDENCIA = `
   SELECT i.id_incidencia,
          i.tipo_evento,
@@ -103,7 +106,13 @@ const SELECT_INCIDENCIA = `
          COALESCE(a.mac, t.mac)   AS mac,
          host(i.ip_registrada)    AS ip_registrada,
          i.id_usuario_atendio,
-         us.nombre_completo       AS usuario_atendio,
+         i.nombre_usuario_atendio,
+         CASE
+           WHEN i.id_usuario_atendio IS NOT NULL THEN us.nombre_completo
+           WHEN i.nombre_usuario_atendio IS NOT NULL THEN i.nombre_usuario_atendio || ' (eliminado)'
+           WHEN i.fecha_atendida IS NOT NULL THEN 'Sistema'
+           ELSE NULL
+         END                      AS usuario_atendio,
          i.fecha_atendida,
          i.descripcion_falla,
          (i.tipo_evento = 'CAIDA' AND i.id_usuario_atendio IS NULL AND i.fecha_atendida IS NULL) AS pendiente,
@@ -307,6 +316,25 @@ export async function eliminarIncidencia(
     cliente,
     `DELETE FROM incidencias WHERE id_incidencia = $1`,
     [idIncidencia],
+  );
+  return resultado.rowCount ?? 0;
+}
+
+// Copia el nombre del usuario a nombre_usuario_atendio y libera la FK (la deja en
+// NULL) en todas las incidencias que atendio. Se usa al eliminar permanentemente
+// un usuario, para preservar su nombre en el historial. Devuelve filas afectadas.
+export async function denormalizarUsuarioAtendio(
+  idUsuario: number,
+  nombreCompleto: string,
+  cliente?: PoolClient,
+): Promise<number> {
+  const resultado = await consultarCon(
+    cliente,
+    `UPDATE incidencias
+        SET nombre_usuario_atendio = $1,
+            id_usuario_atendio = NULL
+      WHERE id_usuario_atendio = $2`,
+    [nombreCompleto, idUsuario],
   );
   return resultado.rowCount ?? 0;
 }

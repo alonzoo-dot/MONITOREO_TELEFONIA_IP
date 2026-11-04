@@ -66,3 +66,11 @@ export function resetearPassword(idUsuario: number): Promise<ResultadoPasswordTe
     token: obtenerToken() ?? undefined,
   });
 }
+
+/** Elimina un usuario fisicamente (hard delete). Permanente e irreversible. */
+export function eliminarUsuarioPermanentemente(idUsuario: number): Promise<void> {
+  return peticionApi<void>(`/usuarios/${idUsuario}/eliminar-permanente`, {
+    metodo: 'DELETE',
+    token: obtenerToken() ?? undefined,
+  });
+}

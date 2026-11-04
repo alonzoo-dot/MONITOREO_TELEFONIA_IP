@@ -1,4 +1,5 @@
-import { ejecutarConsulta } from '../config/database';
+import type { PoolClient } from 'pg';
+import { consultarCon, ejecutarConsulta } from '../config/database';
 
 /** La forma de un usuario tal como vive en la base de datos, con el nombre de su rol. */
 export interface Usuario {
@@ -125,6 +126,14 @@ export async function resetearPasswordUsuario(
       WHERE id_usuario = $2`,
     [nuevoPasswordHash, idUsuario],
   );
+}
+
+/** Elimina un usuario fisicamente (hard delete). Irreversible. */
+export async function eliminarUsuarioFisico(
+  idUsuario: number,
+  cliente?: PoolClient,
+): Promise<void> {
+  await consultarCon(cliente, `DELETE FROM usuarios WHERE id_usuario = $1`, [idUsuario]);
 }
 
 /** Cuenta cuantos administradores activos existen en el sistema. */

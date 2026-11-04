@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { crear, listar, editar, resetear } from '../controllers/usuarios.controller';
+import { crear, listar, editar, resetear, eliminarPermanente } from '../controllers/usuarios.controller';
 import { requiereAutenticacion } from '../middlewares/auth.middleware';
 import { requiereRol } from '../middlewares/autorizacion.middleware';
 
@@ -13,5 +13,6 @@ rutasUsuarios.get('/', listar);
 rutasUsuarios.post('/', crear);
 rutasUsuarios.put('/:id', editar);
 rutasUsuarios.post('/:id/reset-password', resetear);
+rutasUsuarios.delete('/:id/eliminar-permanente', eliminarPermanente);
 
 export default rutasUsuarios;

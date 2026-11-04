@@ -4,6 +4,7 @@ import {
   obtenerUsuarios,
   editarUsuario,
   resetearPassword,
+  eliminarUsuarioPermanentemente,
   ErrorUsuarios,
   type CodigoErrorUsuarios,
 } from '../services/usuarios.service';
@@ -14,10 +15,12 @@ function estadoPorCodigo(codigo: CodigoErrorUsuarios): number {
     case 'NO_ENCONTRADO':
       return 404;
     case 'ROL_INVALIDO':
+    case 'NO_ELIMINAR_PROPIA_CUENTA':
       return 400;
     case 'USUARIO_DUPLICADO':
     case 'AUTO_DESACTIVACION':
     case 'ULTIMO_ADMIN':
+    case 'ULTIMO_ADMINISTRADOR':
       return 409;
     default:
       return 409;
@@ -110,6 +113,31 @@ export async function resetear(peticion: Request, respuesta: Response): Promise<
       return;
     }
     console.error('Error inesperado al resetear contraseña:', error);
+    respuesta.status(500).json({ mensaje: 'Error interno del servidor' });
+  }
+}
+
+/** DELETE /api/usuarios/:id/eliminar-permanente — elimina un usuario fisicamente (hard delete). */
+export async function eliminarPermanente(peticion: Request, respuesta: Response): Promise<void> {
+  const idUsuario = Number(peticion.params.id);
+
+  if (!Number.isInteger(idUsuario)) {
+    respuesta.status(400).json({ mensaje: 'Id de usuario inválido' });
+    return;
+  }
+
+  // El id del administrador que ejecuta la accion lo adjunta requiereAutenticacion
+  const idUsuarioSolicitante = peticion.usuario!.id_usuario;
+
+  try {
+    await eliminarUsuarioPermanentemente(idUsuario, idUsuarioSolicitante);
+    respuesta.status(204).send();
+  } catch (error: unknown) {
+    if (error instanceof ErrorUsuarios) {
+      respuesta.status(estadoPorCodigo(error.codigo)).json({ mensaje: error.message, codigo: error.codigo });
+      return;
+    }
+    console.error('Error inesperado al eliminar usuario permanentemente:', error);
     respuesta.status(500).json({ mensaje: 'Error interno del servidor' });
   }
 }

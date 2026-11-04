@@ -7,8 +7,13 @@ import {
   existeUsuario,
   contarAdministradoresActivos,
   obtenerRolPorId,
+  eliminarUsuarioFisico,
   type UsuarioPublico,
 } from '../repositories/usuarios.repository';
+import { denormalizarUsuarioAtendio } from '../repositories/incidencias.repository';
+import { denormalizarUsuario as denormalizarUsuarioMantenimiento } from '../repositories/mantenimiento_log.repository';
+import { denormalizarUsuario as denormalizarUsuarioEliminaciones } from '../repositories/eliminaciones_permanentes.repository';
+import { ejecutarEnTransaccion } from '../config/database';
 import { cifrarPassword, generarPasswordTemporal } from '../utils/password';
 
 /** Codigos de error de negocio de la gestion de usuarios. */
@@ -17,7 +22,9 @@ export type CodigoErrorUsuarios =
   | 'USUARIO_DUPLICADO'
   | 'ROL_INVALIDO'
   | 'AUTO_DESACTIVACION'
-  | 'ULTIMO_ADMIN';
+  | 'ULTIMO_ADMIN'
+  | 'NO_ELIMINAR_PROPIA_CUENTA'
+  | 'ULTIMO_ADMINISTRADOR';
 
 /** Error de negocio en la gestion de usuarios con un codigo para mapear el estado HTTP. */
 export class ErrorUsuarios extends Error {
@@ -126,4 +133,53 @@ export async function resetearPassword(idUsuario: number): Promise<string> {
 
   // Devolver la temporal sin cifrar para que el admin se la dé al usuario
   return passwordTemporal;
+}
+
+/**
+ * Elimina un usuario fisicamente (hard delete), permanente e irreversible.
+ * A diferencia de editarUsuario (desactivar), esta accion funciona aunque el
+ * usuario tenga actividad registrada: antes de borrarlo, su nombre_completo se
+ * denormaliza en las tablas que lo referenciaban (incidencias atendidas, log de
+ * mantenimiento y log de eliminaciones permanentes) para preservar la auditoria
+ * historica, y esos id_usuario quedan en NULL.
+ */
+export async function eliminarUsuarioPermanentemente(
+  idUsuario: number,
+  idUsuarioSolicitante: number,
+): Promise<void> {
+  // Regla: nadie puede eliminar su propia cuenta
+  if (idUsuario === idUsuarioSolicitante) {
+    throw new ErrorUsuarios(
+      'NO_ELIMINAR_PROPIA_CUENTA',
+      'No puedes eliminar tu propia cuenta',
+    );
+  }
+
+  const objetivo = await buscarPorId(idUsuario);
+  if (!objetivo) {
+    throw new ErrorUsuarios('NO_ENCONTRADO', 'El usuario no existe');
+  }
+
+  // Regla: el sistema siempre debe conservar al menos un administrador activo
+  const esAdminActivo = objetivo.tipo_rol === 'ADMINISTRADOR' && objetivo.activo === true;
+  if (esAdminActivo) {
+    const adminsActivos = await contarAdministradoresActivos();
+    if (adminsActivos <= 1) {
+      throw new ErrorUsuarios(
+        'ULTIMO_ADMINISTRADOR',
+        'No se puede eliminar al ultimo administrador activo del sistema',
+      );
+    }
+  }
+
+  await ejecutarEnTransaccion(async (cliente) => {
+    await denormalizarUsuarioAtendio(idUsuario, objetivo.nombre_completo, cliente);
+    await denormalizarUsuarioMantenimiento(idUsuario, objetivo.nombre_completo, cliente);
+    await denormalizarUsuarioEliminaciones(idUsuario, objetivo.nombre_completo, cliente);
+    await eliminarUsuarioFisico(idUsuario, cliente);
+  });
+
+  console.log(
+    `[USUARIOS] Usuario '${objetivo.usuario}' eliminado permanentemente por admin ${idUsuarioSolicitante}. Historial preservado con nombre denormalizado.`,
+  );
 }

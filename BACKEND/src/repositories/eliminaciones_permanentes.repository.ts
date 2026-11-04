@@ -34,3 +34,22 @@ export async function registrarEliminacion(
     ],
   );
 }
+
+// Copia el nombre del usuario a nombre_usuario y libera la FK (la deja en NULL)
+// en todas sus entradas de este log. Se usa al eliminar permanentemente un
+// usuario, para preservar su nombre en la auditoria. Devuelve filas afectadas.
+export async function denormalizarUsuario(
+  idUsuario: number,
+  nombreCompleto: string,
+  cliente?: PoolClient,
+): Promise<number> {
+  const resultado = await consultarCon(
+    cliente,
+    `UPDATE eliminaciones_permanentes
+        SET nombre_usuario = $1,
+            id_usuario = NULL
+      WHERE id_usuario = $2`,
+    [nombreCompleto, idUsuario],
+  );
+  return resultado.rowCount ?? 0;
+}

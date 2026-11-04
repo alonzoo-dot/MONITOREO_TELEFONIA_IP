@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Layout from '../components/Layout';
 import DrawerUsuario from '../components/DrawerUsuario';
 import ModalPasswordTemporal from '../components/ModalPasswordTemporal';
+import ModalEliminarUsuario from '../components/ModalEliminarUsuario';
 import { listarUsuarios, resetearPassword, editarUsuario } from '../services/usuarios.service';
 import { ErrorApi } from '../services/api';
 import { obtenerUsuario } from '../services/sesion';
@@ -44,6 +45,7 @@ function Usuarios() {
   // Estado del drawer: undefined = cerrado, null = alta, objeto = edicion
   const [drawer, setDrawer] = useState<Usuario | null | undefined>(undefined);
   const [modalPassword, setModalPassword] = useState<EstadoModalPassword>(MODAL_PASSWORD_CERRADO);
+  const [aEliminar, setAEliminar] = useState<Usuario | null>(null);
 
   const sesion = obtenerUsuario();
   const miId = sesion?.id_usuario ?? null;
@@ -323,6 +325,17 @@ function Usuarios() {
                             )}
                           </button>
                         )}
+                        <button
+                          className={`${estilos.ib} ${estilos.ibDanger}`}
+                          title={esYo ? 'No puedes eliminar tu propia cuenta' : 'Eliminar permanentemente'}
+                          disabled={esYo}
+                          onClick={() => setAEliminar(u)}
+                        >
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6h16z" />
+                            <path d="M10 11v6M14 11v6" />
+                          </svg>
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -345,6 +358,17 @@ function Usuarios() {
         passwordTemporal={modalPassword.passwordTemporal}
         titulo={modalPassword.titulo}
         onCerrar={() => setModalPassword(MODAL_PASSWORD_CERRADO)}
+      />
+
+      <ModalEliminarUsuario
+        abierto={aEliminar !== null}
+        idUsuario={aEliminar?.id_usuario ?? 0}
+        nombreUsuario={aEliminar?.usuario ?? ''}
+        onCancelar={() => setAEliminar(null)}
+        onEliminado={() => {
+          setUsuarios((prev) => prev.filter((u) => u.id_usuario !== aEliminar?.id_usuario));
+          setAEliminar(null);
+        }}
       />
     </Layout>
   );

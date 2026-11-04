@@ -9,6 +9,7 @@ export interface Incidencia {
   mac: string | null;
   ip_registrada: string | null;
   id_usuario_atendio: number | null;
+  nombre_usuario_atendio: string | null;
   usuario_atendio: string | null;
   fecha_atendida: string | null;
   descripcion_falla: string | null;
