@@ -151,7 +151,9 @@ function construirFiltro(filtros: FiltrosIncidencias): {
   if (filtros.busqueda !== undefined && filtros.busqueda.trim() !== '') {
     parametros.push(`%${filtros.busqueda.trim()}%`);
     const indice = parametros.length;
-    condiciones.push(`(u.nombre ILIKE $${indice} OR COALESCE(a.mac, t.mac) ILIKE $${indice})`);
+    condiciones.push(
+      `(u.nombre ILIKE $${indice} OR COALESCE(a.mac, t.mac)::text ILIKE $${indice})`,
+    );
   }
   if (filtros.soloPendientes) {
     condiciones.push(
