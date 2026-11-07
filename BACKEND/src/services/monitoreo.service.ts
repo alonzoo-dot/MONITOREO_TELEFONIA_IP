@@ -1,5 +1,4 @@
 import { ejecutarEnTransaccion } from '../config/database';
-import { configuracion } from '../config/env';
 import * as monitoreoRepo from '../repositories/monitoreo.repository';
 import type { EstadoMonitoreo } from '../repositories/monitoreo.repository';
 import * as incidenciasRepo from '../repositories/incidencias.repository';
@@ -90,16 +89,10 @@ async function manejarCambioEstado(payload: PayloadCambioEstado): Promise<void> 
 
       const tipoEvento = determinarTipoEvento(estado_anterior, estado_nuevo);
       if (tipoEvento === 'RECUPERACION') {
-        // Si hay una caida abierta: corte corto = ruido (se borra y no se registra nada),
-        // corte largo = se resuelve automaticamente la caida y se registra la recuperacion.
+        // Si hay una caida abierta se resuelve automaticamente, sin importar cuanto duro,
+        // y se registra la recuperacion.
         const caidaAbierta = await incidenciasRepo.buscarUltimaCaidaAbierta(id_telefono, cliente);
         if (caidaAbierta) {
-          const minutosCaida =
-            (Date.now() - new Date(caidaAbierta.fecha_ocurrido).getTime()) / 60_000;
-          if (minutosCaida < configuracion.minutosRuidoIncidencia) {
-            await incidenciasRepo.eliminarIncidencia(caidaAbierta.id_incidencia, cliente);
-            return;
-          }
           await incidenciasRepo.resolverCaidaAutomatica(caidaAbierta.id_incidencia, cliente);
         }
       }

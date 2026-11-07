@@ -308,20 +308,6 @@ export async function resolverCaidaAutomatica(
   return resultado.rowCount ?? 0;
 }
 
-// Elimina una incidencia por su id. La usa la supresion de cortes cortos (ruido).
-// Devuelve la cantidad de filas borradas.
-export async function eliminarIncidencia(
-  idIncidencia: number,
-  cliente?: PoolClient,
-): Promise<number> {
-  const resultado = await consultarCon(
-    cliente,
-    `DELETE FROM incidencias WHERE id_incidencia = $1`,
-    [idIncidencia],
-  );
-  return resultado.rowCount ?? 0;
-}
-
 // Copia el nombre del usuario a nombre_usuario_atendio y libera la FK (la deja en
 // NULL) en todas las incidencias que atendio. Se usa al eliminar permanentemente
 // un usuario, para preservar su nombre en el historial. Devuelve filas afectadas.

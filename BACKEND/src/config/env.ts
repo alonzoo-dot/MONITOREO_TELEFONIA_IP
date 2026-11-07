@@ -60,7 +60,5 @@ export const configuracion = {
     .filter((prefijo) => prefijo.length > 0),
   /** Minutos entre re-barridos periodicos de ARP; 0 desactiva el re-barrido. */
   rebarridoMinutos: enteroNoNegativo('MOTOR_REBARRIDO_MINUTOS', 10),
-  /** Cortes mas cortos que estos minutos son ruido: se borra la caida y no se registra la recuperacion. */
-  minutosRuidoIncidencia: enteroNoNegativo('INCIDENCIAS_MINUTOS_RUIDO', 10),
 } as const;
 

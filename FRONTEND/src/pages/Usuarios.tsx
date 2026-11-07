@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import Layout from '../components/Layout';
+import { useMonitoreoSSE } from '../hooks/useMonitoreoSSE';
 import DrawerUsuario from '../components/DrawerUsuario';
 import ModalPasswordTemporal from '../components/ModalPasswordTemporal';
 import ModalEliminarUsuario from '../components/ModalEliminarUsuario';
@@ -33,6 +34,9 @@ const MODAL_PASSWORD_CERRADO: EstadoModalPassword = {
 };
 
 function Usuarios() {
+  // Sin eventos propios: mantiene al dia el contador de pendientes del menu.
+  useMonitoreoSSE();
+
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');

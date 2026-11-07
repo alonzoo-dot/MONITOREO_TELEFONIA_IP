@@ -2,14 +2,16 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { URL_BASE } from '../services/api';
 import { obtenerToken, cerrarSesion } from '../services/sesion';
+import { sincronizarPendientes } from '../store/pendientes';
 import type { EventoMonitoreo, EstadoConexionSSE } from '../types/monitoreo';
 
 const VENTANA_ERRORES_MS = 30000;
 const MAX_ERRORES = 3;
 
 /** Abre y mantiene la conexión SSE a /monitoreo/eventos, notificando cada evento vía `onEvento`.
+ *  Sincroniza además el contador de pendientes del menú con cada evento que puede cambiarlo.
  *  Si detecta 3 errores en menos de 30s (indicio de sesión expirada), cierra sesión y redirige al login. */
-export function useMonitoreoSSE(onEvento: (evento: EventoMonitoreo) => void): {
+export function useMonitoreoSSE(onEvento: (evento: EventoMonitoreo) => void = () => {}): {
   estadoConexion: EstadoConexionSSE;
 } {
   const [estadoConexion, setEstadoConexion] = useState<EstadoConexionSSE>('conectando');
@@ -30,6 +32,7 @@ export function useMonitoreoSSE(onEvento: (evento: EventoMonitoreo) => void): {
 
     fuente.addEventListener('cambio-estado', (evento) => {
       const payload = JSON.parse((evento as MessageEvent).data);
+      sincronizarPendientes();
       onEventoRef.current({ tipo: 'cambio-estado', payload });
     });
 
@@ -50,6 +53,7 @@ export function useMonitoreoSSE(onEvento: (evento: EventoMonitoreo) => void): {
 
     fuente.addEventListener('incidencias-cerradas-batch', (evento) => {
       const payload = JSON.parse((evento as MessageEvent).data);
+      sincronizarPendientes();
       onEventoRef.current({ tipo: 'incidencias-cerradas-batch', payload });
     });
 

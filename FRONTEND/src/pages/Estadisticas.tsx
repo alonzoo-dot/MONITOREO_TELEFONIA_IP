@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import Layout from '../components/Layout';
+import { useMonitoreoSSE } from '../hooks/useMonitoreoSSE';
 import {
   obtenerFotoActual,
   obtenerResumen,
@@ -53,6 +54,9 @@ function calcularRangoInicial(): { desde: string; hasta: string } {
 }
 
 function Estadisticas() {
+  // Sin eventos propios: mantiene al dia el contador de pendientes del menu.
+  useMonitoreoSSE();
+
   const rangoInicial = calcularRangoInicial();
   const [desde, setDesde] = useState(rangoInicial.desde);
   const [hasta, setHasta] = useState(rangoInicial.hasta);

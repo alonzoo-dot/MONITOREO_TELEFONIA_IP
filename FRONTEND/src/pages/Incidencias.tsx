@@ -14,6 +14,9 @@ const TAMANO_PAGINA = 50;
 /** Duracion del toast de auto-cierre por antiguedad. */
 const DURACION_TOAST_AUTO_CIERRE_MS = 4000;
 
+/** Espera tras el ultimo evento SSE antes de refrescar la lista. */
+const ESPERA_REFRESCO_MS = 500;
+
 type RangoRapido = 'hoy' | 'semana' | 'mes' | 'todo';
 
 // Devuelve la fecha en formato YYYY-MM-DD para usar en un input date.
@@ -94,12 +97,8 @@ function Incidencias() {
   // Texto de busqueda con retardo para no pedir en cada tecla.
   const [busquedaDebounce, setBusquedaDebounce] = useState('');
   const primerRender = useRef(true);
-
-  // Espejo de soloPendientes para consultarlo desde el manejador de eventos SSE sin generar renders extra.
-  const soloPendientesRef = useRef(soloPendientes);
-  useEffect(() => {
-    soloPendientesRef.current = soloPendientes;
-  }, [soloPendientes]);
+  const ultimaCarga = useRef(0);
+  const temporizadorRefresco = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const id = setTimeout(() => setBusquedaDebounce(busqueda), 400);
@@ -112,9 +111,14 @@ function Incidencias() {
     setPagina(1);
   }, [desde, hasta, tipo, piso, busquedaDebounce, soloPendientes]);
 
-  const cargar = useCallback(async () => {
-    setCargando(true);
-    setError(false);
+  // En modo silencioso (refresco por SSE) la tabla no parpadea y un fallo no la reemplaza.
+  const cargar = useCallback(async (silencioso = false) => {
+    if (!silencioso) {
+      setCargando(true);
+      setError(false);
+    }
+    ultimaCarga.current += 1;
+    const carga = ultimaCarga.current;
     const filtros: FiltrosIncidencias = {
       desde: inicioDelDiaISO(desde),
       hasta: finDelDiaISO(hasta),
@@ -127,10 +131,11 @@ function Incidencias() {
     };
     try {
       const respuesta = await listarIncidencias(filtros);
+      if (carga !== ultimaCarga.current) return;
       setIncidencias(respuesta.incidencias);
       setTotal(respuesta.total);
     } catch {
-      setError(true);
+      if (!silencioso) setError(true);
     } finally {
       setCargando(false);
     }
@@ -141,30 +146,41 @@ function Incidencias() {
     cargar();
   }, [cargar]);
 
-  const manejarEvento = useCallback((evento: EventoMonitoreo) => {
-    if (evento.tipo !== 'incidencias-cerradas-batch') return;
-    const { ids, fecha } = evento.payload;
-    const idsCerrados = new Set(ids);
+  // El refresco siempre usa los filtros vigentes, aunque cambien durante la espera.
+  const cargarRef = useRef(cargar);
+  cargarRef.current = cargar;
 
-    if (soloPendientesRef.current) {
-      setIncidencias((prev) => prev.filter((i) => !idsCerrados.has(i.id_incidencia)));
-    } else {
-      setIncidencias((prev) =>
-        prev.map((i) =>
-          idsCerrados.has(i.id_incidencia)
-            ? { ...i, pendiente: false, fecha_atendida: fecha }
-            : i,
-        ),
-      );
-    }
-
-    mostrarToast({
-      tipo: 'info',
-      titulo: 'Cierre automatico',
-      mensaje: `${ids.length} incidencia${ids.length === 1 ? '' : 's'} cerrada${ids.length === 1 ? '' : 's'} automaticamente por antiguedad`,
-      autoCloseMs: DURACION_TOAST_AUTO_CIERRE_MS,
-    });
+  // Agrupa las rafagas de eventos SSE en un solo refresco de la lista.
+  const programarRefresco = useCallback(() => {
+    if (temporizadorRefresco.current !== null) clearTimeout(temporizadorRefresco.current);
+    temporizadorRefresco.current = setTimeout(() => {
+      temporizadorRefresco.current = null;
+      cargarRef.current(true);
+    }, ESPERA_REFRESCO_MS);
   }, []);
+
+  useEffect(
+    () => () => {
+      if (temporizadorRefresco.current !== null) clearTimeout(temporizadorRefresco.current);
+    },
+    [],
+  );
+
+  const manejarEvento = useCallback((evento: EventoMonitoreo) => {
+    if (evento.tipo === 'cambio-estado') {
+      const { estado_nuevo } = evento.payload;
+      if (estado_nuevo === 'ONLINE' || estado_nuevo === 'EN_MANTENIMIENTO') programarRefresco();
+    } else if (evento.tipo === 'incidencias-cerradas-batch') {
+      const { ids } = evento.payload;
+      programarRefresco();
+      mostrarToast({
+        tipo: 'info',
+        titulo: 'Cierre automatico',
+        mensaje: `${ids.length} incidencia${ids.length === 1 ? '' : 's'} cerrada${ids.length === 1 ? '' : 's'} automaticamente por antiguedad`,
+        autoCloseMs: DURACION_TOAST_AUTO_CIERRE_MS,
+      });
+    }
+  }, [programarRefresco]);
 
   useMonitoreoSSE(manejarEvento);
 
@@ -296,7 +312,7 @@ function Incidencias() {
         ) : error ? (
           <div className={estilos.aviso}>
             No se pudieron cargar las incidencias.
-            <button className={estilos.btnReintentar} onClick={cargar}>Reintentar</button>
+            <button className={estilos.btnReintentar} onClick={() => cargar()}>Reintentar</button>
           </div>
         ) : incidencias.length === 0 ? (
           <div className={estilos.aviso}>

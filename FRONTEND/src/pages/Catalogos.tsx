@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import Layout from '../components/Layout';
+import { useMonitoreoSSE } from '../hooks/useMonitoreoSSE';
 import DrawerCatalogo from '../components/DrawerCatalogo';
 import {
   listarModelosTelefono,
@@ -25,6 +26,9 @@ export interface EdicionCatalogo {
 }
 
 function Catalogos() {
+  // Sin eventos propios: mantiene al dia el contador de pendientes del menu.
+  useMonitoreoSSE();
+
   // Solo el ADMINISTRADOR ve los controles de escritura. El TECNICO consulta en solo lectura.
   const puedeEscribir = esAdministrador();
   const [pestana, setPestana] = useState<Pestana>('telefono');
